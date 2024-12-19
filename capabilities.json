@@ -1,0 +1,144 @@
+{
+  "dataRoles": [
+    
+    {
+      "name": "Latitude",
+      "kind": "Grouping",
+      "displayName": "Latitude",
+      "description": "Latitude or Y geographic point dimension"
+    },
+    {
+      "name": "Longitude",
+      "kind": "Grouping",
+      "displayName": "Longitude",
+      "description": "Longitude or X geographic point dimension"
+    },
+    {
+      "name": "Tooltips",
+      "kind": "Measure",
+      "displayName": "Tooltips",
+      "description": "Values to display in tooltips"
+    }
+  ],
+  "dataViewMappings": [
+    {
+      "categorical": {
+        "categories": {
+          "dataReductionAlgorithm": {
+            "sample": {
+              "count": 30000
+            }
+          },
+          "select": [
+            {
+              "for": {
+                "in": "Latitude"
+              }
+            },
+            {
+              "for": {
+                "in": "Longitude"
+              }
+            }
+          ]
+        },
+        "values": {
+          "select": [
+            {
+              "for": {
+                "in": "Tooltips"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "objects": {
+    "tooltip": {
+      "displayName": "Tooltip",
+      "properties": {
+        "type": {
+          "type": {
+            "enumeration": [
+              { "value": "default", "displayName": "Default Tooltip" },
+              { "value": "canvas", "displayName": "Canvas Tooltip" },
+              { "value": "reportPage", "displayName": "Report Page Tooltip" }
+            ]
+          }
+        }
+      }
+    },
+    "dataCard": {
+      "properties": {
+        "displayUnitsProperty": {
+          "type": {
+            "formatting": {
+              "labelDisplayUnits": true
+            }
+          }
+        },
+        "fontSize": {
+          "type": {
+            "formatting": {
+              "fontSize": true
+            }
+          }
+        },
+        "fontFamily": {
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          }
+        },
+        "fontBold": {
+          "type": {
+            "bool": true
+          }
+        },
+        "fontUnderline": {
+          "type": {
+            "bool": true
+          }
+        },
+        "fontItalic": {
+          "type": {
+            "bool": true
+          }
+        },
+        "fontColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "lineAlignment": {
+          "type": {
+            "formatting": {
+              "alignment": true
+            }
+          }
+        }
+      }
+    }
+  },
+  "suppressDefaultTitle": true,
+  "privileges": [
+    {
+      "name": "WebAccess",
+      "essential": true,
+      "parameters": [
+        "https://*.opentopomap.org",
+        "https://*.openstreetmap.org",
+        "https://*.arcgisonline.com",
+        "https://*.google.com",
+        "https://*.mapbox.com",
+        "https://*.stadiamaps.com"
+      ]
+    }
+  ]
+}
