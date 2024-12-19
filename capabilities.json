@@ -1,6 +1,5 @@
 {
   "dataRoles": [
-    
     {
       "name": "Latitude",
       "kind": "Grouping",
@@ -55,59 +54,43 @@
     }
   ],
   "objects": {
+
     "tooltip": {
       "displayName": "Tooltip",
       "properties": {
         "type": {
           "type": {
             "enumeration": [
-              { "value": "default", "displayName": "Default Tooltip" },
-              { "value": "canvas", "displayName": "Canvas Tooltip" },
-              { "value": "reportPage", "displayName": "Report Page Tooltip" }
+              {
+                "value": "default",
+                "displayName": "Default Tooltip"
+              },
+              {
+                "value": "canvas",
+                "displayName": "Canvas Tooltip"
+              },
+              {
+                "value": "reportPage",
+                "displayName": "Report Page Tooltip"
+              }
             ]
           }
         }
       }
     },
-    "dataCard": {
+    "openLayersVisualCardSettings": {
+      "displayName": "OpenLayers",
       "properties": {
-        "displayUnitsProperty": {
+        "selectedBasemap": {
           "type": {
-            "formatting": {
-              "labelDisplayUnits": true
-            }
+            "enumeration": [
+              { "value": "openstreetmap", "displayName": "OpenStreetMap" },
+              { "value": "mapbox", "displayName": "Mapbox" },
+              { "value": "esri", "displayName": "Esri World Imagery" }
+            ]
           }
         },
-        "fontSize": {
-          "type": {
-            "formatting": {
-              "fontSize": true
-            }
-          }
-        },
-        "fontFamily": {
-          "type": {
-            "formatting": {
-              "fontFamily": true
-            }
-          }
-        },
-        "fontBold": {
-          "type": {
-            "bool": true
-          }
-        },
-        "fontUnderline": {
-          "type": {
-            "bool": true
-          }
-        },
-        "fontItalic": {
-          "type": {
-            "bool": true
-          }
-        },
-        "fontColor": {
+        "markerColor": {
           "type": {
             "fill": {
               "solid": {
@@ -116,11 +99,23 @@
             }
           }
         },
-        "lineAlignment": {
+        "markerSize": {
           "type": {
-            "formatting": {
-              "alignment": true
+            "numeric": true
+          }
+        },
+        "strokeColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
             }
+          }
+        },
+        "strokeWidth": {
+          "type": {
+            "numeric": true
           }
         }
       }

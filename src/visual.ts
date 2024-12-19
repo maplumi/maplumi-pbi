@@ -64,7 +64,8 @@ export class Visual implements IVisual {
     private map: Map;
     private vectorSource: VectorSource;
     private container: HTMLElement;
-    private defaultbasemap: TileLayer;
+    private basemapLayer: TileLayer;
+    private markerStyle: Style;
 
     private tooltip: Overlay;
 
@@ -72,7 +73,7 @@ export class Visual implements IVisual {
         this.formattingSettingsService = new FormattingSettingsService();
 
         // Initialize the settings model
-        this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model
+        this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model        
 
         this.container = options.element;
 
@@ -80,37 +81,25 @@ export class Visual implements IVisual {
         this.container.style.width = "100%";
         this.container.style.height = "100%";
 
-        // Get the custom basemap URL from the settings
-        const settings = this.visualFormattingSettingsModel.dataPointCard;
-        const basemapUrl = settings.basemapUrl.value || "https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png";  // Default to OSM if no URL provided
-
-        /*  this.defaultbasemap = new TileLayer({
-             source: new XYZ({
-                 url: "https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=YOUR_ACCESS_TOKEN",
-                 attributions: '© <a href="https://www.mapbox.com/">Mapbox</a>',
-             }),
-         }); */
-
-        // Inside your constructor
-        const basemapUrl2 = "https://api.mapbox.com/styles/v1/ocha-rosea-1/cm2lidma900jq01r27rkxflo6/wmts?access_token=pk.eyJ1Ijoib2NoYS1yb3NlYS0xIiwiYSI6ImNtMWhmYndqZDBnbmYyanM1dG41djh5eDkifQ.HT2WOi-53Jm88DA8rJySSA";
+        this.markerStyle = new Style({
+            image: new Circle({
+                radius: 6,  // Set the size of the circle
+                fill: new Fill({
+                    color: '#009edb',  // Set the color of the circle
+                }),
+                stroke: new Stroke({
+                    color: 'ffffff',
+                    width: 1,
+                }),
+            }),
+        });
 
         // Initialize the vector source and layer
         this.vectorSource = new VectorSource();
         const vectorLayer = new VectorLayer({
             source: this.vectorSource,
 
-            style: new Style({
-                image: new Circle({
-                    radius: 5,  // Set the size of the circle
-                    fill: new Fill({
-                        color: 'red',  // Set the color of the circle
-                    }),
-                    stroke: new Stroke({
-                        color: 'black',
-                        width: 1,
-                    }),
-                }),
-            })
+            style: this.markerStyle,
 
         });
 
@@ -118,10 +107,8 @@ export class Visual implements IVisual {
         this.map = new Map({
             target: this.container,
             layers: [
-                new TileLayer({
-                    source: new OSM({
-                        url: basemapUrl,
-                    }),
+                this.basemapLayer = new TileLayer({
+                    source: new OSM(), // Default basemap source
                 }),
                 vectorLayer, // Add the vector layer
             ],
@@ -139,13 +126,13 @@ export class Visual implements IVisual {
             stopEvent: false // Important: allow map interactions
         });
         this.map.addOverlay(this.tooltip);
-    
+
         this.map.on('pointermove', (evt) => {
             const pixel = evt.pixel;
             const hit = this.map.forEachFeatureAtPixel(pixel, (feature) => {
                 return feature;
             });
-    
+
             if (hit) {
                 const tooltipData = hit.get('tooltip');
                 if (tooltipData) {
@@ -163,6 +150,29 @@ export class Visual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
+
+        // Update the visualFormattingSettingsModel based on user changes in the formatting pane
+        this.visualFormattingSettingsModel = this.formattingSettingsService.populateFormattingSettingsModel(
+            OpenLayersVisualFormattingSettingsModel,
+            options.dataViews[0]
+        );
+
+        let formattingModel = this.getFormattingModel();
+
+        // Retrieve user settings
+        const settings = this.visualFormattingSettingsModel.OpenLayersVisualCard;
+
+        // Basemap settings
+        const selectedBasemap = settings.selectedBasemap.value.value.toString();
+
+        // Marker styling
+        const markerSize = settings.markerSize.value;
+        const markerColor = settings.markerColor.value.value;
+
+        // Stroke settings
+        const strokeColor = settings.strokeColor.value.value;
+        const strokeWidth = settings.strokeWidth.value;
+
         const dataView = options.dataViews[0];
         console.log("Full DataView:", JSON.stringify(dataView, null, 2));
 
@@ -227,11 +237,12 @@ export class Visual implements IVisual {
                     tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
                 });
 
+                // ... when creating your point features ...
                 point.setStyle(new Style({
                     image: new Circle({
-                        radius: 6,
-                        fill: new Fill({ color: '#009edb' }),
-                        stroke: new Stroke({ color: 'white', width: 1 }),
+                        radius: markerSize,
+                        fill: new Fill({ color: markerColor }),
+                        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
                     }),
                 }));
 
@@ -239,10 +250,77 @@ export class Visual implements IVisual {
             }
         }
 
+        // Update the map and marker styling
+        this.updateBasemap(selectedBasemap);
+        this.updateMarkers(markerSize, markerColor, strokeColor, strokeWidth);
+
         this.fitMapToFeatures(); // Call the fit function
 
         this.map.updateSize();
     }
+
+    private updateBasemap(selectedBasemap: string): void {
+
+        if (!this.basemapLayer) {
+            console.error("Basemap layer is not initialized.");
+            return;
+        }
+
+        switch (selectedBasemap) {
+            case "openstreetmap":
+                this.basemapLayer.setSource(new OSM());
+                break;
+            case "mapbox":
+                this.basemapLayer.setSource(new XYZ({
+                    url: "https://api.mapbox.com/styles/v1/ocha-rosea-1/cm2lidma900jq01r27rkxflo6/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1Ijoib2NoYS1yb3NlYS0xIiwiYSI6ImNtMWhmYndqZDBnbmYyanM1dG41djh5eDkifQ.HT2WOi-53Jm88DA8rJySSA", // Replace with your Mapbox URL
+                    attributions: '© <a href="https://www.mapbox.com/">Mapbox, OCHA</a>',
+                }));
+                break;
+            case "esri":
+                this.basemapLayer.setSource(new XYZ({
+                    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", // Esri World Imagery URL
+                    attributions: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                }));
+                break;
+            default:
+                this.basemapLayer.setSource(new OSM()); // Fallback to OpenStreetMap
+        }
+
+        console.log(`Basemap updated to: ${selectedBasemap}`);
+    }
+
+    private updateMarkers(
+        size: number,
+        color: string,
+        strokeColor: string,
+        strokeWidth: number
+    ): void {
+        if (!this.map) {
+            console.error("Map is not initialized.");
+            return;
+        }
+    
+        // Assuming markers are represented as vector layers or similar
+        // Apply size, color, and stroke updates to markers here
+        console.log(`Updating markers with size: ${size}, color: ${color}, stroke: ${strokeColor}, strokeWidth: ${strokeWidth}`);
+        
+        // Example logic to apply marker updates:
+        // Update marker styles using the provided parameters.
+        this.markerStyle = new Style({
+            image: new Circle({
+                radius: size,  // Set the size of the circle
+                fill: new Fill({
+                    color: color,  // Set the color of the circle
+                }),
+                stroke: new Stroke({
+                    color: strokeColor,
+                    width: strokeWidth,
+                }),
+            }),
+        });
+    }
+    
+
 
     private clearMap() {
         this.vectorSource.clear();
@@ -257,132 +335,10 @@ export class Visual implements IVisual {
         }
     }
 
+    // In your visual.ts file
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
-        // Building data card, We are going to add two formatting groups "Font Control Group" and "Data Design Group"
-        let dataCard: powerbi.visuals.FormattingCard = {
-            description: "Data Card Description",
-            displayName: "Data Card",
-            uid: "dataCard_uid",
-            groups: []
-        }
-
-        // Building formatting group "Font Control Group"
-        // Notice that "descriptor" objectName and propertyName should match capabilities object and property names
-        let group1_dataFont: powerbi.visuals.FormattingGroup = {
-            displayName: "Font Control Group",
-            uid: "dataCard_fontControl_group_uid",
-            slices: [
-                {
-                    uid: "dataCard_fontControl_displayUnits_uid",
-                    displayName: "display units",
-                    control: {
-                        type: powerbi.visuals.FormattingComponent.Dropdown,
-                        properties: {
-                            descriptor: {
-                                objectName: "dataCard",
-                                propertyName: "displayUnitsProperty"
-                            },
-                            value: 0
-                        }
-                    }
-                },
-                // FontControl slice is composite slice, It means it contain multiple properties inside it
-                {
-                    uid: "data_font_control_slice_uid",
-                    displayName: "Font",
-                    control: {
-                        type: powerbi.visuals.FormattingComponent.FontControl,
-                        properties: {
-                            fontFamily: {
-                                descriptor: {
-                                    objectName: "dataCard",
-                                    propertyName: "fontFamily"
-                                },
-                                value: "wf_standard-font, helvetica, arial, sans-serif"
-                            },
-                            fontSize: {
-                                descriptor: {
-                                    objectName: "dataCard",
-                                    propertyName: "fontSize"
-                                },
-                                value: 16
-                            },
-                            bold: {
-                                descriptor: {
-                                    objectName: "dataCard",
-                                    propertyName: "fontBold"
-                                },
-                                value: false
-                            },
-                            italic: {
-                                descriptor: {
-                                    objectName: "dataCard",
-                                    propertyName: "fontItalic"
-                                },
-                                value: false
-                            },
-                            underline: {
-                                descriptor: {
-                                    objectName: "dataCard",
-                                    propertyName: "fontUnderline"
-                                },
-                                value: false
-                            }
-                        }
-                    }
-                }
-            ],
-        };
-        // Building formatting group "Font Control Group"
-        // Notice that "descriptor" objectName and propertyName should match capabilities object and property names
-        let group2_dataDesign: powerbi.visuals.FormattingGroup = {
-            displayName: "Data Design Group",
-            uid: "dataCard_dataDesign_group_uid",
-            slices: [
-                // Adding ColorPicker simple slice for font color
-                {
-                    displayName: "Font Color",
-                    uid: "dataCard_dataDesign_fontColor_slice",
-                    control: {
-                        type: powerbi.visuals.FormattingComponent.ColorPicker,
-                        properties: {
-                            descriptor:
-                            {
-                                objectName: "dataCard",
-                                propertyName: "fontColor"
-                            },
-                            value: { value: "#01B8AA" }
-                        }
-                    }
-                },
-                // Adding AlignmentGroup simple slice for line alignment
-                {
-                    displayName: "Line Alignment",
-                    uid: "dataCard_dataDesign_lineAlignment_slice",
-                    control: {
-                        type: powerbi.visuals.FormattingComponent.AlignmentGroup,
-                        properties: {
-                            descriptor:
-                            {
-                                objectName: "dataCard",
-                                propertyName: "lineAlignment"
-                            },
-                            mode: powerbi.visuals.AlignmentGroupMode.Horizonal,
-                            value: "right"
-                        }
-                    }
-                },
-            ]
-        };
-
-        // Add formatting groups to data card
-        dataCard.groups.push(group1_dataFont);
-        dataCard.groups.push(group2_dataDesign);
-
-        // Build and return formatting model with data card
-        const formattingModel: powerbi.visuals.FormattingModel = { cards: [dataCard] };
-        return formattingModel;
+        return this.formattingSettingsService.buildFormattingModel(this.visualFormattingSettingsModel);
     }
 
     public destroy(): void {

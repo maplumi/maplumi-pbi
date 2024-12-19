@@ -26,61 +26,75 @@
 
 "use strict";
 
-import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
-import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import powerbiVisualsApi from "powerbi-visuals-api";
+import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
+
+import { formatting } from "powerbi-visuals-utils-formattingutils";
+
+import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
+
 
 import FormattingSettingsCard = formattingSettings.SimpleCard;
 import FormattingSettingsSlice = formattingSettings.Slice;
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
+import DropDown = formattingSettings.ItemDropdown;
 import DataViewObjectsParser = dataViewObjectsParser.DataViewObjectsParser;
 
 /**
- * Data Point Formatting Card
+ * OpenLayers Visual Formatting Card
  */
 class OpenLayersVisualCardSettings extends FormattingSettingsCard {
-    defaultColor = new formattingSettings.ColorPicker({
-        name: "defaultColor",
-        displayName: "Default color",
-        value: { value: "" }
+
+    selectedBasemap: DropDown = new DropDown({
+        name: "selectedBasemap",
+        displayName: "Basemap",
+        value: { 
+            value: "openstreetmap",  // The actual value
+            displayName: "OpenStreetMap" // The display name
+        }, 
+        items: [
+            { value: "openstreetmap", displayName: "OpenStreetMap" },
+            { value: "mapbox", displayName: "Mapbox" },
+            { value: "esri", displayName: "Esri World Imagery" }
+        ]
     });
 
-    showAllDataPoints = new formattingSettings.ToggleSwitch({
-        name: "showAllDataPoints",
-        displayName: "Show all",
-        value: true
+    // Marker styling options
+    markerColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "markerColor",
+        displayName: "Marker Color",
+        value: { value: "#009edb" } // Default color
     });
 
-    fill = new formattingSettings.ColorPicker({
-        name: "fill",
-        displayName: "Fill",
-        value: { value: "" }
+    markerSize: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "markerSize",
+        displayName: "Marker Size",
+        value: 6, // Default size
     });
 
-    fillRule = new formattingSettings.ColorPicker({
-        name: "fillRule",
-        displayName: "Color saturation",
-        value: { value: "" }
+    strokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "strokeColor",
+        displayName: "Stroke Color",
+        value: { value: "#ffffff" } // Default color
     });
 
-    fontSize = new formattingSettings.NumUpDown({
-        name: "fontSize",
-        displayName: "Text Size",
-        value: 12
-    });
-
-    // Updated to include the placeholder
-    basemapUrl = new TextInput({
-        name: "basemapUrl",
-        displayName: "Custom Basemap URL",
-        value: "https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png",  // Default to an empty string or a placeholder URL
-        placeholder: "Enter a custom basemap URL here"  // Add the placeholder property
-    });
+    strokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "strokeWidth",
+        displayName: "Stroke Width",
+        value: 1, // Default size
+    });    
 
     name: string = "openLayersVisualCardSettings";
-    displayName: string = "OpenLayers Visual Settings";
-    slices: Array<FormattingSettingsSlice> = [this.defaultColor, this.showAllDataPoints, this.fill, this.fillRule, this.fontSize, this.basemapUrl];
+    displayName: string = "OpenLayers";
+    slices: Array<formattingSettings.Slice> = [
+        this.selectedBasemap,
+        this.markerColor,
+        this.markerSize,
+        this.strokeColor,
+        this.strokeWidth
+    ];
+
 }
 
 /**
@@ -88,96 +102,16 @@ class OpenLayersVisualCardSettings extends FormattingSettingsCard {
 *
 */
 export class OpenLayersVisualFormattingSettingsModel extends FormattingSettingsModel {
-    // Create formatting settings model formatting cards
-    dataPointCard = new OpenLayersVisualCardSettings();
-
-    cards = [this.dataPointCard];
-}
-
-
-export class MapboxSettings extends DataViewObjectsParser {
-    //public static roleMap: RoleMap;
-    public api: APISettings = new APISettings();
     
-    //public cluster: ClusterSettings = new ClusterSettings();
-    public heatmap: HeatmapSettings = new HeatmapSettings();
-    //public circle: CircleSettings = new CircleSettings();
-    //public choropleth: ChoroplethSettings = new ChoroplethSettings();
+    // Create formatting settings model formatting cards
+    OpenLayersVisualCard = new OpenLayersVisualCardSettings();
 
-    public static enumerateObjectInstances(
-        dataViewObjectParser: DataViewObjectsParser,
-        options: powerbiVisualsApi.EnumerateVisualObjectInstancesOptions): powerbiVisualsApi.VisualObjectInstanceEnumeration {
-
-        let settings: MapboxSettings = <MapboxSettings>dataViewObjectParser;
-        let instanceEnumeration = DataViewObjectsParser.enumerateObjectInstances(dataViewObjectParser, options);
-
-        switch (options.objectName) {
-            case 'api':
-            case 'circle':
-            case 'choropleth':
-            case 'legends': {
-                return settings[options.objectName].enumerateObjectInstances(instanceEnumeration);
-            }
-            default: {
-                return instanceEnumeration;
-            }
-        }
-    }
-}
-
-export class APISettings {
-    public accessToken: string = "";
-    public style: string = "mapbox:\/\/styles\/mapbox\/light-v10?optimize=true";
-    public styleUrl: string = "";
-    public zoom: number = 0;
-    public startLong: number = 0;
-    public startLat: number = 0;
-    public showLayerControl: boolean = false;
-    public autozoom: boolean = true;
-    public mapboxControls: boolean = true;
-    public lasso: boolean = true;
-    public polygon: boolean = true;
-    public apiUrl: string = "https://api.mapbox.com"
-    public labelPosition: string = "above";
-
-    public enumerateObjectInstances(objectEnumeration) {
-        let instances = objectEnumeration.instances;
-        let properties = instances[0].properties;
-
-        if (!properties.mapboxControls) {
-            delete properties.lasso
-            delete properties.polygon
-        }
-        // Hide / show custom map style URL control
-        if (properties.style != 'custom') {
-            properties.styleUrl = "";
-            delete properties.styleUrl
-        } else if (!properties.styleUrl) {
-            properties.styleUrl = "";
-        }
-        // If autozoom is enabled, there is no point in initial zoom and position
-        if (properties.autozoom) {
-            delete properties.zoom
-            delete properties.startLong
-            delete properties.startLat
-        }
-
-        return { instances }
-    }
+    cards = [this.OpenLayersVisualCard];
 }
 
 
-export class HeatmapSettings {
-    public show: boolean = false;
-    public radius: number = 5;
-    public intensity: number = 0.5;
-    public opacity: number = 100;
-    public minColor: string = "#0571b0";
-    public midColor: string = "#f7f7f7";
-    public maxColor: string = "#ca0020";
-    public minZoom: number = 0;
-    public maxZoom: number = 22;
-}
+
+
 
 
 
