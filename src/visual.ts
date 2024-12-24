@@ -274,6 +274,45 @@ export class Visual implements IVisual {
             console.log("Tooltips Found:", tooltips);
         }
 
+        /* Marker/Bubble Map */
+
+        this.markerVectorSource.clear(); // Clear existing features
+
+        if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
+            for (let i = 0; i < longitudes.length; i++) {
+                const lon = longitudes[i];
+                const lat = latitudes[i];
+
+                if (isNaN(lon) || isNaN(lat)) {
+                    console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                    continue;
+                }
+
+                const point = new Feature({
+                    geometry: new Point(fromLonLat([lon, lat])),
+                    tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
+                });
+
+                point.setStyle(new Style({
+                    image: new Circle({
+                        radius: markerSize,
+                        fill: new Fill({ color: markerColor }),
+                        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
+                    }),
+                }));
+
+                this.markerVectorSource.addFeature(point);
+                
+            }
+
+            this.markerVectorLayer = new VectorLayer({
+                source: this.markerVectorSource,
+                style: this.markerStyle
+            })
+
+            this.map.addLayer(this.markerVectorLayer);
+        }
+
         /* Chopleth Map */
         this.choroplethVectorSource.clear();
         console.log("Choropleth Vector Source Initial:", this.choroplethVectorSource);
@@ -320,47 +359,13 @@ export class Visual implements IVisual {
             }
         }
 
-        /* Marker/Bubble Map */
-
-        this.markerVectorSource.clear(); // Clear existing features
-
-        if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
-            for (let i = 0; i < longitudes.length; i++) {
-                const lon = longitudes[i];
-                const lat = latitudes[i];
-
-                if (isNaN(lon) || isNaN(lat)) {
-                    console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                    continue;
-                }
-
-                const point = new Feature({
-                    geometry: new Point(fromLonLat([lon, lat])),
-                    tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
-                });
-
-                point.setStyle(new Style({
-                    image: new Circle({
-                        radius: markerSize,
-                        fill: new Fill({ color: markerColor }),
-                        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
-                    }),
-                }));
-
-                this.markerVectorSource.addFeature(point);
-                
-            }
-
-            this.markerVectorLayer = new VectorLayer({
-                source: this.markerVectorSource,
-                style: this.markerStyle
-            })
-
-            this.map.addLayer(this.markerVectorLayer);
-        }
-
         // Update the map
         this.updateBasemap(selectedBasemap);
+
+        //order layers
+        this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
+        this.markerVectorLayer.setZIndex(2); // Higher zIndex (above)
+
         this.updateChoropleth(selectedColor, selectedStrokeColor, selectedStrokeWidth);
         this.updateMarkers(markerSize, markerColor, strokeColor, strokeWidth);        
 
