@@ -140,11 +140,12 @@ export class Visual implements IVisual {
                 this.basemapLayer = new TileLayer({
                     source: new OSM(), // Default basemap source
                 }),
-               // this.choroplethVectorLayer, this.markerVectorLayer // Add the vector layer
+                // this.choroplethVectorLayer, this.markerVectorLayer // Add the vector layer
             ],
             view: new View({
+                projection: 'EPSG:3857',
                 center: fromLonLat([0, 0]), // Center the map at the origin
-                zoom: 19,
+                zoom: 2,
             }),
         });
 
@@ -195,19 +196,20 @@ export class Visual implements IVisual {
         // Basemap settings
         const selectedBasemap = basemapSettings.selectedBasemap.value.value.toString();
 
-        // Marker styling
+        // Marker/bubble settings
         const markerSize = markerSettings.markerSize.value;
         const markerColor = markerSettings.markerColor.value.value;
+        const markerStrokeColor = markerSettings.strokeColor.value.value;
+        const markerStrokeWidth = markerSettings.strokeWidth.value;
+        const markerLayerOpacity = markerSettings.markerLayerOpacity.value / 100;
 
-        // Stroke settings
-        const strokeColor = markerSettings.strokeColor.value.value;
-        const strokeWidth = markerSettings.strokeWidth.value;
-
+        //choropleth settings
         const selectedCountryISO3Code = choroplethSettings.selectedISO3Code.value;
         const selectedAdminLevel = choroplethSettings.selectedAdminLevel.value.value.toString();
         const selectedColor = choroplethSettings.color.value.value;
         const selectedStrokeColor = choroplethSettings.strokeColor.value.value;
         const selectedStrokeWidth = choroplethSettings.strokeWidth.value;
+        const choroplethLayerOpacity = choroplethSettings.layerOpacity.value / 100;
 
         console.log("Selected Country ISO3 COde:", selectedCountryISO3Code);
         console.log("Selected Admin Level:", selectedAdminLevel);
@@ -275,9 +277,7 @@ export class Visual implements IVisual {
         }
 
         /* Marker/Bubble Map */
-
         this.markerVectorSource.clear(); // Clear existing features
-
         if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
             for (let i = 0; i < longitudes.length; i++) {
                 const lon = longitudes[i];
@@ -297,27 +297,28 @@ export class Visual implements IVisual {
                     image: new Circle({
                         radius: markerSize,
                         fill: new Fill({ color: markerColor }),
-                        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
+                        stroke: new Stroke({ color: markerStrokeColor, width: markerStrokeWidth }),
                     }),
                 }));
 
                 this.markerVectorSource.addFeature(point);
-                
+
             }
 
             this.markerVectorLayer = new VectorLayer({
                 source: this.markerVectorSource,
-                style: this.markerStyle
+                style: this.markerStyle,
+                opacity: markerLayerOpacity
             })
 
             this.map.addLayer(this.markerVectorLayer);
+
+            this.fitMapToFeatures()
         }
 
         /* Chopleth Map */
         this.choroplethVectorSource.clear();
-        console.log("Choropleth Vector Source Initial:", this.choroplethVectorSource);
-
-        if (pcodes) {
+        if (pcodes && selectedAdminLevel.length > 0 && selectedCountryISO3Code.length > 0) {
             // Filter and collect valid PCodes
             const validPCodes = pcodes.filter(pcode => {
                 if (!pcode) {
@@ -335,7 +336,7 @@ export class Visual implements IVisual {
             // Only fetch GeoJSON if not already cached
             if (this.geojsonDataCache) {
                 console.log("Using cached GeoJSON data.");
-                this.processGeoJSONData(this.geojsonDataCache, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth);
+                this.processGeoJSONData(this.geojsonDataCache, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth, choroplethLayerOpacity);
             } else {
                 // Show loading indicator since we're fetching data
                 //this.showLoadingIndicator();
@@ -351,7 +352,7 @@ export class Visual implements IVisual {
                         this.geojsonDataCache = geojsonData;
 
                         // Process the fetched GeoJSON data
-                        this.processGeoJSONData(geojsonData, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth);
+                        this.processGeoJSONData(geojsonData, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth, choroplethLayerOpacity);
                     })
                     .catch(error => {
                         console.error("Error fetching GeoJSON data:", error);
@@ -367,9 +368,9 @@ export class Visual implements IVisual {
         this.markerVectorLayer.setZIndex(2); // Higher zIndex (above)
 
         this.updateChoropleth(selectedColor, selectedStrokeColor, selectedStrokeWidth);
-        this.updateMarkers(markerSize, markerColor, strokeColor, strokeWidth);        
+        this.updateMarkers(markerSize, markerColor, markerStrokeColor, markerStrokeWidth);
 
-        this.fitMapToFeatures(); // Call the fit function
+        //this.fitMapToFeatures(); // Call the fit function
 
         this.map.updateSize();
     }
@@ -385,7 +386,7 @@ export class Visual implements IVisual {
     }
 
     // Function to process the GeoJSON data
-    private processGeoJSONData(geojsonData: any, validPCodes: string[], selectedAdminLevel: string, tooltips: any[], selectedColor, selectedStrokeColor, selectedStrokeWidth): void {
+    private processGeoJSONData(geojsonData: any, validPCodes: string[], selectedAdminLevel: string, tooltips: any[], selectedColor, selectedStrokeColor, selectedStrokeWidth, layerOpacity): void {
         // Create a vector source from the fetched GeoJSON data
         console.log("GeoJSON data retrieved:", geojsonData);
 
@@ -397,7 +398,7 @@ export class Visual implements IVisual {
             return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
         });
 
-        console.log("GeoJSON data filoterer:", filteredFeatures);
+        console.log("GeoJSON data filtered:", filteredFeatures);
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
@@ -411,7 +412,7 @@ export class Visual implements IVisual {
             })
         });
 
-        this.choroplethStyle = new Style({  
+        this.choroplethStyle = new Style({
 
             stroke: new Stroke({
                 color: selectedStrokeColor,
@@ -425,8 +426,8 @@ export class Visual implements IVisual {
         // Create a vector layer using the vector source
         this.choroplethVectorLayer = new VectorLayer({
             source: this.choroplethVectorSource,
-            style:  (feature) => { //using arrow function to bind this
-                // Check if the feature's ADM2_PCODE (or equivalent) matches any valid PCode
+            style: (feature) => { //using arrow function to bind this
+                // Check if the feature's ADMx_PCODE (or equivalent) matches any valid PCode
                 const featurePCode = feature.get(pcodeKey);
                 if (validPCodes.includes(featurePCode)) {
                     return this.choroplethStyle;
@@ -434,12 +435,15 @@ export class Visual implements IVisual {
                     // Return null to skip rendering this feature
                     return null;
                 }
-            }
+            },
+            opacity: layerOpacity
         });
 
         this.map.addLayer(this.choroplethVectorLayer);
 
         // Fit map view to the extent of the loaded GeoJSON data
+        this.fitMapToFeatures()
+        
         // const extent = this.choroplethVectorSource.getExtent();
         // console.log("Extent:", extent);
         // this.map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
@@ -488,7 +492,6 @@ export class Visual implements IVisual {
             console.error("Map is not initialized.");
             return;
         }
-
         // Assuming markers are represented as vector layers or similar
         // Apply size, color, and stroke updates to markers here
         console.log(`Updating markers with size: ${size}, color: ${color}, stroke: ${strokeColor}, strokeWidth: ${strokeWidth}`);
@@ -519,8 +522,6 @@ export class Visual implements IVisual {
             return;
         }
 
-        // Example logic to apply marker updates:
-        // Update marker styles using the provided parameters.
         this.choroplethStyle = new Style({
             fill: new Fill({
                 color: color,  // Set the color of the circle
@@ -528,7 +529,7 @@ export class Visual implements IVisual {
             stroke: new Stroke({
                 color: strokeColor,
                 width: strokeWidth,
-            }),
+            })
         });
 
     }
@@ -554,6 +555,26 @@ export class Visual implements IVisual {
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
         return this.formattingSettingsService.buildFormattingModel(this.visualFormattingSettingsModel);
+    }
+
+    private hexToRgb(hex) {
+        // Remove the '#' if it's present
+        hex = hex.replace('#', '');
+
+        // Parse the hex color and return the RGB values
+        let r = parseInt(hex.substring(0, 2), 16);
+        let g = parseInt(hex.substring(2, 4), 16);
+        let b = parseInt(hex.substring(4, 6), 16);
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    private hexToRgba(hex, opacity) {
+        // Get the RGB representation from the hex color
+        let rgbColor = this.hexToRgb(hex);
+
+        // Convert the rgb() string to rgba() with the opacity value
+        return rgbColor.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
     }
 
     public destroy(): void {

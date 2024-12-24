@@ -141,6 +141,11 @@
           "type": {
             "numeric": true
           }
+        },
+        "markerLayerOpacity": {
+          "type": {
+            "numeric": true
+          }
         }
       }
     },
@@ -188,6 +193,11 @@
           }
         },
         "strokeWidth": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "layerOpacity": {
           "type": {
             "numeric": true
           }

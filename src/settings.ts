@@ -93,7 +93,24 @@ class markerVisualCardSettings extends FormattingSettingsCard {
         name: "strokeWidth",
         displayName: "Stroke Width",
         value: 1, // Default size
-    });    
+    });
+    
+    markerLayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "markerLayerOpacity",
+        displayName: "Layer Opacity",
+        value: 100,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
 
     name: string = "markerVisualCardSettings";
     displayName: string = "Marker";
@@ -101,7 +118,8 @@ class markerVisualCardSettings extends FormattingSettingsCard {
         this.markerColor,
         this.markerSize,
         this.strokeColor,
-        this.strokeWidth
+        this.strokeWidth,
+        this.markerLayerOpacity
     ];
 
 }
@@ -111,16 +129,17 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
     selectedISO3Code: formattingSettings.TextInput = new TextInput({
         name: "selectedISO3Code",
         displayName: "Country iSO3 Code",
-        value: "ZWE", // Default country
+        value: "", // Default country
         placeholder: "Enter ISO3 code" // Placeholder text
     });
 
     selectedAdminLevel: DropDown = new DropDown({
         name: "selectedAdminLevel",
         displayName: "Admin Level",
+        //placeholder: "Select Admin Level",
         value: {
-            value: "2",  // The actual value
-            displayName: "ADM2" // The display name
+            value: "",  // The actual value
+            displayName: "" // The display name
         },
         items: [
             { value: "1", displayName: "ADM1" },
@@ -148,6 +167,23 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
         value: 1, // Default size
     });
 
+    layerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "layerOpacity",
+        displayName: "Layer Opacity",
+        value: 100,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
     name: string = "choroplethVisualCardSettings";
     displayName: string = "Choropleth";
     slices: Array<formattingSettings.Slice> = [
@@ -155,9 +191,9 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
         this.selectedAdminLevel,
         this.color,
         this.strokeColor,
-        this.strokeWidth
+        this.strokeWidth,
+        this.layerOpacity
     ];
-
 }
 
 /**
