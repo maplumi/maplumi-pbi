@@ -40,9 +40,14 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
+import VectorTile from "ol/layer/VectorTile";
 import VectorSource from "ol/source/Vector";
+import VectorTileSource from "ol/source/VectorTile";
+import MVT from "ol/format/MVT";
+import { createXYZ } from "ol/tilegrid";
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
+import Polygon from "ol/geom/Polygon";
 import { fromLonLat } from "ol/proj";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
@@ -53,8 +58,8 @@ import Stroke from "ol/style/Stroke";
 import { WMTS } from "ol/tilegrid";
 import TileGrid from "ol/tilegrid/TileGrid"; // Ensure tile grid is properly imported
 import Overlay from "ol/Overlay"; // Import Overlay class
-
-
+import GeoJSON from "ol/format/GeoJSON";
+import Geometry from "ol/geom/Geometry";
 export class Visual implements IVisual {
     // declaring formatting settings service 
     private formattingSettingsService: FormattingSettingsService;
@@ -62,12 +67,22 @@ export class Visual implements IVisual {
     private visualFormattingSettingsModel: OpenLayersVisualFormattingSettingsModel; // Define the settings model property
 
     private map: Map;
-    private vectorSource: VectorSource;
+    private markerVectorSource: VectorSource;
+    private choroplethVectorSource: VectorSource;
+    private vectorTileSource: VectorTileSource;
+    private vectorTileLayer: VectorTile;
     private container: HTMLElement;
     private basemapLayer: TileLayer;
+    private markerVectorLayer: VectorLayer;
+    private choroplethVectorLayer: VectorLayer;
     private markerStyle: Style;
+    private choroplethStyle: Style;
 
     private tooltip: Overlay;
+
+    // Variables to store cached data and loading state
+    private geojsonDataCache: any = null; // Store the fetched GeoJSON data
+    private isDataLoading: boolean = false; // Flag to check if the data is being loaded
 
     constructor(options: VisualConstructorOptions) {
         this.formattingSettingsService = new FormattingSettingsService();
@@ -94,13 +109,28 @@ export class Visual implements IVisual {
             }),
         });
 
+        this.choroplethStyle = new Style({
+            stroke: new Stroke({
+                color: '#ffffff',
+                width: 1
+            }),
+            fill: new Fill({
+                color: '#009edb'
+            })
+        });
+
         // Initialize the vector source and layer
-        this.vectorSource = new VectorSource();
-        const vectorLayer = new VectorLayer({
-            source: this.vectorSource,
+        this.markerVectorSource = new VectorSource();
+        this.choroplethVectorSource = new VectorSource();
 
-            style: this.markerStyle,
+        this.markerVectorLayer = new VectorLayer({
+            source: this.markerVectorSource,
+            style: this.markerStyle
+        });
 
+        this.choroplethVectorLayer = new VectorLayer({
+            source: this.choroplethVectorSource,
+            style: this.choroplethStyle
         });
 
         // Initialize the map
@@ -110,11 +140,11 @@ export class Visual implements IVisual {
                 this.basemapLayer = new TileLayer({
                     source: new OSM(), // Default basemap source
                 }),
-                vectorLayer, // Add the vector layer
+               // this.choroplethVectorLayer, this.markerVectorLayer // Add the vector layer
             ],
             view: new View({
-                center: fromLonLat([37.9062, -0.0236]), // Default to Kenya
-                zoom: 6,
+                center: fromLonLat([0, 0]), // Center the map at the origin
+                zoom: 19,
             }),
         });
 
@@ -157,21 +187,30 @@ export class Visual implements IVisual {
             options.dataViews[0]
         );
 
-        let formattingModel = this.getFormattingModel();
-
         // Retrieve user settings
-        const settings = this.visualFormattingSettingsModel.OpenLayersVisualCard;
+        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
+        const markerSettings = this.visualFormattingSettingsModel.MarkerVisualCardSettings;
+        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
 
         // Basemap settings
-        const selectedBasemap = settings.selectedBasemap.value.value.toString();
+        const selectedBasemap = basemapSettings.selectedBasemap.value.value.toString();
 
         // Marker styling
-        const markerSize = settings.markerSize.value;
-        const markerColor = settings.markerColor.value.value;
+        const markerSize = markerSettings.markerSize.value;
+        const markerColor = markerSettings.markerColor.value.value;
 
         // Stroke settings
-        const strokeColor = settings.strokeColor.value.value;
-        const strokeWidth = settings.strokeWidth.value;
+        const strokeColor = markerSettings.strokeColor.value.value;
+        const strokeWidth = markerSettings.strokeWidth.value;
+
+        const selectedCountryISO3Code = choroplethSettings.selectedISO3Code.value;
+        const selectedAdminLevel = choroplethSettings.selectedAdminLevel.value.value.toString();
+        const selectedColor = choroplethSettings.color.value.value;
+        const selectedStrokeColor = choroplethSettings.strokeColor.value.value;
+        const selectedStrokeWidth = choroplethSettings.strokeWidth.value;
+
+        console.log("Selected Country ISO3 COde:", selectedCountryISO3Code);
+        console.log("Selected Admin Level:", selectedAdminLevel);
 
         const dataView = options.dataViews[0];
         console.log("Full DataView:", JSON.stringify(dataView, null, 2));
@@ -185,10 +224,11 @@ export class Visual implements IVisual {
         const categorical = dataView.categorical;
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
+        let pcodes: string[] | undefined;
         let tooltips: any[] | undefined; // Store tooltip values
 
         // Find Longitude and Latitude (both in categories)
-        if (categorical.categories && categorical.categories.length === 2) { // Check if both categories are present
+        if (categorical.categories && categorical.categories.length > 0) { // Check if both categories are present
             const lonCategory = categorical.categories.find(c => c.source.roles && c.source.roles['Longitude']);
             const latCategory = categorical.categories.find(c => c.source.roles && c.source.roles['Latitude']);
 
@@ -201,18 +241,32 @@ export class Visual implements IVisual {
                 if (longitudes.length !== latitudes.length) {
                     console.warn("Longitude and Latitude have different lengths.");
                     this.clearMap();
-                    return;
+                    //return;
                 }
             } else {
                 console.warn("Both Longitude and Latitude roles must be assigned.");
                 this.clearMap();
-                return;
+                //return;
             }
         } else {
             console.warn("Both Longitude and Latitude roles must be assigned.");
             this.clearMap();
-            return;
+            //return;
         }
+
+        const adminPCodeCategory = categorical.categories.find(c => c.source.roles && c.source.roles['AdminPCode']);
+
+        // Find PCodes (in categories)
+        if (adminPCodeCategory) {
+            pcodes = adminPCodeCategory.values as string[];
+            console.log("AdminPCode Found:", pcodes);
+
+        } else {
+            console.warn("PCodes not found.");
+            this.clearMap();
+            //return;
+        }
+
 
         // Find Tooltips (in values)
         if (categorical.values && categorical.values.length > 0) {
@@ -220,7 +274,55 @@ export class Visual implements IVisual {
             console.log("Tooltips Found:", tooltips);
         }
 
-        this.vectorSource.clear(); // Clear existing features
+        /* Chopleth Map */
+        this.choroplethVectorSource.clear();
+        console.log("Choropleth Vector Source Initial:", this.choroplethVectorSource);
+
+        if (pcodes) {
+            // Filter and collect valid PCodes
+            const validPCodes = pcodes.filter(pcode => {
+                if (!pcode) {
+                    console.warn(`Skipping invalid PCode: ${pcode}`);
+                    return false;
+                }
+                return true;
+            });
+
+            if (validPCodes.length === 0) {
+                console.warn("No valid PCodes found. Exiting.");
+                return;
+            }
+
+            // Only fetch GeoJSON if not already cached
+            if (this.geojsonDataCache) {
+                console.log("Using cached GeoJSON data.");
+                this.processGeoJSONData(this.geojsonDataCache, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth);
+            } else {
+                // Show loading indicator since we're fetching data
+                //this.showLoadingIndicator();
+
+                // Construct the dynamic GeoJSON API URL
+                const geoJsonUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${selectedCountryISO3Code}_pcode/FeatureServer/${selectedAdminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+
+                // Fetch GeoJSON data from the API
+                fetch(geoJsonUrl)
+                    .then(response => response.json())
+                    .then(geojsonData => {
+                        // Cache the GeoJSON data
+                        this.geojsonDataCache = geojsonData;
+
+                        // Process the fetched GeoJSON data
+                        this.processGeoJSONData(geojsonData, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth);
+                    })
+                    .catch(error => {
+                        console.error("Error fetching GeoJSON data:", error);
+                    });
+            }
+        }
+
+        /* Marker/Bubble Map */
+
+        this.markerVectorSource.clear(); // Clear existing features
 
         if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
             for (let i = 0; i < longitudes.length; i++) {
@@ -237,7 +339,6 @@ export class Visual implements IVisual {
                     tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
                 });
 
-                // ... when creating your point features ...
                 point.setStyle(new Style({
                     image: new Circle({
                         radius: markerSize,
@@ -246,17 +347,100 @@ export class Visual implements IVisual {
                     }),
                 }));
 
-                this.vectorSource.addFeature(point);
+                this.markerVectorSource.addFeature(point);
+                
             }
+
+            this.markerVectorLayer = new VectorLayer({
+                source: this.markerVectorSource,
+                style: this.markerStyle
+            })
+
+            this.map.addLayer(this.markerVectorLayer);
         }
 
-        // Update the map and marker styling
+        // Update the map
         this.updateBasemap(selectedBasemap);
-        this.updateMarkers(markerSize, markerColor, strokeColor, strokeWidth);
+        this.updateChoropleth(selectedColor, selectedStrokeColor, selectedStrokeWidth);
+        this.updateMarkers(markerSize, markerColor, strokeColor, strokeWidth);        
 
         this.fitMapToFeatures(); // Call the fit function
 
         this.map.updateSize();
+    }
+
+    // Show loading indicator
+    private showLoadingIndicator() {
+        document.getElementById('loadingIndicator')!.style.display = 'block'; // Show loading indicator (Assume a div with this ID exists)
+    }
+
+    // Hide loading indicator
+    private hideLoadingIndicator() {
+        document.getElementById('loadingIndicator')!.style.display = 'none'; // Hide loading indicator
+    }
+
+    // Function to process the GeoJSON data
+    private processGeoJSONData(geojsonData: any, validPCodes: string[], selectedAdminLevel: string, tooltips: any[], selectedColor, selectedStrokeColor, selectedStrokeWidth): void {
+        // Create a vector source from the fetched GeoJSON data
+        console.log("GeoJSON data retrieved:", geojsonData);
+
+        let pcodeKey = `ADM${selectedAdminLevel}_PCODE`; // Use the appropriate key based on the admin level
+
+        // Filter features based on some condition, e.g., ADM2_PCODE
+        const filteredFeatures = geojsonData.features.filter(feature => {
+            const featurePCode = feature.properties[pcodeKey]; // Example filter condition
+            return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
+        });
+
+        console.log("GeoJSON data filoterer:", filteredFeatures);
+
+        // Create a vector source with the filtered features
+        this.choroplethVectorSource = new VectorSource({
+            format: new GeoJSON(),
+            features: new GeoJSON().readFeatures({
+                type: "FeatureCollection",
+                features: filteredFeatures // Only use the filtered features
+            }, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857'
+            })
+        });
+
+        this.choroplethStyle = new Style({  
+
+            stroke: new Stroke({
+                color: selectedStrokeColor,
+                width: selectedStrokeWidth
+            }),
+            fill: new Fill({
+                color: selectedColor
+            })
+        });
+
+        // Create a vector layer using the vector source
+        this.choroplethVectorLayer = new VectorLayer({
+            source: this.choroplethVectorSource,
+            style:  (feature) => { //using arrow function to bind this
+                // Check if the feature's ADM2_PCODE (or equivalent) matches any valid PCode
+                const featurePCode = feature.get(pcodeKey);
+                if (validPCodes.includes(featurePCode)) {
+                    return this.choroplethStyle;
+                } else {
+                    // Return null to skip rendering this feature
+                    return null;
+                }
+            }
+        });
+
+        this.map.addLayer(this.choroplethVectorLayer);
+
+        // Fit map view to the extent of the loaded GeoJSON data
+        // const extent = this.choroplethVectorSource.getExtent();
+        // console.log("Extent:", extent);
+        // this.map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
+
+        // Hide the loading indicator once the data is processed and rendered
+        //this.hideLoadingIndicator();
     }
 
     private updateBasemap(selectedBasemap: string): void {
@@ -299,11 +483,11 @@ export class Visual implements IVisual {
             console.error("Map is not initialized.");
             return;
         }
-    
+
         // Assuming markers are represented as vector layers or similar
         // Apply size, color, and stroke updates to markers here
         console.log(`Updating markers with size: ${size}, color: ${color}, stroke: ${strokeColor}, strokeWidth: ${strokeWidth}`);
-        
+
         // Example logic to apply marker updates:
         // Update marker styles using the provided parameters.
         this.markerStyle = new Style({
@@ -319,23 +503,49 @@ export class Visual implements IVisual {
             }),
         });
     }
-    
+
+    private updateChoropleth(
+        color: string,
+        strokeColor: string,
+        strokeWidth: number
+    ): void {
+        if (!this.map) {
+            console.error("Map is not initialized.");
+            return;
+        }
+
+        // Example logic to apply marker updates:
+        // Update marker styles using the provided parameters.
+        this.choroplethStyle = new Style({
+            fill: new Fill({
+                color: color,  // Set the color of the circle
+            }),
+            stroke: new Stroke({
+                color: strokeColor,
+                width: strokeWidth,
+            }),
+        });
+
+    }
 
 
     private clearMap() {
-        this.vectorSource.clear();
+        this.choroplethVectorSource.clear();
+        this.markerVectorSource.clear();
         this.map.updateSize();
     }
 
     private fitMapToFeatures() {
-        if (this.vectorSource.getFeatures().length > 0) {
-            this.map.getView().fit(this.vectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
-        } else {
+        if (this.markerVectorSource.getFeatures().length > 0) {
+            this.map.getView().fit(this.markerVectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
+        }
+        else if (this.choroplethVectorSource.getFeatures().length > 0) {
+            this.map.getView().fit(this.choroplethVectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
+        }
+        else {
             console.warn("No features to fit the view to.");
         }
     }
-
-    // In your visual.ts file
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
         return this.formattingSettingsService.buildFormattingModel(this.visualFormattingSettingsModel);

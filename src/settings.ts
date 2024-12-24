@@ -42,9 +42,9 @@ import DropDown = formattingSettings.ItemDropdown;
 import DataViewObjectsParser = dataViewObjectsParser.DataViewObjectsParser;
 
 /**
- * OpenLayers Visual Formatting Card
+ * OpenLayers Visual Formatting Cards
  */
-class OpenLayersVisualCardSettings extends FormattingSettingsCard {
+class basemapVisualCardSettings extends FormattingSettingsCard {
 
     selectedBasemap: DropDown = new DropDown({
         name: "selectedBasemap",
@@ -58,7 +58,17 @@ class OpenLayersVisualCardSettings extends FormattingSettingsCard {
             { value: "mapbox", displayName: "Mapbox" },
             { value: "esri", displayName: "Esri World Imagery" }
         ]
-    });
+    });    
+
+    name: string = "basemapVisualCardSettings";
+    displayName: string = "Basemap";
+    slices: Array<formattingSettings.Slice> = [
+        this.selectedBasemap       
+    ];
+
+}
+
+class markerVisualCardSettings extends FormattingSettingsCard {
 
     // Marker styling options
     markerColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -85,12 +95,65 @@ class OpenLayersVisualCardSettings extends FormattingSettingsCard {
         value: 1, // Default size
     });    
 
-    name: string = "openLayersVisualCardSettings";
-    displayName: string = "OpenLayers";
+    name: string = "markerVisualCardSettings";
+    displayName: string = "Marker";
     slices: Array<formattingSettings.Slice> = [
-        this.selectedBasemap,
         this.markerColor,
         this.markerSize,
+        this.strokeColor,
+        this.strokeWidth
+    ];
+
+}
+
+class choroplethVisualCardSettings extends FormattingSettingsCard  {
+
+    selectedISO3Code: formattingSettings.TextInput = new TextInput({
+        name: "selectedISO3Code",
+        displayName: "Country iSO3 Code",
+        value: "ZWE", // Default country
+        placeholder: "Enter ISO3 code" // Placeholder text
+    });
+
+    selectedAdminLevel: DropDown = new DropDown({
+        name: "selectedAdminLevel",
+        displayName: "Admin Level",
+        value: {
+            value: "2",  // The actual value
+            displayName: "ADM2" // The display name
+        },
+        items: [
+            { value: "1", displayName: "ADM1" },
+            { value: "2", displayName: "ADM2" },
+            { value: "3", displayName: "ADM3" }
+
+        ]
+    });
+
+    color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "color",
+        displayName: "Color",
+        value: { value: "#009edb" } // Default color
+    });
+
+    strokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "strokeColor",
+        displayName: "Stroke Color",
+        value: { value: "#ffffff" } // Default color
+    });
+
+    strokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "strokeWidth",
+        displayName: "Stroke Width",
+        value: 1, // Default size
+    });
+
+    name: string = "choroplethVisualCardSettings";
+    displayName: string = "Choropleth";
+    slices: Array<formattingSettings.Slice> = [
+        this.selectedISO3Code,
+        this.selectedAdminLevel,
+        this.color,
         this.strokeColor,
         this.strokeWidth
     ];
@@ -104,9 +167,11 @@ class OpenLayersVisualCardSettings extends FormattingSettingsCard {
 export class OpenLayersVisualFormattingSettingsModel extends FormattingSettingsModel {
     
     // Create formatting settings model formatting cards
-    OpenLayersVisualCard = new OpenLayersVisualCardSettings();
+    BasemapVisualCardSettings = new basemapVisualCardSettings();
+    MarkerVisualCardSettings = new markerVisualCardSettings();
+    ChoroplethVisualCardSettings = new choroplethVisualCardSettings();
 
-    cards = [this.OpenLayersVisualCard];
+    cards = [this.BasemapVisualCardSettings,this.MarkerVisualCardSettings, this.ChoroplethVisualCardSettings];
 }
 
 

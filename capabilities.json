@@ -13,6 +13,12 @@
       "description": "Longitude or X geographic point dimension"
     },
     {
+      "name": "AdminPCode",
+      "kind": "Grouping",
+      "displayName": "Admin PCode",
+      "description": "HDX CODs Administrative Boundary ADM1_PCODE or ADM2_PCODE or ADM3_PCODE"
+    },
+    {
       "name": "Tooltips",
       "kind": "Measure",
       "displayName": "Tooltips",
@@ -38,6 +44,11 @@
               "for": {
                 "in": "Longitude"
               }
+            },
+            {
+              "for": {
+                "in": "AdminPCode"
+              }
             }
           ]
         },
@@ -54,7 +65,6 @@
     }
   ],
   "objects": {
-
     "tooltip": {
       "displayName": "Tooltip",
       "properties": {
@@ -78,18 +88,32 @@
         }
       }
     },
-    "openLayersVisualCardSettings": {
-      "displayName": "OpenLayers",
+    "basemapVisualCardSettings": {
+      "displayName": "Basemap",
       "properties": {
         "selectedBasemap": {
           "type": {
             "enumeration": [
-              { "value": "openstreetmap", "displayName": "OpenStreetMap" },
-              { "value": "mapbox", "displayName": "Mapbox" },
-              { "value": "esri", "displayName": "Esri World Imagery" }
+              {
+                "value": "openstreetmap",
+                "displayName": "OpenStreetMap"
+              },
+              {
+                "value": "mapbox",
+                "displayName": "Mapbox"
+              },
+              {
+                "value": "esri",
+                "displayName": "Esri World Imagery"
+              }
             ]
           }
-        },
+        }
+      }
+    },
+    "markerVisualCardSettings": {
+      "displayName": "Marker",
+      "properties": {
         "markerColor": {
           "type": {
             "fill": {
@@ -119,20 +143,69 @@
           }
         }
       }
+    },
+    "choroplethVisualCardSettings": {
+      "properties": {
+        "selectedISO3Code": {
+          "type": {
+            "text": true
+          }
+        },
+        "selectedAdminLevel": {
+          "type": {
+            "enumeration": [
+              {
+                "value": "1",
+                "displayName": "ADM1"
+              },
+              {
+                "value": "2",
+                "displayName": "ADM2"
+              },
+              {
+                "value": "3",
+                "displayName": "ADM3"
+              }
+            ]
+          }
+        },
+        "color": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "strokeColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "strokeWidth": {
+          "type": {
+            "numeric": true
+          }
+        }
+      }
     }
   },
-  "suppressDefaultTitle": true,
+  "suppressDefaultTitle": false,
   "privileges": [
     {
       "name": "WebAccess",
       "essential": true,
       "parameters": [
-        "https://*.opentopomap.org",
         "https://*.openstreetmap.org",
         "https://*.arcgisonline.com",
-        "https://*.google.com",
         "https://*.mapbox.com",
-        "https://*.stadiamaps.com"
+        "https://*.humdata.org",
+        "https://*.itos.uga.edu"
       ]
     }
   ]
