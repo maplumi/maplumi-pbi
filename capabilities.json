@@ -16,7 +16,19 @@
       "name": "AdminPCode",
       "kind": "Grouping",
       "displayName": "Admin PCode",
-      "description": "HDX CODs Administrative Boundary ADM1_PCODE or ADM2_PCODE or ADM3_PCODE"
+      "description": "HDX CODs Administrative Boundary ADM1_PCODEs or ADM2_PCODEs or ADM3_PCODEs for Choropleth Layer"
+    },
+    {
+      "name": "Size",
+      "kind": "Measure",
+      "displayName": "Size",
+      "description": "Numeric data type measure to control circle sizes"
+    },
+    {
+      "name": "Color",
+      "kind": "Measure",
+      "displayName": "Color",
+      "description": "Text or Numeric data type measure to control circle or heatmap colors"
     },
     {
       "name": "Tooltips",
@@ -56,6 +68,16 @@
           "select": [
             {
               "for": {
+                "in": "Size"
+              }
+            },
+            {
+              "for": {
+                "in": "Color"
+              }
+            },
+            {
+              "for": {
                 "in": "Tooltips"
               }
             }
@@ -89,7 +111,6 @@
       }
     },
     "basemapVisualCardSettings": {
-      "displayName": "Basemap",
       "properties": {
         "selectedBasemap": {
           "type": {
@@ -111,10 +132,9 @@
         }
       }
     },
-    "markerVisualCardSettings": {
-      "displayName": "Marker",
+    "proportionalCirclesVisualCardSettings": {
       "properties": {
-        "markerColor": {
+        "proportionalCirclesColor": {
           "type": {
             "fill": {
               "solid": {
@@ -123,12 +143,12 @@
             }
           }
         },
-        "markerSize": {
+        "proportionalCirclesSize": {
           "type": {
             "numeric": true
           }
         },
-        "strokeColor": {
+        "proportionalCirclesStrokeColor": {
           "type": {
             "fill": {
               "solid": {
@@ -137,12 +157,12 @@
             }
           }
         },
-        "strokeWidth": {
+        "proportionalCirclesStrokeWidth": {
           "type": {
             "numeric": true
           }
         },
-        "markerLayerOpacity": {
+        "proportionalCirclesLayerOpacity": {
           "type": {
             "numeric": true
           }
@@ -174,7 +194,31 @@
             ]
           }
         },
+        
         "color": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "numClasses": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "minColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "maxColor": {
           "type": {
             "fill": {
               "solid": {

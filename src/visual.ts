@@ -190,26 +190,30 @@ export class Visual implements IVisual {
 
         // Retrieve user settings
         const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
-        const markerSettings = this.visualFormattingSettingsModel.MarkerVisualCardSettings;
-        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
+        const proportionalCircleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
+        const choroplethDisplaySettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup;
+        const choroplethLocationSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.pcodesAdminLocationSettingsGroup;
 
         // Basemap settings
         const selectedBasemap = basemapSettings.selectedBasemap.value.value.toString();
 
-        // Marker/bubble settings
-        const markerSize = markerSettings.markerSize.value;
-        const markerColor = markerSettings.markerColor.value.value;
-        const markerStrokeColor = markerSettings.strokeColor.value.value;
-        const markerStrokeWidth = markerSettings.strokeWidth.value;
-        const markerLayerOpacity = markerSettings.markerLayerOpacity.value / 100;
+        // Proportional Circel settings
+        const cirleSize = proportionalCircleSettings.proportionalCirclesSize.value;
+        const cirleColor = proportionalCircleSettings.proportionalCirclesColor.value.value;
+        const cirleStrokeColor = proportionalCircleSettings.proportionalCirclesStrokeColor.value.value;
+        const cirleStrokeWidth = proportionalCircleSettings.proportionalCirclesStrokeWidth.value;
+        const cirleLayerOpacity = proportionalCircleSettings.proportionalCirclesLayerOpacity.value / 100;
 
         //choropleth settings
-        const selectedCountryISO3Code = choroplethSettings.selectedISO3Code.value;
-        const selectedAdminLevel = choroplethSettings.selectedAdminLevel.value.value.toString();
-        const selectedColor = choroplethSettings.color.value.value;
-        const selectedStrokeColor = choroplethSettings.strokeColor.value.value;
-        const selectedStrokeWidth = choroplethSettings.strokeWidth.value;
-        const choroplethLayerOpacity = choroplethSettings.layerOpacity.value / 100;
+        const selectedCountryISO3Code = choroplethLocationSettings.selectedISO3Code.value;
+        const selectedAdminLevel = choroplethLocationSettings.selectedAdminLevel.value.value.toString();
+        const selectedColor = choroplethDisplaySettings.color.value.value;
+        const selectedClasses = choroplethDisplaySettings.numClasses.value;
+        const selectedMinColor = choroplethDisplaySettings.minColor.value.value;
+        const selectedMaxColor = choroplethDisplaySettings.maxColor.value.value;
+        const selectedStrokeColor = choroplethDisplaySettings.strokeColor.value.value;
+        const selectedStrokeWidth = choroplethDisplaySettings.strokeWidth.value;
+        const choroplethLayerOpacity = choroplethDisplaySettings.layerOpacity.value / 100;
 
         console.log("Selected Country ISO3 COde:", selectedCountryISO3Code);
         console.log("Selected Admin Level:", selectedAdminLevel);
@@ -295,9 +299,9 @@ export class Visual implements IVisual {
 
                 point.setStyle(new Style({
                     image: new Circle({
-                        radius: markerSize,
-                        fill: new Fill({ color: markerColor }),
-                        stroke: new Stroke({ color: markerStrokeColor, width: markerStrokeWidth }),
+                        radius: cirleSize,
+                        fill: new Fill({ color: cirleColor }),
+                        stroke: new Stroke({ color: cirleStrokeColor, width: cirleStrokeWidth }),
                     }),
                 }));
 
@@ -308,7 +312,7 @@ export class Visual implements IVisual {
             this.markerVectorLayer = new VectorLayer({
                 source: this.markerVectorSource,
                 style: this.markerStyle,
-                opacity: markerLayerOpacity
+                opacity: cirleLayerOpacity
             })
 
             this.map.addLayer(this.markerVectorLayer);
@@ -368,7 +372,7 @@ export class Visual implements IVisual {
         this.markerVectorLayer.setZIndex(2); // Higher zIndex (above)
 
         this.updateChoropleth(selectedColor, selectedStrokeColor, selectedStrokeWidth);
-        this.updateMarkers(markerSize, markerColor, markerStrokeColor, markerStrokeWidth);
+        this.updateMarkers(cirleSize, cirleColor, cirleStrokeColor, cirleStrokeWidth);
 
         //this.fitMapToFeatures(); // Call the fit function
 
@@ -443,7 +447,7 @@ export class Visual implements IVisual {
 
         // Fit map view to the extent of the loaded GeoJSON data
         this.fitMapToFeatures()
-        
+
         // const extent = this.choroplethVectorSource.getExtent();
         // console.log("Extent:", extent);
         // this.map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });

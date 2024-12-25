@@ -27,12 +27,9 @@
 "use strict";
 
 import powerbiVisualsApi from "powerbi-visuals-api";
-import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
-
 import { formatting } from "powerbi-visuals-utils-formattingutils";
-
+import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
-
 
 import FormattingSettingsCard = formattingSettings.SimpleCard;
 import FormattingSettingsSlice = formattingSettings.Slice;
@@ -49,54 +46,58 @@ class basemapVisualCardSettings extends FormattingSettingsCard {
     selectedBasemap: DropDown = new DropDown({
         name: "selectedBasemap",
         displayName: "Basemap",
-        value: { 
+        value: {
             value: "openstreetmap",  // The actual value
             displayName: "OpenStreetMap" // The display name
-        }, 
+        },
         items: [
             { value: "openstreetmap", displayName: "OpenStreetMap" },
             { value: "mapbox", displayName: "Mapbox" },
             { value: "esri", displayName: "Esri World Imagery" }
         ]
-    });    
+    });
 
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
     slices: Array<formattingSettings.Slice> = [
-        this.selectedBasemap       
+        this.selectedBasemap
     ];
-
 }
 
-class markerVisualCardSettings extends FormattingSettingsCard {
+class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
-    // Marker styling options
-    markerColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "markerColor",
-        displayName: "Marker Color",
+    show: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "show",
+        value: true
+    });
+
+    // Proportional circle styling options
+    proportionalCirclesColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "proportionalCirclesColor",
+        displayName: "Color",
         value: { value: "#009edb" } // Default color
     });
 
-    markerSize: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
-        name: "markerSize",
-        displayName: "Marker Size",
+    proportionalCirclesSize: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "proportionalCirclesSize",
+        displayName: "Size",
         value: 6, // Default size
     });
 
-    strokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "strokeColor",
+    proportionalCirclesStrokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "proportionalCirclesStrokeColor",
         displayName: "Stroke Color",
         value: { value: "#ffffff" } // Default color
     });
 
-    strokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
-        name: "strokeWidth",
+    proportionalCirclesStrokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "proportionalCirclesStrokeWidth",
         displayName: "Stroke Width",
         value: 1, // Default size
     });
-    
-    markerLayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
-        name: "markerLayerOpacity",
+
+    proportionalCirclesLayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "proportionalCirclesLayerOpacity",
         displayName: "Layer Opacity",
         value: 100,//default value
         options: // optional input value validator  
@@ -112,19 +113,21 @@ class markerVisualCardSettings extends FormattingSettingsCard {
         }
     });
 
-    name: string = "markerVisualCardSettings";
-    displayName: string = "Marker";
+    topLevelSlice: formattingSettings.ToggleSwitch = this.show;
+    name: string = "proportionalCirclesVisualCardSettings";
+    displayName: string = "Circles";
     slices: Array<formattingSettings.Slice> = [
-        this.markerColor,
-        this.markerSize,
-        this.strokeColor,
-        this.strokeWidth,
-        this.markerLayerOpacity
+        this.proportionalCirclesColor,
+        this.proportionalCirclesSize,
+        this.proportionalCirclesStrokeColor,
+        this.proportionalCirclesStrokeWidth,
+        this.proportionalCirclesLayerOpacity
     ];
 
 }
 
-class choroplethVisualCardSettings extends FormattingSettingsCard  {
+class pcodesAdminLocationSettingsGroup extends formattingSettings.SimpleCard {
+ 
 
     selectedISO3Code: formattingSettings.TextInput = new TextInput({
         name: "selectedISO3Code",
@@ -136,7 +139,6 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
     selectedAdminLevel: DropDown = new DropDown({
         name: "selectedAdminLevel",
         displayName: "Admin Level",
-        //placeholder: "Select Admin Level",
         value: {
             value: "",  // The actual value
             displayName: "" // The display name
@@ -149,9 +151,37 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
         ]
     });
 
+    name: string = "pcodesAdminLocationSettingsGroup";
+    displayName: string = "Location";
+    collapsible: boolean = false;
+    slices: formattingSettings.Slice[] = [this.selectedISO3Code, this.selectedAdminLevel];
+}
+
+class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
+
+    numClasses: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "numClasses",
+        displayName: "Classes",
+        value: 5, // Default size
+    });
+    
     color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "color",
         displayName: "Color",
+        value: { value: "#009edb" } // Default color
+    });
+
+    
+
+    minColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "minColor",
+        displayName: "Minimum",
+        value: { value: "#009edb" } // Default color
+    });
+
+    maxColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "maxColor",
+        displayName: "Maximum",
         value: { value: "#009edb" } // Default color
     });
 
@@ -184,16 +214,34 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
         }
     });
 
-    name: string = "choroplethVisualCardSettings";
-    displayName: string = "Choropleth";
-    slices: Array<formattingSettings.Slice> = [
-        this.selectedISO3Code,
-        this.selectedAdminLevel,
+    name: string = "choroplethDisplaySettingsGroup";
+    displayName: string = "Display";
+    slices: formattingSettings.Slice[] = [
+        this.numClasses,
         this.color,
+        this.minColor,
+        this.maxColor,
         this.strokeColor,
         this.strokeWidth,
         this.layerOpacity
     ];
+}
+
+class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
+
+    show: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "show",
+        value: true
+    });
+    
+    public pcodesAdminLocationSettingsGroup: pcodesAdminLocationSettingsGroup = new pcodesAdminLocationSettingsGroup();
+    public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
+
+    topLevelSlice: formattingSettings.ToggleSwitch = this.show;
+    name: string = "choroplethVisualCardSettings";
+    displayName: string = "Choropleth";
+    groups: formattingSettings.Group[] = [this.pcodesAdminLocationSettingsGroup, this.choroplethDisplaySettingsGroup];
+   
 }
 
 /**
@@ -201,13 +249,13 @@ class choroplethVisualCardSettings extends FormattingSettingsCard  {
 *
 */
 export class OpenLayersVisualFormattingSettingsModel extends FormattingSettingsModel {
-    
+
     // Create formatting settings model formatting cards
     BasemapVisualCardSettings = new basemapVisualCardSettings();
-    MarkerVisualCardSettings = new markerVisualCardSettings();
+    ProportionalCirclesVisualCardSettings = new proportionalCirclesVisualCardSettings();
     ChoroplethVisualCardSettings = new choroplethVisualCardSettings();
 
-    cards = [this.BasemapVisualCardSettings,this.MarkerVisualCardSettings, this.ChoroplethVisualCardSettings];
+    cards = [this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings];
 }
 
 
