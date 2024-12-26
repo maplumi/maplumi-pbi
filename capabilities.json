@@ -194,8 +194,34 @@
             ]
           }
         },
-        
-        "color": {
+        "numClasses": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "classificationMethod": {
+          "type": {
+            "enumeration": [
+              {
+                "value": "q",
+                "displayName": "Quantile"
+              },
+              {
+                "value": "e",
+                "displayName": "Equal Interval"
+              },
+              {
+                "value": "l",
+                "displayName": "Logarithmic"
+              },
+              {
+                "value": "k",
+                "displayName": "K-means"
+              }
+            ]
+          }
+        },
+        "minColor": {
           "type": {
             "fill": {
               "solid": {
@@ -204,12 +230,7 @@
             }
           }
         },
-        "numClasses": {
-          "type": {
-            "numeric": true
-          }
-        },
-        "minColor": {
+        "midColor": {
           "type": {
             "fill": {
               "solid": {

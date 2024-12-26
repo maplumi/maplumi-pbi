@@ -75,7 +75,7 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
     proportionalCirclesColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "proportionalCirclesColor",
         displayName: "Color",
-        value: { value: "#009edb" } // Default color
+        value: { value: "#f58220" } // Default color
     });
 
     proportionalCirclesSize: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
@@ -162,27 +162,40 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     numClasses: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "numClasses",
         displayName: "Classes",
-        value: 5, // Default size
-    });
-    
-    color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "color",
-        displayName: "Color",
-        value: { value: "#009edb" } // Default color
+        value: 5, // Default number of classes
     });
 
-    
+    classificationMethod: DropDown = new DropDown({
+        name: "classificationMethod",
+        displayName: "Classification Method",
+        value: {
+            value: "k",  //default value
+            displayName: "K-means" 
+        },
+        items: [
+            { value: "q", displayName: "Quantile" },
+            { value: "e", displayName: "Equal Interval" },
+            { value: "l", displayName: "Logarithmic" },
+            { value: "k", displayName: "K-means" }
+        ]
+    });
 
     minColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "minColor",
-        displayName: "Minimum",
+        displayName: "Minimum Color",
+        value: { value: "#e1eef9" } // Default color
+    });
+
+    midColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "midColor",
+        displayName: "Mid Color",
         value: { value: "#009edb" } // Default color
     });
 
     maxColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "maxColor",
-        displayName: "Maximum",
-        value: { value: "#009edb" } // Default color
+        displayName: "Maximum Color",
+        value: { value: "#002e6e" } // Default color
     });
 
     strokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -218,8 +231,9 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
         this.numClasses,
-        this.color,
+        this.classificationMethod,        
         this.minColor,
+        this.midColor,
         this.maxColor,
         this.strokeColor,
         this.strokeWidth,

@@ -57,6 +57,7 @@ import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 import { WMTS } from "ol/tilegrid";
 import TileGrid from "ol/tilegrid/TileGrid"; // Ensure tile grid is properly imported
+import * as chroma from "chroma-js"; // Import chroma module
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
 import Geometry from "ol/geom/Geometry";
@@ -197,7 +198,7 @@ export class Visual implements IVisual {
         // Basemap settings
         const selectedBasemap = basemapSettings.selectedBasemap.value.value.toString();
 
-        // Proportional Circel settings
+        // Proportional CIrcle settings
         const cirleSize = proportionalCircleSettings.proportionalCirclesSize.value;
         const cirleColor = proportionalCircleSettings.proportionalCirclesColor.value.value;
         const cirleStrokeColor = proportionalCircleSettings.proportionalCirclesStrokeColor.value.value;
@@ -205,20 +206,22 @@ export class Visual implements IVisual {
         const cirleLayerOpacity = proportionalCircleSettings.proportionalCirclesLayerOpacity.value / 100;
 
         //choropleth settings
-        const selectedCountryISO3Code = choroplethLocationSettings.selectedISO3Code.value;
-        const selectedAdminLevel = choroplethLocationSettings.selectedAdminLevel.value.value.toString();
-        const selectedColor = choroplethDisplaySettings.color.value.value;
-        const selectedClasses = choroplethDisplaySettings.numClasses.value;
-        const selectedMinColor = choroplethDisplaySettings.minColor.value.value;
-        const selectedMaxColor = choroplethDisplaySettings.maxColor.value.value;
-        const selectedStrokeColor = choroplethDisplaySettings.strokeColor.value.value;
-        const selectedStrokeWidth = choroplethDisplaySettings.strokeWidth.value;
+        const choroplethCountryISO3Code = choroplethLocationSettings.selectedISO3Code.value;
+        const choroplethAdminLevel = choroplethLocationSettings.selectedAdminLevel.value.value.toString();
+        const choroplethMidColor = choroplethDisplaySettings.midColor.value.value;
+        const choroplethClasses = choroplethDisplaySettings.numClasses.value;
+        const choroplethClassificationMethod = choroplethDisplaySettings.classificationMethod.value.value.toString();
+        const choroplethMinColor = choroplethDisplaySettings.minColor.value.value;
+        const choroplethMaxColor = choroplethDisplaySettings.maxColor.value.value;
+        const choroplethStrokeColor = choroplethDisplaySettings.strokeColor.value.value;
+        const choroplethStrokeWidth = choroplethDisplaySettings.strokeWidth.value;
         const choroplethLayerOpacity = choroplethDisplaySettings.layerOpacity.value / 100;
 
-        console.log("Selected Country ISO3 COde:", selectedCountryISO3Code);
-        console.log("Selected Admin Level:", selectedAdminLevel);
+        //console.log("Selected Country ISO3 COde:", choroplethCountryISO3Code);
+        //console.log("Selected Admin Level:", choroplethAdminLevel);
 
         const dataView = options.dataViews[0];
+
         console.log("Full DataView:", JSON.stringify(dataView, null, 2));
 
         if (!dataView || !dataView.categorical) {
@@ -228,10 +231,21 @@ export class Visual implements IVisual {
         }
 
         const categorical = dataView.categorical;
+
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
         let pcodes: string[] | undefined;
-        let tooltips: any[] | undefined; // Store tooltip values
+        let colorValues: any[] | undefined;
+        let sizeValues: number[] | undefined;
+        let tooltips: any[] | undefined;
+        let minSizeValue: number | undefined;
+        let maxSizeValue: number | undefined;
+
+        let minColorValue: any | undefined;
+        let maxColorValue: any | undefined;
+
+        let classBreaks: any[] | undefined;
+        let colorScale: any | undefined
 
         // Find Longitude and Latitude (both in categories)
         if (categorical.categories && categorical.categories.length > 0) { // Check if both categories are present
@@ -241,8 +255,8 @@ export class Visual implements IVisual {
             if (lonCategory && latCategory) {
                 longitudes = lonCategory.values as number[];
                 latitudes = latCategory.values as number[];
-                console.log("Longitudes Found:", longitudes);
-                console.log("Latitudes Found:", latitudes);
+                // console.log("Longitudes Found:", longitudes);
+                // console.log("Latitudes Found:", latitudes);
 
                 if (longitudes.length !== latitudes.length) {
                     console.warn("Longitude and Latitude have different lengths.");
@@ -260,12 +274,11 @@ export class Visual implements IVisual {
             //return;
         }
 
-        const adminPCodeCategory = categorical.categories.find(c => c.source.roles && c.source.roles['AdminPCode']);
-
         // Find PCodes (in categories)
+        const adminPCodeCategory = categorical.categories.find(c => c.source.roles && c.source.roles['AdminPCode']);
         if (adminPCodeCategory) {
             pcodes = adminPCodeCategory.values as string[];
-            console.log("AdminPCode Found:", pcodes);
+            //console.log("AdminPCode Found:", pcodes);
 
         } else {
             console.warn("PCodes not found.");
@@ -273,11 +286,45 @@ export class Visual implements IVisual {
             //return;
         }
 
-
-        // Find Tooltips (in values)
+        // Find Values
         if (categorical.values && categorical.values.length > 0) {
-            tooltips = categorical.values[0].values;
+
+            // Size values
+
+            const sizeMeasure = categorical.values.find(c => c.source.roles && c.source.roles['Size']);
+            sizeValues = sizeMeasure.values as number[];
+            console.log("Size Values Found:", sizeValues);
+
+            // Color values
+            const colorMeasure = categorical.values.find(c => c.source.roles && c.source.roles['Color']);
+            colorValues = colorMeasure.values;
+            console.log("Color Values FOund:", colorValues);
+
+            // tooltip values
+            const tooltipMeasure = categorical.values.find(c => c.source.roles && c.source.roles['Tooltips']);
+            tooltips = tooltipMeasure.values;
             console.log("Tooltips Found:", tooltips);
+
+            minSizeValue = Math.min(...sizeValues);
+            maxSizeValue = Math.max(...sizeValues);
+
+            minColorValue = Math.min(...colorValues);
+            maxColorValue = Math.max(...colorValues);
+
+            // Compute class breaks using quantiles, we can also use other methods like equal interval, etc.
+            classBreaks = chroma.limits(colorValues, choroplethClassificationMethod as 'q' | 'e' | 'l' | 'k', choroplethClasses);
+
+            // Log the breaks (optional)
+            console.log('Class breaks:', classBreaks);
+
+            // Create a color scale based on the breaks
+            colorScale = chroma.scale([choroplethMinColor, choroplethMidColor, choroplethMaxColor])
+                //.mode('lab') // Use the LAB color space for better color interpolation
+                .domain(classBreaks)
+                .colors(choroplethClasses);
+
+            console.log('Color Scale:', colorScale);
+
         }
 
         /* Marker/Bubble Map */
@@ -322,7 +369,7 @@ export class Visual implements IVisual {
 
         /* Chopleth Map */
         this.choroplethVectorSource.clear();
-        if (pcodes && selectedAdminLevel.length > 0 && selectedCountryISO3Code.length > 0) {
+        if (pcodes && choroplethAdminLevel.length > 0 && choroplethCountryISO3Code.length > 0) {
             // Filter and collect valid PCodes
             const validPCodes = pcodes.filter(pcode => {
                 if (!pcode) {
@@ -340,13 +387,14 @@ export class Visual implements IVisual {
             // Only fetch GeoJSON if not already cached
             if (this.geojsonDataCache) {
                 console.log("Using cached GeoJSON data.");
-                this.processGeoJSONData(this.geojsonDataCache, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth, choroplethLayerOpacity);
+                this.renderChoropleth(this.geojsonDataCache, colorValues, validPCodes, choroplethAdminLevel,
+                    choroplethStrokeColor, choroplethStrokeWidth, choroplethLayerOpacity, classBreaks, colorScale);
             } else {
                 // Show loading indicator since we're fetching data
                 //this.showLoadingIndicator();
 
                 // Construct the dynamic GeoJSON API URL
-                const geoJsonUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${selectedCountryISO3Code}_pcode/FeatureServer/${selectedAdminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+                const geoJsonUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethCountryISO3Code}_pcode/FeatureServer/${choroplethAdminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
 
                 // Fetch GeoJSON data from the API
                 fetch(geoJsonUrl)
@@ -356,7 +404,8 @@ export class Visual implements IVisual {
                         this.geojsonDataCache = geojsonData;
 
                         // Process the fetched GeoJSON data
-                        this.processGeoJSONData(geojsonData, validPCodes, selectedAdminLevel, tooltips, selectedColor, selectedStrokeColor, selectedStrokeWidth, choroplethLayerOpacity);
+                        this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethAdminLevel,
+                            choroplethStrokeColor, choroplethStrokeWidth, choroplethLayerOpacity, classBreaks, colorScale);
                     })
                     .catch(error => {
                         console.error("Error fetching GeoJSON data:", error);
@@ -371,7 +420,7 @@ export class Visual implements IVisual {
         this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
         this.markerVectorLayer.setZIndex(2); // Higher zIndex (above)
 
-        this.updateChoropleth(selectedColor, selectedStrokeColor, selectedStrokeWidth);
+        //this.updateChoropleth(choroplethColor, choroplethStrokeColor, choroplethStrokeWidth);
         this.updateMarkers(cirleSize, cirleColor, cirleStrokeColor, cirleStrokeWidth);
 
         //this.fitMapToFeatures(); // Call the fit function
@@ -390,9 +439,11 @@ export class Visual implements IVisual {
     }
 
     // Function to process the GeoJSON data
-    private processGeoJSONData(geojsonData: any, validPCodes: string[], selectedAdminLevel: string, tooltips: any[], selectedColor, selectedStrokeColor, selectedStrokeWidth, layerOpacity): void {
+    private renderChoropleth(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
+         selectedStrokeColor: any, selectedStrokeWidth: any, layerOpacity: any, classBreaks: any, colorScale: any): void {
+
         // Create a vector source from the fetched GeoJSON data
-        console.log("GeoJSON data retrieved:", geojsonData);
+        //console.log("GeoJSON data retrieved:", geojsonData);
 
         let pcodeKey = `ADM${selectedAdminLevel}_PCODE`; // Use the appropriate key based on the admin level
 
@@ -402,7 +453,7 @@ export class Visual implements IVisual {
             return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
         });
 
-        console.log("GeoJSON data filtered:", filteredFeatures);
+        //console.log("GeoJSON data filtered:", filteredFeatures);
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
@@ -416,25 +467,45 @@ export class Visual implements IVisual {
             })
         });
 
-        this.choroplethStyle = new Style({
-
-            stroke: new Stroke({
-                color: selectedStrokeColor,
-                width: selectedStrokeWidth
-            }),
-            fill: new Fill({
-                color: selectedColor
-            })
-        });
-
         // Create a vector layer using the vector source
         this.choroplethVectorLayer = new VectorLayer({
+
             source: this.choroplethVectorSource,
+
             style: (feature) => { //using arrow function to bind this
+
                 // Check if the feature's ADMx_PCODE (or equivalent) matches any valid PCode
                 const featurePCode = feature.get(pcodeKey);
+
                 if (validPCodes.includes(featurePCode)) {
-                    return this.choroplethStyle;
+
+                    const value = colorValues[validPCodes.indexOf(featurePCode)];
+
+                    let color = '#009edb'; // Default color
+
+                    // Use class breaks to assign colors based on value
+                    for (let i = 0; i < classBreaks.length; i++) {
+
+                        if (value <= classBreaks[i]) {
+
+                            color = colorScale[i];
+                            break;
+                        }
+                    }
+
+                    console.log('Assigned Color:', color);
+
+                    return new Style({
+                        fill: new Fill({
+                            color: color
+                        }),
+                        stroke: new Stroke({
+                            color: selectedStrokeColor,
+                            width: selectedStrokeWidth
+                        })
+                    });
+
+                    //return this.choroplethStyle;
                 } else {
                     // Return null to skip rendering this feature
                     return null;
