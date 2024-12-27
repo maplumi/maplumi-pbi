@@ -134,6 +134,12 @@
     },
     "proportionalCirclesVisualCardSettings": {
       "properties": {
+
+        "showLayerControl": {
+          "type": {
+            "bool": true
+          }
+        },
         "proportionalCirclesColor": {
           "type": {
             "fill": {
@@ -144,6 +150,16 @@
           }
         },
         "proportionalCirclesSize": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "proportionalCirclesMinimumRadius": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "proportionalCirclesMaximumRadius": {
           "type": {
             "numeric": true
           }
@@ -171,6 +187,11 @@
     },
     "choroplethVisualCardSettings": {
       "properties": {
+        "showLayerControl": {
+          "type": {
+            "bool": true
+          }
+        },
         "selectedISO3Code": {
           "type": {
             "text": true

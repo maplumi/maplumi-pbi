@@ -66,8 +66,8 @@ class basemapVisualCardSettings extends FormattingSettingsCard {
 
 class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
-    show: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "show",
+    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLayerControl",
         value: true
     });
 
@@ -82,6 +82,40 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         name: "proportionalCirclesSize",
         displayName: "Size",
         value: 6, // Default size
+    });
+
+    proportionalCirclesMinimumRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "proportionalCirclesMinimumRadius",
+        displayName: "Mininum Radius",
+        value: 3,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 50
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    proportionalCirclesMaximumRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "proportionalCirclesMaximunRadius",
+        displayName: "Maximum Radius",
+        value: 30,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 50
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
     });
 
     proportionalCirclesStrokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -113,12 +147,14 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         }
     });
 
-    topLevelSlice: formattingSettings.ToggleSwitch = this.show;
+    topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
     slices: Array<formattingSettings.Slice> = [
         this.proportionalCirclesColor,
         this.proportionalCirclesSize,
+        this.proportionalCirclesMinimumRadius,
+        this.proportionalCirclesMaximumRadius,
         this.proportionalCirclesStrokeColor,
         this.proportionalCirclesStrokeWidth,
         this.proportionalCirclesLayerOpacity
@@ -243,15 +279,15 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
 class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
 
-    show: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "show",
-        value: true
+    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLayerControl",
+        value: false
     });
     
     public pcodesAdminLocationSettingsGroup: pcodesAdminLocationSettingsGroup = new pcodesAdminLocationSettingsGroup();
     public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
 
-    topLevelSlice: formattingSettings.ToggleSwitch = this.show;
+    topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "choroplethVisualCardSettings";
     displayName: string = "Choropleth";
     groups: formattingSettings.Group[] = [this.pcodesAdminLocationSettingsGroup, this.choroplethDisplaySettingsGroup];
