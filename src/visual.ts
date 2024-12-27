@@ -56,6 +56,7 @@ import Circle from "ol/style/Circle";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
 import { WMTS } from "ol/tilegrid";
+import { easeOut } from "ol/easing";
 import TileGrid from "ol/tilegrid/TileGrid"; // Ensure tile grid is properly imported
 import * as chroma from "chroma-js"; // Import chroma module
 import Overlay from "ol/Overlay"; // Import Overlay class
@@ -424,8 +425,9 @@ export class Visual implements IVisual {
                 console.warn("Both Longitude and Latitude roles must be assigned.");
                 this.clearMap(this.circleVectorSource);
             }
+        } else {
+            this.clearMap(this.circleVectorSource);
         }
-
 
         //render choropleth layer
         if (choroplethOptions.layerControl) {
@@ -439,6 +441,7 @@ export class Visual implements IVisual {
 
             // Find PCodes (in categories)
             const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
+
             if (adminPCodeCategory) {
                 pcodes = adminPCodeCategory.values as string[];
                 //console.log("AdminPCode Found:", pcodes);
@@ -465,6 +468,8 @@ export class Visual implements IVisual {
                             //.mode('lab') // Use the LAB color space for better color interpolation
                             .domain(classBreaks)
                             .colors(choroplethOptions.classes);
+
+
 
                         console.log('Color Scale:', colorScale);
 
@@ -519,9 +524,11 @@ export class Visual implements IVisual {
                     } else {
                         // render choropleth with default color
                         console.log("Color Values not found. Rendering default choropleth.");
-    
+
+
+
                     }
-                } 
+                }
 
             } else {
                 console.warn("PCodes not found.");
@@ -529,14 +536,13 @@ export class Visual implements IVisual {
                 //return;
             }
 
+        } else {
+            this.clearMap(this.choroplethVectorSource);
         }
 
         //order layers
         this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
         this.circleVectorLayer.setZIndex(2); // Higher zIndex (above)
-
-        //this.updateChoropleth(choroplethColor, choroplethStrokeColor, choroplethStrokeWidth);
-        //this.updatecircles(cirleSize, cirleColor, cirleStrokeColor, cirleStrokeWidth);
 
         //this.fitMapToFeatures(); // Call the fit function
 
@@ -561,6 +567,8 @@ export class Visual implements IVisual {
         });
 
         //console.log("GeoJSON data filtered:", filteredFeatures);
+
+        this.choroplethVectorSource.clear();
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
@@ -592,15 +600,16 @@ export class Visual implements IVisual {
 
                     // Use class breaks to assign colors based on value
                     for (let i = 0; i < classBreaks.length; i++) {
-
-                        if (value <= classBreaks[i]) {
-
+                        // Check if value falls within the range [classBreaks[i], classBreaks[i+1])
+                        if (value >= classBreaks[i] && value < classBreaks[i + 1]) {
                             color = colorScale[i];
                             break;
                         }
                     }
-
-                    console.log('Assigned Color:', color);
+                    // Handle edge case: value equals the maximum class break
+                    if (value >= classBreaks[classBreaks.length - 1]) {
+                        color = colorScale[colorScale.length - 1];
+                    }
 
                     return new Style({
                         fill: new Fill({
@@ -625,9 +634,6 @@ export class Visual implements IVisual {
 
         // Fit map view to the extent of the loaded GeoJSON data
         this.fitMapToFeatures()
-
-        // Hide the loading indicator once the data is processed and rendered
-        //this.hideLoadingIndicator();
     }
 
     private updateBasemap(selectedBasemap: string): void {
@@ -660,20 +666,23 @@ export class Visual implements IVisual {
         console.log(`Basemap updated to: ${selectedBasemap}`);
     }
 
-    private clearMap(vectorSource: VectorSource): void {
-        vectorSource.clear();
-        this.map.updateSize();
-    }
-
     private fitMapToFeatures() {
-        if (this.circleVectorSource.getFeatures().length > 0) {
-            this.map.getView().fit(this.circleVectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
-        }
-        else if (this.choroplethVectorSource.getFeatures().length > 0) {
-            this.map.getView().fit(this.choroplethVectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 1000 });
-        }
-        else {
-            console.warn("No features to fit the view to.");
+
+        const fitOptions = {
+            padding: [50, 50, 50, 50],
+            duration: 1000,
+            easing: easeOut
+        };
+
+        if (this.choroplethVectorSource.getFeatures().length > 0) {
+
+            // Prioritize fitting to choroplethVectorSource if it has features
+            this.map.getView().fit(this.choroplethVectorSource.getExtent(), fitOptions);
+
+        } else if (this.circleVectorSource.getFeatures().length > 0) {
+
+            // Fit to circleVectorSource if choroplethVectorSource has no features
+            this.map.getView().fit(this.circleVectorSource.getExtent(), fitOptions);
         }
     }
 
@@ -681,34 +690,9 @@ export class Visual implements IVisual {
         return this.formattingSettingsService.buildFormattingModel(this.visualFormattingSettingsModel);
     }
 
-    // Show loading indicator
-    private showLoadingIndicator() {
-        document.getElementById('loadingIndicator')!.style.display = 'block'; // Show loading indicator (Assume a div with this ID exists)
-    }
-
-    // Hide loading indicator
-    private hideLoadingIndicator() {
-        document.getElementById('loadingIndicator')!.style.display = 'none'; // Hide loading indicator
-    }
-
-    private hexToRgb(hex) {
-        // Remove the '#' if it's present
-        hex = hex.replace('#', '');
-
-        // Parse the hex color and return the RGB values
-        let r = parseInt(hex.substring(0, 2), 16);
-        let g = parseInt(hex.substring(2, 4), 16);
-        let b = parseInt(hex.substring(4, 6), 16);
-
-        return `rgb(${r}, ${g}, ${b})`;
-    }
-
-    private hexToRgba(hex, opacity) {
-        // Get the RGB representation from the hex color
-        let rgbColor = this.hexToRgb(hex);
-
-        // Convert the rgb() string to rgba() with the opacity value
-        return rgbColor.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+    private clearMap(vectorSource: VectorSource): void {
+        vectorSource.clear();
+        this.map.updateSize();
     }
 
     public destroy(): void {
