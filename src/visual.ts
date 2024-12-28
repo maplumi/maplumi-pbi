@@ -35,44 +35,43 @@ import IVisual = powerbi.extensibility.visual.IVisual;
 
 import { OpenLayersVisualFormattingSettingsModel } from "./settings";
 
+import { Basemap } from "./basemap";
+
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
-import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
-import VectorTile from "ol/layer/VectorTile";
 import VectorSource from "ol/source/Vector";
-import VectorTileSource from "ol/source/VectorTile";
-import MVT from "ol/format/MVT";
-import { createXYZ } from "ol/tilegrid";
+
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
-import Polygon from "ol/geom/Polygon";
 import { fromLonLat } from "ol/proj";
-import OSM from "ol/source/OSM";
-import XYZ from "ol/source/XYZ";
+
 import Style from "ol/style/Style";
 import Circle from "ol/style/Circle";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
-import { WMTS } from "ol/tilegrid";
+
 import { easeOut } from "ol/easing";
-import TileGrid from "ol/tilegrid/TileGrid"; // Ensure tile grid is properly imported
+
 import * as chroma from "chroma-js"; // Import chroma module
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
-import Geometry from "ol/geom/Geometry";
+import TileLayer from "ol/layer/Tile";
 export class Visual implements IVisual {
     // declaring formatting settings service 
     private formattingSettingsService: FormattingSettingsService;
 
     private visualFormattingSettingsModel: OpenLayersVisualFormattingSettingsModel; // Define the settings model property
 
+    private basemap: Basemap; // Initialize the Basemap class
+    private basemapLayer: TileLayer;
+
     private map: Map;
     private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
     private container: HTMLElement;
-    private basemapLayer: TileLayer;
+   
     private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
     private circleStyle: Style;
@@ -89,13 +88,36 @@ export class Visual implements IVisual {
         this.formattingSettingsService = new FormattingSettingsService();
 
         // Initialize the settings model
-        this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model        
+        this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model   
+        
+        this.basemap = new Basemap(); // Initialize the Basemap class
+
+        this.basemapLayer = this.basemap.getDefaultBasemap(); // Get the default basemap layer
+
 
         this.container = options.element;
 
         // Ensure the container has proper dimensions
         this.container.style.width = "100%";
         this.container.style.height = "100%";
+
+        // Ensure the legend container is also appended to the same parent
+        const legendContainer = document.createElement("div");
+        legendContainer.setAttribute("id", "legend");
+        legendContainer.style.position = "absolute";
+        legendContainer.style.zIndex = "1000";
+        legendContainer.style.bottom = "10px";
+        legendContainer.style.left = "10px";
+        legendContainer.style.backgroundColor = "white";
+        legendContainer.style.padding = "10px";
+        legendContainer.style.border = "1px solid black";
+        legendContainer.style.display = "none"; // Hidden by default
+
+        const legendTitle = document.createElement("h4");
+        legendTitle.textContent = "Legend";
+        legendContainer.appendChild(legendTitle);
+
+        this.container.appendChild(legendContainer);
 
         this.circleStyle = new Style({
             image: new Circle({
@@ -136,18 +158,16 @@ export class Visual implements IVisual {
 
         // Initialize the map
         this.map = new Map({
+
             target: this.container,
             layers: [
-                this.basemapLayer = new TileLayer({
-                    source: new OSM() // Default basemap source
-                })
-                // this.choroplethVectorLayer, this.circleVectorLayer // Add the vector layer
+                this.basemapLayer
             ],
             view: new View({
                 projection: 'EPSG:3857',
                 center: fromLonLat([0, 0]), // Center the map at the origin
                 zoom: 2
-            }),
+            })
         });
 
         // Add the tooltip overlay
@@ -199,9 +219,11 @@ export class Visual implements IVisual {
         const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
 
         // Basemap settings
-        const selectedBasemap = basemapSettings.selectedBasemap.value.value.toString();
+        const basemapOptions = {
+            selectedBasemap: basemapSettings.selectedBasemap.value.value.toString()
+        };        
 
-        // Proportional CIrcle settings 
+        // Proportional Crrcle settings 
         const circleOptions = {
             layerControl: circleSettings.topLevelSlice.value,
             color: circleSettings.proportionalCirclesColor.value.value,
@@ -210,7 +232,8 @@ export class Visual implements IVisual {
             defaultSize: circleSettings.proportionalCirclesSize.value,
             strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
             strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
-            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100
+            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
+            showLegend: circleSettings.showLegend.value
         };
         console.log("circleOptions:", circleOptions);
 
@@ -226,7 +249,8 @@ export class Visual implements IVisual {
             maxColor: choroplethDisplaySettings.maxColor.value.value,
             strokeColor: choroplethDisplaySettings.strokeColor.value.value,
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
-            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100
+            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
+            showLegend: choroplethDisplaySettings.showLegend.value
         };
         console.log("choroplethOptions:", choroplethOptions);
 
@@ -242,7 +266,8 @@ export class Visual implements IVisual {
         }
 
         // Update the basemap
-        this.updateBasemap(selectedBasemap);
+        this.basemapLayer = this.basemap.getBasemap(basemapOptions);
+        this.map.getLayers().setAt(0, this.basemapLayer);
 
         const categorical = dataView.categorical;
 
@@ -261,7 +286,6 @@ export class Visual implements IVisual {
         } else {
             console.log("No values found.");
         }
-
 
         //render circle layer
         if (circleOptions.layerControl) {
@@ -416,6 +440,16 @@ export class Visual implements IVisual {
                             this.map.addLayer(this.circleVectorLayer);
 
                             this.fitMapToFeatures()
+
+                            if(circleOptions.showLegend){
+                                this.createProportionalCircleLegend(minCircleSizeValue, maxCircleSizeValue, circleOptions);
+                            }else{
+                                const legend = document.getElementById("legend");
+                                if (legend) {
+                                    legend.style.display = "none"; // Hide the legend
+                                }
+                            }
+                            
                         }
 
                     }
@@ -469,8 +503,6 @@ export class Visual implements IVisual {
                             .domain(classBreaks)
                             .colors(choroplethOptions.classes);
 
-
-
                         console.log('Color Scale:', colorScale);
 
                         //render choropleth
@@ -496,7 +528,11 @@ export class Visual implements IVisual {
                             if (this.geojsonDataCache) {
                                 console.log("Using cached GeoJSON data.");
                                 this.renderChoropleth(this.geojsonDataCache, colorValues, validPCodes, choroplethOptions.adminLevel,
-                                    choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity, classBreaks, colorScale);
+                                    choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
+                                    classBreaks, colorScale);
+
+                                this.createChoroplethLegend(classBreaks, colorScale);
+
                             } else {
                                 // Show loading indicator since we're fetching data
                                 //this.showLoadingIndicator();
@@ -513,20 +549,28 @@ export class Visual implements IVisual {
 
                                         // Process the fetched GeoJSON data
                                         this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
-                                            choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity, classBreaks, colorScale);
+                                            choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
+                                            classBreaks, colorScale);
+
                                     })
                                     .catch(error => {
                                         console.error("Error fetching GeoJSON data:", error);
                                     });
+                            }
+
+                            if(choroplethOptions.showLegend){
+                                this.createChoroplethLegend(classBreaks, colorScale);
+                            }else{
+                                const legend = document.getElementById("legend");
+                                if (legend) {
+                                    legend.style.display = "none"; // Hide the legend
+                                }
                             }
                         }
 
                     } else {
                         // render choropleth with default color
                         console.log("Color Values not found. Rendering default choropleth.");
-
-
-
                     }
                 }
 
@@ -548,8 +592,6 @@ export class Visual implements IVisual {
 
         this.map.updateSize();
     }
-
-
 
     // Function to process the GeoJSON data
     private renderChoropleth(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
@@ -636,35 +678,97 @@ export class Visual implements IVisual {
         this.fitMapToFeatures()
     }
 
-    private updateBasemap(selectedBasemap: string): void {
-
-        if (!this.basemapLayer) {
-            console.error("Basemap layer is not initialized.");
-            return;
+    private createChoroplethLegend(classBreaks: number[], colorScale: string[]): void {
+        const legend = document.getElementById("legend");
+        if (!legend) return;
+        // Clear existing legend
+        while (legend.firstChild) {
+            legend.removeChild(legend.firstChild);
         }
 
-        switch (selectedBasemap) {
-            case "openstreetmap":
-                this.basemapLayer.setSource(new OSM());
-                break;
-            case "mapbox":
-                this.basemapLayer.setSource(new XYZ({
-                    url: "https://api.mapbox.com/styles/v1/ocha-rosea-1/cm2lidma900jq01r27rkxflo6/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1Ijoib2NoYS1yb3NlYS0xIiwiYSI6ImNtMWhmYndqZDBnbmYyanM1dG41djh5eDkifQ.HT2WOi-53Jm88DA8rJySSA", // Replace with your Mapbox URL
-                    attributions: '© <a href="https://www.mapbox.com/">Mapbox, OCHA</a>',
-                }));
-                break;
-            case "esri":
-                this.basemapLayer.setSource(new XYZ({
-                    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", // Esri World Imagery URL
-                    attributions: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-                }));
-                break;
-            default:
-                this.basemapLayer.setSource(new OSM()); // Fallback to OpenStreetMap
-        }
+        for (let i = 0; i < classBreaks.length - 1; i++) {
+            const range = `${Math.round(classBreaks[i])} - ${Math.round(classBreaks[i + 1])}`;
+            const color = colorScale[i];
 
-        console.log(`Basemap updated to: ${selectedBasemap}`);
+            // Create legend item
+            const legendItem = document.createElement("div");
+            legendItem.style.display = "flex";
+            legendItem.style.alignItems = "center";
+            legendItem.style.marginBottom = "5px";
+
+            // Create color box
+            const colorBox = document.createElement("div");
+            colorBox.style.width = "20px";
+            colorBox.style.height = "20px";
+            colorBox.style.backgroundColor = color;
+            colorBox.style.marginRight = "10px";
+
+            // Add label
+            const label = document.createElement("span");
+            label.textContent = range;
+
+            // Append elements
+            legendItem.appendChild(colorBox);
+            legendItem.appendChild(label);
+            legend.appendChild(legendItem);
+
+            legend.style.display = "block"; // Show the legend
+        }
     }
+
+    private createProportionalCircleLegend(
+        minValue: number,
+        maxValue: number,
+        circleOptions: { minRadius: number, maxRadius: number }
+    ): void {
+        const legend = document.getElementById("legend");
+        if (!legend) return;
+
+        // Clear any existing legend content
+        // Clear any existing legend content
+        while (legend.firstChild) {
+            legend.removeChild(legend.firstChild);
+        }
+
+        // We will only display the min and max values
+        const representativeValues = [minValue, maxValue];
+
+        // Create the legend items
+        representativeValues.forEach(value => {
+            // Calculate the radius for the current value
+            const circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxValue - minValue);
+            const radius = circleOptions.minRadius + (value - minValue) * circleScale;
+
+            // Create the circle using a div with a dynamic size
+            const circle = document.createElement("div");
+            circle.style.width = `${radius * 2}px`;  // 2 * radius to get diameter
+            circle.style.height = `${radius * 2}px`; // 2 * radius to get diameter
+            circle.style.borderRadius = "50%";  // Makes it circular
+            circle.style.backgroundColor = "rgba(0, 0, 255, 0.6)"; // Adjust color as needed
+            circle.style.marginRight = "10px"; // Space between circle and label
+            circle.style.display = "inline-block"; // Ensure it displays inline with the text
+
+            // Create the legend item container
+            const legendItem = document.createElement("div");
+            legendItem.style.display = "flex";
+            legendItem.style.alignItems = "center";
+            legendItem.style.marginBottom = "10px";
+
+            // Create the label for the value
+            const label = document.createElement("span");
+            label.textContent = `${value}`;
+
+            // Append the circle and label to the legend item
+            legendItem.appendChild(circle);
+            legendItem.appendChild(label);
+
+            // Append the legend item to the legend container
+            legend.appendChild(legendItem);
+
+            legend.style.display = "block"; // Show the legend
+        });
+    }
+    
 
     private fitMapToFeatures() {
 
@@ -696,6 +800,7 @@ export class Visual implements IVisual {
     }
 
     public destroy(): void {
+        //this.basemap.destroy();
         this.map.setTarget(null);
     }
 }

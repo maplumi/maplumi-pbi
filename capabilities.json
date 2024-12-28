@@ -1,6 +1,12 @@
 {
   "dataRoles": [
     {
+      "name": "AdminPCode",
+      "kind": "Grouping",
+      "displayName": "HDX Admin PCode",
+      "description": "HDX CODs Administrative Boundary PCodes for Choropleth Layer. Country and Admin Level must be set in Choropleth Settings under Visual formatting"
+    }, 
+    {
       "name": "Latitude",
       "kind": "Grouping",
       "displayName": "Latitude",
@@ -13,28 +19,23 @@
       "description": "Longitude or X geographic point dimension"
     },
     {
-      "name": "AdminPCode",
-      "kind": "Grouping",
-      "displayName": "Admin PCode",
-      "description": "HDX CODs Administrative Boundary ADM1_PCODEs or ADM2_PCODEs or ADM3_PCODEs for Choropleth Layer"
-    },
-    {
       "name": "Size",
       "kind": "Measure",
       "displayName": "Size",
-      "description": "Numeric data type measure to control circle sizes"
+      "description": "Numeric data type measure to dispay of different circle/bubble sizes"
     },
+       
     {
       "name": "Color",
       "kind": "Measure",
       "displayName": "Color",
-      "description": "Text or Numeric data type measure to control circle or heatmap colors"
+      "description": "Numeric data type measure to control display of Choropleth or Heatmap colors"
     },
     {
       "name": "Tooltips",
       "kind": "Measure",
       "displayName": "Tooltips",
-      "description": "Values to display in tooltips"
+      "description": "Values to display in tooltips. May be overridden by Tooltips options under General visual settings"
     }
   ],
   "dataViewMappings": [
@@ -49,6 +50,11 @@
           "select": [
             {
               "for": {
+                "in": "AdminPCode"
+              }
+            },
+            {
+              "for": {
                 "in": "Latitude"
               }
             },
@@ -56,12 +62,8 @@
               "for": {
                 "in": "Longitude"
               }
-            },
-            {
-              "for": {
-                "in": "AdminPCode"
-              }
             }
+            
           ]
         },
         "values": {
@@ -182,6 +184,11 @@
           "type": {
             "numeric": true
           }
+        },
+        "showLegend": {
+          "type": {
+            "bool": true
+          }
         }
       }
     },
@@ -286,6 +293,11 @@
         "layerOpacity": {
           "type": {
             "numeric": true
+          }
+        },
+        "showLegend": {
+          "type": {
+            "bool": true
           }
         }
       }

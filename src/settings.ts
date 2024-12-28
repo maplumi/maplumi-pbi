@@ -147,6 +147,12 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         }
     });
 
+    showLegend: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLegend",
+        displayName: "Show Legend",
+        value: false
+    });
+
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
@@ -157,7 +163,8 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         this.proportionalCirclesMaximumRadius,
         this.proportionalCirclesStrokeColor,
         this.proportionalCirclesStrokeWidth,
-        this.proportionalCirclesLayerOpacity
+        this.proportionalCirclesLayerOpacity,
+        this.showLegend
     ];
 
 }
@@ -263,6 +270,12 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
+    showLegend: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLegend",
+        displayName: "Show Legend",
+        value: false
+    });
+
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
@@ -273,7 +286,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.maxColor,
         this.strokeColor,
         this.strokeWidth,
-        this.layerOpacity
+        this.layerOpacity,
+        this.showLegend
     ];
 }
 
