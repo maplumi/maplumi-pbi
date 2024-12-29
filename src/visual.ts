@@ -59,6 +59,11 @@ import * as chroma from "chroma-js"; // Import chroma module
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
+import Attribution from 'ol/control/Attribution';
+import { defaults as defaultControls } from 'ol/control';
+
+import { BasemapOptions } from "./types";
+
 export class Visual implements IVisual {
     // declaring formatting settings service 
     private formattingSettingsService: FormattingSettingsService;
@@ -169,6 +174,12 @@ export class Visual implements IVisual {
                 projection: 'EPSG:3857',
                 center: fromLonLat([0, 0]), // Center the map at the origin
                 zoom: 2
+            }),
+            controls: defaultControls({
+                attribution: true, // Ensure attribution control is enabled
+                attributionOptions: {
+                    collapsible: false, // Keep the attribution always visible
+                },
             })
         });
 
@@ -221,13 +232,14 @@ export class Visual implements IVisual {
         const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
 
         // Basemap settings
-        const basemapOptions = {
+        const basemapOptions: BasemapOptions = {
             selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            mapboxStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxStyleUrl.value.toString(),
+            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
+            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
             mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
             mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value
-
+            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+            mapboxCustomMapAttribution: basemapSettings.mapBoxSettingsGroup.mapboxCustomMapAttribution.value.toString()
         };
 
         // Proportional Crrcle settings 
@@ -275,9 +287,17 @@ export class Visual implements IVisual {
         // Update the basemap
         if (basemapOptions.selectedBasemap === "mapbox") {
 
-            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions.mapboxStyleUrl, 
-                basemapOptions.mapboxAccessToken, basemapOptions.declutterLabels);
-                
+            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
+
+            let attribution = '© Mapbox © OpenStreetMap';
+
+            if (basemapOptions.mapboxCustomMapAttribution) {
+
+                attribution = attribution+", "+basemapOptions.mapboxCustomMapAttribution;
+            }
+
+            this.mapboxVectorLayer.getSource()?.setAttributions(attribution);
+
             this.map.getLayers().setAt(0, this.mapboxVectorLayer);
 
         } else {
@@ -285,7 +305,6 @@ export class Visual implements IVisual {
             this.basemapLayer = this.basemap.getBasemap(basemapOptions);
             this.map.getLayers().setAt(0, this.basemapLayer);
         }
-
 
         const categorical = dataView.categorical;
 

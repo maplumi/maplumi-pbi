@@ -16,6 +16,7 @@
     "files": [
         "./src/visual.ts",
         "./src/settings.ts",
+        "./src/types.ts",
         "./src/basemap.ts",
         "./src/choropleth.ts",
         "./src/circle.ts",

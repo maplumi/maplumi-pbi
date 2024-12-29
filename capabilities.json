@@ -124,10 +124,6 @@
               {
                 "value": "mapbox",
                 "displayName": "Mapbox"
-              },
-              {
-                "value": "esri",
-                "displayName": "Esri World Imagery"
               }
             ]
           }
@@ -142,9 +138,32 @@
             "text": true
           }
         },
-        "mapboxStyleUrl": {
+        
+        "mapboxCustomMapAttribution": {
           "type": {
             "text": true
+          }
+        },
+        "mapboxStyle": {
+          "type": {
+            "enumeration": [
+              {
+                "value": "mapbox://styles/mapbox/light-v10?optimize=true",
+                "displayName": "Light"
+              },
+              {
+                "value": "mapbox://styles/mapbox/dark-v10?optimize=true",
+                "displayName": "Dark"
+              },
+              {
+                "value": "mapbox://styles/mapbox/streets-v11?optimize=true",
+                "displayName": "Streets"
+              },
+              {
+                "value": "custom",
+                "displayName": "Custom"
+              }
+            ]
           }
         },
         "declutterLabels": {

@@ -54,8 +54,7 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         },
         items: [
             { value: "openstreetmap", displayName: "OpenStreetMap" },
-            { value: "mapbox", displayName: "Mapbox" },
-            { value: "esri", displayName: "Esri World Imagery" }
+            { value: "mapbox", displayName: "Mapbox" }
         ]
     });
 
@@ -82,11 +81,35 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "https://api.mapbox.com" // Placeholder text
     });
 
-    mapboxStyleUrl: formattingSettings.TextInput = new TextInput({
-        name: "mapboxStyleUrl",
-        displayName: "Mapbox Style URL",
+    mapboxStyle: DropDown = new DropDown({
+
+        name: "mapboxStyle",
+        displayName: "Select Map Style",
+        value: {
+            value: "mapbox://styles/mapbox/light-v10?optimize=true",  // The actual value
+            displayName: "Light" 
+        },
+        items: [
+            { value: "mapbox://styles/mapbox/light-v10?optimize=true", displayName: "Light" },
+            { value: "mapbox://styles/mapbox/dark-v10?optimize=true", displayName: "Dark" },
+            { value: "mapbox://styles/mapbox/streets-v11?optimize=true", displayName: "Streets" },
+            { value: "custom", displayName: "Custom" }
+        ]
+
+    });
+
+    mapboxCustomStyleUrl: formattingSettings.TextInput = new TextInput({
+        name: "mapboxCustomStyleUrl",
+        displayName: "Custom Style Url",
         value: "",
         placeholder: "mapbox://styles/..." // Placeholder text
+    });
+
+    mapboxCustomMapAttribution: formattingSettings.TextInput = new TextInput({
+        name: "mapboxCustomMapAttribution",
+        displayName: "Custom Map Attribution",
+        value: "",
+        placeholder: "Enter Custom Map Attribution" // Placeholder text
     });
 
     declutterLabels: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
@@ -98,14 +121,14 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
     name: string = "mapBoxSettingsGroup";
     displayName: string = "Mapbox Settings";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyleUrl, this.mapboxBaseUrl, this.declutterLabels];
+    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyle, this.mapboxCustomStyleUrl,this.mapboxCustomMapAttribution, this.mapboxBaseUrl, this.declutterLabels];
 
 }
+
 class basemapVisualCardSettings extends formattingSettings.CompositeCard {
 
     public basemapSelectSettingsGroup: basemapSelectSettingsGroup = new basemapSelectSettingsGroup();
     public mapBoxSettingsGroup: mapBoxSettingsGroup = new mapBoxSettingsGroup();
-
 
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
