@@ -37,15 +37,17 @@ import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
 import DropDown = formattingSettings.ItemDropdown;
 import DataViewObjectsParser = dataViewObjectsParser.DataViewObjectsParser;
+import { TextArea } from "powerbi-visuals-utils-formattingmodel/lib/FormattingSettingsComponents";
 
 /**
  * OpenLayers Visual Formatting Cards
  */
-class basemapVisualCardSettings extends FormattingSettingsCard {
+
+class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
 
     selectedBasemap: DropDown = new DropDown({
         name: "selectedBasemap",
-        displayName: "Basemap",
+        displayName: "Select Basemap",
         value: {
             value: "openstreetmap",  // The actual value
             displayName: "OpenStreetMap" // The display name
@@ -57,11 +59,58 @@ class basemapVisualCardSettings extends FormattingSettingsCard {
         ]
     });
 
+    name: string = "basemapSelectSettingsGroup";
+    //displayName: string = "Select Basemap";
+    collapsible: boolean = false;
+    slices: formattingSettings.Slice[] = [this.selectedBasemap];
+
+}
+
+class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
+
+    mapboxAccessToken: formattingSettings.TextInput = new TextInput({
+        name: "mapboxAccessToken",
+        displayName: "Access Token",
+        value: "",
+        placeholder: "Enter Access Token" // Placeholder text
+    });
+    
+    mapboxBaseUrl: formattingSettings.TextInput = new TextInput({
+        name: "mapboxBaseUrl",
+        displayName: "Mapbox Base URL",
+        value: "https://api.mapbox.com",
+        placeholder: "https://api.mapbox.com" // Placeholder text
+    });
+
+    mapboxStyleUrl: formattingSettings.TextInput = new TextInput({
+        name: "mapboxStyleUrl",
+        displayName: "Mapbox Style URL",
+        value: "",
+        placeholder: "mapbox://styles/..." // Placeholder text
+    });
+
+    declutterLabels: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "declutterLabels",
+        displayName: "Declutter Labels",
+        value: true
+    });
+
+    name: string = "mapBoxSettingsGroup";
+    displayName: string = "Mapbox Settings";
+    collapsible: boolean = false;
+    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyleUrl, this.mapboxBaseUrl, this.declutterLabels];
+
+}
+class basemapVisualCardSettings extends formattingSettings.CompositeCard {
+
+    public basemapSelectSettingsGroup: basemapSelectSettingsGroup = new basemapSelectSettingsGroup();
+    public mapBoxSettingsGroup: mapBoxSettingsGroup = new mapBoxSettingsGroup();
+
+
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
-    slices: Array<formattingSettings.Slice> = [
-        this.selectedBasemap
-    ];
+    groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup ];
+
 }
 
 class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {

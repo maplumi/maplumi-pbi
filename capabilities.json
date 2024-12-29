@@ -131,6 +131,26 @@
               }
             ]
           }
+        },
+        "mapboxAccessToken": {
+          "type": {
+            "text": true
+          }
+        },
+        "mapboxBaseUrl": {
+          "type": {
+            "text": true
+          }
+        },
+        "mapboxStyleUrl": {
+          "type": {
+            "text": true
+          }
+        },
+        "declutterLabels": {
+          "type": {
+            "bool": true 
+          }
         }
       }
     },

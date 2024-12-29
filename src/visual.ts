@@ -42,6 +42,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import { MapboxVectorLayer } from 'ol-mapbox-style';
 
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
@@ -66,12 +67,13 @@ export class Visual implements IVisual {
 
     private basemap: Basemap; // Initialize the Basemap class
     private basemapLayer: TileLayer;
+    private mapboxVectorLayer: MapboxVectorLayer; // Commented out as it is not used
 
     private map: Map;
     private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
     private container: HTMLElement;
-   
+
     private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
     private circleStyle: Style;
@@ -89,7 +91,7 @@ export class Visual implements IVisual {
 
         // Initialize the settings model
         this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model   
-        
+
         this.basemap = new Basemap(); // Initialize the Basemap class
 
         this.basemapLayer = this.basemap.getDefaultBasemap(); // Get the default basemap layer
@@ -220,8 +222,13 @@ export class Visual implements IVisual {
 
         // Basemap settings
         const basemapOptions = {
-            selectedBasemap: basemapSettings.selectedBasemap.value.value.toString()
-        };        
+            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
+            mapboxStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxStyleUrl.value.toString(),
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
+            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
+            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value
+
+        };
 
         // Proportional Crrcle settings 
         const circleOptions = {
@@ -266,8 +273,19 @@ export class Visual implements IVisual {
         }
 
         // Update the basemap
-        this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-        this.map.getLayers().setAt(0, this.basemapLayer);
+        if (basemapOptions.selectedBasemap === "mapbox") {
+
+            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions.mapboxStyleUrl, 
+                basemapOptions.mapboxAccessToken, basemapOptions.declutterLabels);
+                
+            this.map.getLayers().setAt(0, this.mapboxVectorLayer);
+
+        } else {
+
+            this.basemapLayer = this.basemap.getBasemap(basemapOptions);
+            this.map.getLayers().setAt(0, this.basemapLayer);
+        }
+
 
         const categorical = dataView.categorical;
 
@@ -441,15 +459,15 @@ export class Visual implements IVisual {
 
                             this.fitMapToFeatures()
 
-                            if(circleOptions.showLegend){
+                            if (circleOptions.showLegend) {
                                 this.createProportionalCircleLegend(minCircleSizeValue, maxCircleSizeValue, circleOptions);
-                            }else{
+                            } else {
                                 const legend = document.getElementById("legend");
                                 if (legend) {
                                     legend.style.display = "none"; // Hide the legend
                                 }
                             }
-                            
+
                         }
 
                     }
@@ -558,9 +576,9 @@ export class Visual implements IVisual {
                                     });
                             }
 
-                            if(choroplethOptions.showLegend){
+                            if (choroplethOptions.showLegend) {
                                 this.createChoroplethLegend(classBreaks, colorScale);
-                            }else{
+                            } else {
                                 const legend = document.getElementById("legend");
                                 if (legend) {
                                     legend.style.display = "none"; // Hide the legend
@@ -585,10 +603,11 @@ export class Visual implements IVisual {
         }
 
         //order layers
-        this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
-        this.circleVectorLayer.setZIndex(2); // Higher zIndex (above)
+        if (circleOptions.layerControl && choroplethOptions.layerControl) {
 
-        //this.fitMapToFeatures(); // Call the fit function
+            this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
+            this.circleVectorLayer.setZIndex(2); // Higher zIndex (above)
+        }
 
         this.map.updateSize();
     }
@@ -768,7 +787,7 @@ export class Visual implements IVisual {
             legend.style.display = "block"; // Show the legend
         });
     }
-    
+
 
     private fitMapToFeatures() {
 
