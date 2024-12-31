@@ -264,7 +264,13 @@ class pcodesAdminLocationSettingsGroup extends formattingSettings.SimpleCard {
     slices: formattingSettings.Slice[] = [this.selectedISO3Code, this.selectedAdminLevel];
 }
 
-class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
+class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
+
+    classifyData: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "classifyData",
+        displayName: "Classify Data",
+        value: true
+    });
 
     numClasses: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "numClasses",
@@ -276,15 +282,59 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         name: "classificationMethod",
         displayName: "Classification Method",
         value: {
-            value: "k",  //default value
-            displayName: "K-means" 
+            value: "q",  //default value
+            displayName: "Quantile" 
         },
         items: [
             { value: "q", displayName: "Quantile" },
             { value: "e", displayName: "Equal Interval" },
             { value: "l", displayName: "Logarithmic" },
-            { value: "k", displayName: "K-means" }
+            { value: "k", displayName: "K-means" },
+            { value: "j", displayName: "Jenks Natural Breaks" },
         ]
+    });
+
+    
+    name: string = "choroplethClassificationSettingsGroup";
+    displayName: string = "Classification";
+    slices: formattingSettings.Slice[] = [
+        this.classifyData,
+        this.classificationMethod, 
+        this.numClasses
+    ];
+}
+
+class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
+
+    usePredefinedColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "usePredefinedColorRamp",
+        displayName: "Predefined Ramp",
+        value: false
+    });
+
+    colorRamp: DropDown = new DropDown({
+        name: "colorRamp",
+        displayName: "Predefined Color Ramp",
+        value: {
+            value: "blue",  //default value
+            displayName: "Blue" 
+        },
+        items: [
+            { value: "blue", displayName: "Blue" },
+            { value: "red", displayName: "Red" },
+            { value: "green", displayName: "Green" },
+            { value: "orange", displayName: "Orange" },
+            { value: "purple", displayName: "Purple" },
+            { value: "yellow", displayName: "Yellow" },
+            { value: "slateGrey", displayName: "Slate Grey" },
+            { value: "neutralGrey", displayName: "Neutral Grey" }
+        ]
+    });
+
+    invertColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "invertColorRamp",
+        displayName: "Invert Color Ramp",
+        value: false
     });
 
     minColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -334,26 +384,45 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
-    showLegend: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "showLegend",
-        displayName: "Show Legend",
-        value: false
-    });
-
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
-    slices: formattingSettings.Slice[] = [
-        this.numClasses,
-        this.classificationMethod,        
+    slices: formattingSettings.Slice[] = [        
+        this.usePredefinedColorRamp,        
+        this.colorRamp, 
+        this.invertColorRamp,    
         this.minColor,
         this.midColor,
         this.maxColor,
         this.strokeColor,
         this.strokeWidth,
-        this.layerOpacity,
-        this.showLegend
+        this.layerOpacity
     ];
 }
+
+class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
+
+    showLegend: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLegend",
+        displayName: "Show Legend",
+        value: false
+    });   
+    
+    legendTitle: formattingSettings.TextInput = new TextInput({
+        name: "legendTitle",
+        displayName: "Legend Title",
+        value: "Legend", // Default country
+        placeholder: "" // Placeholder text
+    });
+
+    
+    name: string = "choroplethLegendSettingsGroup";
+    displayName: string = "Legend";
+    slices: formattingSettings.Slice[] = [
+        this.showLegend ,
+        this.legendTitle       
+    ];
+}
+
 
 class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
 
@@ -363,12 +432,15 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
     });
     
     public pcodesAdminLocationSettingsGroup: pcodesAdminLocationSettingsGroup = new pcodesAdminLocationSettingsGroup();
+    public choroplethClassificationSettingsGroup: choroplethClassificationSettingsGroup = new choroplethClassificationSettingsGroup();
     public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
+    public choroplethLegendSettingsGroup: choroplethLegendSettingsGroup = new choroplethLegendSettingsGroup();
 
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "choroplethVisualCardSettings";
     displayName: string = "Choropleth";
-    groups: formattingSettings.Group[] = [this.pcodesAdminLocationSettingsGroup, this.choroplethDisplaySettingsGroup];
+    groups: formattingSettings.Group[] = [this.pcodesAdminLocationSettingsGroup,this.choroplethClassificationSettingsGroup,
+         this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
    
 }
 

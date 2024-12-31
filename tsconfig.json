@@ -21,6 +21,7 @@
         "./src/choropleth.ts",
         "./src/circle.ts",
         "./src/heatmap.ts",
-        "./src/tooltipServiceWrapper.ts"
+        "./src/tooltipServiceWrapper.ts",
+        "./src/colors.ts"
     ]
 }

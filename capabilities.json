@@ -256,6 +256,11 @@
             ]
           }
         },
+        "classifyData": {
+          "type": {
+            "bool": true
+          }
+        },
         "numClasses": {
           "type": {
             "numeric": true
@@ -279,8 +284,60 @@
               {
                 "value": "k",
                 "displayName": "K-means"
+              },
+              {
+                "value": "j",
+                "displayName": "Jenks Natural Breaks"
               }
             ]
+          }
+        },
+        "usePredefinedColorRamp": {
+          "type": {
+            "bool": true
+          }
+        },
+        "colorRamp":{
+          "type": {
+            "enumeration": [
+              {
+                "value": "blue",
+                "displayName": "Blue"
+              },
+              {
+                "value": "red",
+                "displayName": "Red"
+              },
+              {
+                "value": "green",
+                "displayName": "Green"
+              },
+              {
+                "value": "orange",
+                "displayName": "Orange"
+              },           
+              {
+                "value": "purple",
+                "displayName": "Purple"
+              },
+              {
+                "value": "yellow",
+                "displayName": "Yellow"
+              },
+              {
+                "value": "slateGrey",
+                "displayName": "Slate Grey"
+              },
+              {
+                "value": "neutralGrey",
+                "displayName": "Neutral Grey"
+              }
+            ]
+          }
+        },
+        "invertColorRamp": {
+          "type": {
+            "bool": true
           }
         },
         "minColor": {
@@ -332,6 +389,11 @@
         "showLegend": {
           "type": {
             "bool": true
+          }
+        },
+        "legendTitle": {
+          "type": {
+            "text": true
           }
         }
       }

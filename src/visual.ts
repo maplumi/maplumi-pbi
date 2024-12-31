@@ -56,6 +56,9 @@ import Stroke from "ol/style/Stroke";
 import { easeOut } from "ol/easing";
 
 import * as chroma from "chroma-js"; // Import chroma module
+import * as ss from 'simple-statistics';
+import Geostats from 'geostats';
+
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
@@ -63,6 +66,7 @@ import Attribution from 'ol/control/Attribution';
 import { defaults as defaultControls } from 'ol/control';
 
 import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
+import { ColorRampGenerator } from "./colors";
 
 export class Visual implements IVisual {
 
@@ -81,6 +85,7 @@ export class Visual implements IVisual {
     private circleStyle: Style;
     private choroplethStyle: Style;
     private tooltip: Overlay;
+    private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
     constructor(options: VisualConstructorOptions) {
@@ -102,11 +107,11 @@ export class Visual implements IVisual {
         legendContainer.setAttribute("id", "legend");
         legendContainer.style.position = "absolute";
         legendContainer.style.zIndex = "1000";
-        legendContainer.style.bottom = "10px";
-        legendContainer.style.left = "10px";
+        legendContainer.style.top = "5px";
+        legendContainer.style.right = "5px";
         legendContainer.style.backgroundColor = "white";
-        legendContainer.style.padding = "10px";
-        legendContainer.style.border = "1px solid black";
+        //legendContainer.style.padding = "5px";
+        // legendContainer.style.border = "1px solid black";
         legendContainer.style.display = "none"; // Hidden by default
 
         const legendTitle = document.createElement("h4");
@@ -213,6 +218,8 @@ export class Visual implements IVisual {
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
 
+        this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);        
+
         // Check data validity
         const dataView = options.dataViews[0];
 
@@ -270,17 +277,58 @@ export class Visual implements IVisual {
                         colorValues = colorMeasure.values;
                         //console.log("Color Values FOund:", colorValues);
 
-                        // Compute class breaks using quantiles, we can also use other methods like equal interval, etc.
-                        classBreaks = chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
+                        // Classify data
+                        if(choroplethOptions.classifyData) {
+
+                            if (choroplethOptions.classificationMethod === 'j') {
+                            
+                                classBreaks = ss.jenks(colorValues, choroplethOptions.classes);  // Using Jenks Natural Breaks classification
+    
+                            }
+                            else {
+    
+                                classBreaks = chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', 
+                                    choroplethOptions.classes);
+                            }
+
+                        }else{
+                            // calculate class breaks using unique values
+                            classBreaks = Array.from(new Set(colorValues)).sort((a, b) => a - b);
+                        }                        
 
                         // Log the breaks (optional)
-                        //console.log('Class breaks:', classBreaks);
+                        //console.log('Class breaks:', classBreaks); 
 
-                        // Create a color scale based on the breaks
-                        colorScale = chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
-                            //.mode('lab') // Use the LAB color space for better color interpolation
-                            .domain(classBreaks)
-                            .colors(choroplethOptions.classes);
+                        if (choroplethOptions.usePredefinedColorRamp) {
+
+                            if (choroplethOptions.invertColorRamp) {
+
+                                this.colorRampGenerator.invertRamp(); // Invert the color ramp to start from the darker color
+
+                            }else{
+
+                                this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp); // Reset the color ramp
+                            }
+
+                            if(choroplethOptions.classifyData) {
+
+                                colorScale = this.colorRampGenerator.generateColorRamp(choroplethOptions.classes, classBreaks);
+
+                            }else{
+
+                                colorScale = this.colorRampGenerator.generateColorRamp(classBreaks.length, classBreaks);
+
+                            }                            
+
+                        } else {
+
+                            // Create a color scale based on the breaks
+                            colorScale = chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
+                                .mode('lab') // Use the LAB color space for better color interpolation
+                                .domain(classBreaks)
+                                .colors(choroplethOptions.classes);
+
+                        }
 
                         console.log('Color Scale:', colorScale);
 
@@ -315,9 +363,9 @@ export class Visual implements IVisual {
                                     this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
                                         choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
                                         classBreaks, colorScale);
-                                        
+
                                     this.fitMapToFeatures();
-                                    
+
                                 })
                                 .catch(error => {
                                     console.error("Error fetching GeoJSON data:", error);
@@ -325,7 +373,7 @@ export class Visual implements IVisual {
 
 
                             if (choroplethOptions.showLegend) {
-                                this.createChoroplethLegend(classBreaks, colorScale);
+                                this.createChoroplethLegend(classBreaks, colorScale,"inside",choroplethOptions.legendTitle);
                             } else {
                                 const legend = document.getElementById("legend");
                                 if (legend) {
@@ -398,22 +446,31 @@ export class Visual implements IVisual {
     }
 
     private getChoroplethOptions(): ChoroplethOptions {
+
         const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
         const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
         const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
+        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
+        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
+
         return {
             layerControl: choroplethSettings.topLevelSlice.value,
             countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
             adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
+            classifyData: choroplethClassificationSettings.classifyData.value,
+            usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
+            invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
+            colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
             midColor: choroplethDisplaySettings.midColor.value.value,
-            classes: choroplethDisplaySettings.numClasses.value,
-            classificationMethod: choroplethDisplaySettings.classificationMethod.value.value.toString(),
+            classes: choroplethClassificationSettings.numClasses.value,
+            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString(),
             minColor: choroplethDisplaySettings.minColor.value.value,
             maxColor: choroplethDisplaySettings.maxColor.value.value,
             strokeColor: choroplethDisplaySettings.strokeColor.value.value,
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
-            showLegend: choroplethDisplaySettings.showLegend.value
+            showLegend: choroplethLegendSettings.showLegend.value,
+            legendTitle: choroplethLegendSettings.legendTitle.value
         };
     }
 
@@ -474,12 +531,12 @@ export class Visual implements IVisual {
                     maxCircleSizeValue = Math.max(...circleSizeValues);
                     circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
                     this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, maxCircleSizeValue, circleScale);
-                    
+
 
                 } else {
 
                     this.renderDefaultCircles(longitudes, latitudes, circleOptions, tooltips);
-                    
+
                 }
             }
         } else {
@@ -557,7 +614,7 @@ export class Visual implements IVisual {
             opacity: circleOptions.layerOpacity
         });
         this.map.addLayer(this.circleVectorLayer);
-        
+
     }
 
     // Function to process the GeoJSON data
@@ -637,43 +694,121 @@ export class Visual implements IVisual {
         this.map.addLayer(this.choroplethVectorLayer);
     }
 
-    private createChoroplethLegend(classBreaks: number[], colorScale: string[]): void {
+    private createChoroplethLegend(
+        classBreaks: number[],
+        colorScale: string[],
+        labelPosition: "top" | "inside" | "bottom" = "inside",
+        legendTitle: string = "Legend",
+        formatTemplate: string = "{:.1f}", // Custom formatting template
+        titleAlignment: "left" | "center" | "right" = "left", // Title alignment option
+        gapSize: number = 2.5 // Custom gap size between color boxes (default 2.5px)
+    ): void {
         const legend = document.getElementById("legend");
         if (!legend) return;
+
         // Clear existing legend
         while (legend.firstChild) {
             legend.removeChild(legend.firstChild);
         }
 
+        // Style the legend container
+        legend.style.display = "flex";
+        legend.style.flexDirection = "column"; // Stack the title and legend items vertically
+        legend.style.alignItems = "flex-start"; // Align the items to the left by default
+        legend.style.gap = "5px"; // Add spacing between title and items
+        legend.style.background = "none"; // Remove white background
+        legend.style.border = "none"; // Remove black outline
+
+        // Add title to the legend with customizable alignment
+        const title = document.createElement("div");
+        title.textContent = legendTitle;
+        title.style.fontSize = "12px";
+        title.style.fontWeight = "bold";
+        title.style.marginBottom = "5px";
+
+        // Align the title based on user selection
+        title.style.textAlign = titleAlignment; // Apply the specified alignment
+
+        // Align the title itself depending on the alignment choice
+        if (titleAlignment === "left") {
+            title.style.marginLeft = "0"; // Ensure it's at the left edge of the legend
+        } else if (titleAlignment === "center") {
+            title.style.marginLeft = "auto";
+            title.style.marginRight = "auto"; // Center the title
+        } else if (titleAlignment === "right") {
+            title.style.marginLeft = "auto"; // Align to the right side
+        }
+
+        // Append the title to the legend
+        legend.appendChild(title);
+
+        // Create horizontal layout for legend items
+        const itemsContainer = document.createElement("div");
+        itemsContainer.style.display = "flex";
+        itemsContainer.style.flexDirection = "row";
+        itemsContainer.style.alignItems = "flex-start";
+        itemsContainer.style.gap = `${gapSize}px`; // Set the gap size between color boxes
+
         for (let i = 0; i < classBreaks.length - 1; i++) {
-            const range = `${Math.round(classBreaks[i])} - ${Math.round(classBreaks[i + 1])}`;
+            const upperValue = classBreaks[i + 1];
+            const formattedLabel = formatValue(upperValue, formatTemplate); // Format the value dynamically
             const color = colorScale[i];
 
-            // Create legend item
+            // Create legend item container
             const legendItem = document.createElement("div");
             legendItem.style.display = "flex";
+            legendItem.style.flexDirection = "column";
             legendItem.style.alignItems = "center";
-            legendItem.style.marginBottom = "5px";
 
-            // Create color box
+            // Calculate the dynamic width of the color box
+            const boxWidth = `${formattedLabel.length * 5 + 10}px`; // Label length * 10px + 20px padding
+
+            // Create color box with reduced size (half the original height)
             const colorBox = document.createElement("div");
-            colorBox.style.width = "20px";
-            colorBox.style.height = "20px";
+            colorBox.style.position = "relative"; // For positioning the label inside if needed
+            colorBox.style.width = boxWidth; // Dynamic width
+            colorBox.style.height = "20px"; // Reduced height (half of the original)
             colorBox.style.backgroundColor = color;
-            colorBox.style.marginRight = "10px";
+            colorBox.style.textAlign = "center";
+            colorBox.style.display = "flex"; // Flexbox for centering content
+            colorBox.style.justifyContent = "center";
+            colorBox.style.alignItems = labelPosition === "inside" ? "center" : "flex-start";
 
             // Add label
             const label = document.createElement("span");
-            label.textContent = range;
+            label.textContent = formattedLabel;
+            label.style.color = labelPosition === "inside" ? "#fff" : "#000"; // Contrast label color for inside
+            label.style.fontSize = "10px";
 
-            // Append elements
-            legendItem.appendChild(colorBox);
-            legendItem.appendChild(label);
-            legend.appendChild(legendItem);
+            // Append label based on position
+            if (labelPosition === "top") {
+                // Add label on top
+                label.style.marginBottom = "5px";
+                legendItem.appendChild(label);
+                legendItem.appendChild(colorBox);
+            } else if (labelPosition === "bottom") {
+                // Add label below
+                label.style.marginTop = "5px";
+                legendItem.appendChild(colorBox);
+                legendItem.appendChild(label);
+            } else {
+                // Add label inside the box
+                colorBox.appendChild(label);
+                legendItem.appendChild(colorBox);
+            }
 
-            legend.style.display = "block"; // Show the legend
+            // Append each legend item to the items container
+            itemsContainer.appendChild(legendItem);
         }
+
+        // Append the items container to the legend
+        legend.appendChild(itemsContainer);
+
+        // Ensure the legend is visible
+        legend.style.display = "flex";
     }
+
+
 
     private createProportionalCircleLegend(
         minValue: number,
@@ -762,6 +897,25 @@ export class Visual implements IVisual {
         //this.basemap.destroy();
         this.map.setTarget(null);
     }
+
+}
+
+function formatValue(value: number, formatTemplate: string): string {
+    let formattedValue: number;
+    let suffix: string = "";
+
+    if (value >= 1_000_000) {  // Millions
+        formattedValue = value / 1_000_000;
+        suffix = "M";
+    } else if (value >= 1_000) {  // Thousands
+        formattedValue = value / 1_000;
+        suffix = "k";
+    } else {
+        formattedValue = value;
+    }
+
+    // Use custom format template to format the number
+    return `${formatTemplate.replace("{:.1f}", formattedValue.toFixed(1))}${suffix}`;
 }
 
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};

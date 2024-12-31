@@ -24,6 +24,10 @@ export interface ChoroplethOptions {
     layerControl: boolean; 
     countryISO3Code: string; 
     adminLevel: string; 
+    classifyData: boolean;
+    usePredefinedColorRamp: boolean;
+    invertColorRamp: boolean;
+    colorRamp: string;
     midColor: string; 
     classes: number; 
     classificationMethod: string; 
@@ -33,6 +37,7 @@ export interface ChoroplethOptions {
     strokeWidth: number; 
     layerOpacity: number; 
     showLegend: boolean; 
+    legendTitle: string;
 }
 
 export interface HeatmapOptions {
