@@ -33,7 +33,7 @@ import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructor
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 
-import { OpenLayersVisualFormattingSettingsModel } from "./settings";
+import { HumanitarianMapVisualFormattingSettingsModel } from "./settings";
 
 import { Basemap } from "./basemap";
 
@@ -62,45 +62,34 @@ import TileLayer from "ol/layer/Tile";
 import Attribution from 'ol/control/Attribution';
 import { defaults as defaultControls } from 'ol/control';
 
-import { BasemapOptions } from "./types";
+import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
 
 export class Visual implements IVisual {
-    // declaring formatting settings service 
+
     private formattingSettingsService: FormattingSettingsService;
+    private visualFormattingSettingsModel: HumanitarianMapVisualFormattingSettingsModel;
 
-    private visualFormattingSettingsModel: OpenLayersVisualFormattingSettingsModel; // Define the settings model property
-
-    private basemap: Basemap; // Initialize the Basemap class
+    private basemap: Basemap;
     private basemapLayer: TileLayer;
-    private mapboxVectorLayer: MapboxVectorLayer; // Commented out as it is not used
-
+    private mapboxVectorLayer: MapboxVectorLayer;
     private map: Map;
     private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
     private container: HTMLElement;
-
     private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
     private circleStyle: Style;
     private choroplethStyle: Style;
-
     private tooltip: Overlay;
-
-    // Variables to store cached data and loading state
-    private geojsonDataCache: any = null; // Store the fetched GeoJSON data
-    private isDataLoading: boolean = false; // Flag to check if the data is being loaded
+    private isDataLoading: boolean = false;
 
     constructor(options: VisualConstructorOptions) {
 
         this.formattingSettingsService = new FormattingSettingsService();
+        this.visualFormattingSettingsModel = new HumanitarianMapVisualFormattingSettingsModel();
 
-        // Initialize the settings model
-        this.visualFormattingSettingsModel = new OpenLayersVisualFormattingSettingsModel(); // Initialize settings model   
-
-        this.basemap = new Basemap(); // Initialize the Basemap class
-
-        this.basemapLayer = this.basemap.getDefaultBasemap(); // Get the default basemap layer
-
+        this.basemap = new Basemap();
+        this.basemapLayer = this.basemap.getDefaultBasemap();
 
         this.container = options.element;
 
@@ -216,66 +205,16 @@ export class Visual implements IVisual {
 
     }
 
-    public update(options: VisualUpdateOptions) {
+    update(options: VisualUpdateOptions) {
 
-        // Update the visualFormattingSettingsModel based on user changes in the formatting pane
-        this.visualFormattingSettingsModel = this.formattingSettingsService.populateFormattingSettingsModel(
-            OpenLayersVisualFormattingSettingsModel,
-            options.dataViews[0]
-        );
+        // Retrieve the model and settings
+        this.visualFormattingSettingsModel = this.getFormattingSettings(options);
+        const basemapOptions = this.getBasemapOptions();
+        const circleOptions = this.getCircleOptions();
+        const choroplethOptions = this.getChoroplethOptions();
 
-        // Retrieve user settings
-        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
-        const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
-        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
-        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
-
-        // Basemap settings
-        const basemapOptions: BasemapOptions = {
-            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-            mapboxCustomMapAttribution: basemapSettings.mapBoxSettingsGroup.mapboxCustomMapAttribution.value.toString()
-        };
-
-        // Proportional Crrcle settings 
-        const circleOptions = {
-            layerControl: circleSettings.topLevelSlice.value,
-            color: circleSettings.proportionalCirclesColor.value.value,
-            minRadius: circleSettings.proportionalCirclesMinimumRadius.value,
-            maxRadius: circleSettings.proportionalCirclesMaximumRadius.value,
-            defaultSize: circleSettings.proportionalCirclesSize.value,
-            strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
-            strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
-            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
-            showLegend: circleSettings.showLegend.value
-        };
-        console.log("circleOptions:", circleOptions);
-
-        //choropleth settings        
-        const choroplethOptions = {
-            layerControl: choroplethSettings.topLevelSlice.value,
-            countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
-            adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
-            midColor: choroplethDisplaySettings.midColor.value.value,
-            classes: choroplethDisplaySettings.numClasses.value,
-            classificationMethod: choroplethDisplaySettings.classificationMethod.value.value.toString(),
-            minColor: choroplethDisplaySettings.minColor.value.value,
-            maxColor: choroplethDisplaySettings.maxColor.value.value,
-            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
-            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
-            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
-            showLegend: choroplethDisplaySettings.showLegend.value
-        };
-        console.log("choroplethOptions:", choroplethOptions);
-
+        // Check data validity
         const dataView = options.dataViews[0];
-
-        console.log("Full DataView:", JSON.stringify(dataView, null, 2));
 
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
@@ -285,228 +224,34 @@ export class Visual implements IVisual {
         }
 
         // Update the basemap
-        if (basemapOptions.selectedBasemap === "mapbox") {
+        this.updateBasemap(basemapOptions);
 
-            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
-
-            let attribution = '© Mapbox © OpenStreetMap';
-
-            if (basemapOptions.mapboxCustomMapAttribution) {
-
-                attribution = attribution+", "+basemapOptions.mapboxCustomMapAttribution;
-            }
-
-            this.mapboxVectorLayer.getSource()?.setAttributions(attribution);
-
-            this.map.getLayers().setAt(0, this.mapboxVectorLayer);
-
-        } else {
-
-            this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-            this.map.getLayers().setAt(0, this.basemapLayer);
-        }
+        // Handle tooltips
+        const tooltips = this.extractTooltips(dataView.categorical);
 
         const categorical = dataView.categorical;
 
-        let tooltips: any[] | undefined;
-
-        if (categorical.values && categorical.values.length > 0) {
-            /* Tooltip values */
-            const tooltipMeasure = categorical?.values?.find(c => c.source?.roles && c.source.roles['Tooltips']);
-            if (tooltipMeasure) {
-                tooltips = tooltipMeasure.values;
-                console.log("Tooltips Found:", tooltips);
-            } else {
-                console.log("Tooltips not found.");
-            }
-
-        } else {
-            console.log("No values found.");
-        }
-
-        //render circle layer
+        // Render the circle layer
+        this.clearMap(this.circleVectorSource);
         if (circleOptions.layerControl) {
 
             console.log("Rendering Circle Layer");
+            this.renderCircleLayer(dataView.categorical, circleOptions, tooltips);
 
-            let longitudes: number[] | undefined;
-            let latitudes: number[] | undefined;
-            let circleSizeValues: number[] | undefined;
-            let minCircleSizeValue: number | undefined;
-            let maxCircleSizeValue: number | undefined;
-            let circleScale: number | undefined;
+            this.fitMapToFeatures();
 
-            const lonCategory = categorical?.categories?.find(c => c.source?.roles && c.source.roles['Longitude']);
-            const latCategory = categorical?.categories?.find(c => c.source?.roles && c.source.roles['Latitude']);
-            console.log("Longitude Category:", lonCategory);
-            console.log("Latitude Category:", latCategory);
-
-            if (lonCategory && latCategory) {
-                longitudes = lonCategory.values as number[];
-                latitudes = latCategory.values as number[];
-
-                if (longitudes.length !== latitudes.length) {
-                    console.warn("Longitude and Latitude have different lengths.");
-                    this.clearMap(this.circleVectorSource);
-                    //return;
-                } else {
-
-                    // Check for Circle Size Measure
-                    if (categorical.values && categorical.values.length > 0) {
-
-                        const CircleSizeMeasure = categorical?.values?.find(c => c.source?.roles && c.source.roles['Size']);
-
-                        if (CircleSizeMeasure) {
-
-                            circleSizeValues = CircleSizeMeasure.values as number[];
-                            console.log("Circle Size Values Found:", circleSizeValues);
-
-                            minCircleSizeValue = Math.min(...circleSizeValues);
-                            maxCircleSizeValue = Math.max(...circleSizeValues);
-
-                            circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
-
-                            //render proportional circles
-                            this.circleVectorSource.clear(); // Clear existing features
-                            if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
-
-                                for (let i = 0; i < longitudes.length; i++) {
-
-                                    const lon = longitudes[i];
-                                    const lat = latitudes[i];
-
-                                    const size = circleSizeValues[i];
-                                    const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
-
-                                    if (isNaN(lon) || isNaN(lat)) {
-                                        console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                                        continue;
-                                    }
-
-                                    const point = new Feature({
-                                        geometry: new Point(fromLonLat([lon, lat])),
-                                        size: size, // Add size data to the feature
-                                        tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
-                                    });
-
-                                    point.setStyle(new Style({
-                                        image: new Circle({
-                                            radius: radius,
-                                            fill: new Fill({ color: circleOptions.color }),
-                                            stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth }),
-                                        }),
-                                    }));
-
-                                    this.circleVectorSource.addFeature(point);
-
-                                }
-
-                                this.circleVectorLayer.setStyle((feature: Feature) => {
-                                    const size = feature.get('size');
-                                    const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
-
-                                    return new Style({
-                                        image: new Circle({
-                                            radius: radius,
-                                            fill: new Fill({
-                                                color: circleOptions.color
-                                            }),
-                                            stroke: new Stroke({
-                                                color: circleOptions.strokeColor,
-                                                width: circleOptions.strokeWidth
-                                            })
-                                        })
-                                    });
-                                });
-
-                                this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
-
-                                this.map.addLayer(this.circleVectorLayer);
-
-                                this.fitMapToFeatures()
-                            }
-
-
-                        }
-                    } else {
-                        //render circles with default size  
-                        console.log("Circle Size Values not found. Rendering default circles.");
-                        this.circleVectorSource.clear(); // Clear existing features
-                        if (longitudes && latitudes) { // Check if longitudes and latitudes are defined
-
-                            for (let i = 0; i < longitudes.length; i++) {
-
-                                const lon = longitudes[i];
-                                const lat = latitudes[i];
-
-                                if (isNaN(lon) || isNaN(lat)) {
-                                    console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                                    continue;
-                                }
-
-                                const point = new Feature({
-                                    geometry: new Point(fromLonLat([lon, lat])),
-                                    tooltip: tooltips ? tooltips[i] : undefined // Add tooltip data to the feature
-                                });
-
-                                point.setStyle(new Style({
-                                    image: new Circle({
-                                        radius: circleOptions.defaultSize,
-                                        fill: new Fill({ color: circleOptions.color }),
-                                        stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth }),
-                                    }),
-                                }));
-
-                                this.circleVectorSource.addFeature(point);
-                            }
-
-                            this.circleStyle = new Style({
-                                image: new Circle({
-                                    radius: circleOptions.defaultSize,
-                                    fill: new Fill({ color: circleOptions.color }),
-                                    stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth }),
-                                }),
-                            });
-
-                            this.circleVectorLayer = new VectorLayer({
-                                source: this.circleVectorSource,
-                                style: this.circleStyle,
-                                opacity: circleOptions.layerOpacity
-                            });
-
-                            this.map.addLayer(this.circleVectorLayer);
-
-                            this.fitMapToFeatures()
-
-                            if (circleOptions.showLegend) {
-                                this.createProportionalCircleLegend(minCircleSizeValue, maxCircleSizeValue, circleOptions);
-                            } else {
-                                const legend = document.getElementById("legend");
-                                if (legend) {
-                                    legend.style.display = "none"; // Hide the legend
-                                }
-                            }
-
-                        }
-
-                    }
-                }
-
-            } else {
-                console.warn("Both Longitude and Latitude roles must be assigned.");
-                this.clearMap(this.circleVectorSource);
-            }
         } else {
-            this.clearMap(this.circleVectorSource);
+
+            this.circleVectorSource.clear();
         }
 
-        //render choropleth layer
+
+        // Render choropleth layer
+        this.clearMap(this.choroplethVectorSource);
         if (choroplethOptions.layerControl) {
 
             let pcodes: string[] | undefined;
             let colorValues: any[] | undefined;
-            let minColorValue: any | undefined;
-            let maxColorValue: any | undefined;
             let classBreaks: any[] | undefined;
             let colorScale: any | undefined;
 
@@ -523,16 +268,13 @@ export class Visual implements IVisual {
 
                     if (colorMeasure) {
                         colorValues = colorMeasure.values;
-                        console.log("Color Values FOund:", colorValues);
-
-                        minColorValue = Math.min(...colorValues);
-                        maxColorValue = Math.max(...colorValues);
+                        //console.log("Color Values FOund:", colorValues);
 
                         // Compute class breaks using quantiles, we can also use other methods like equal interval, etc.
                         classBreaks = chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
 
                         // Log the breaks (optional)
-                        console.log('Class breaks:', classBreaks);
+                        //console.log('Class breaks:', classBreaks);
 
                         // Create a color scale based on the breaks
                         colorScale = chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
@@ -542,7 +284,6 @@ export class Visual implements IVisual {
 
                         console.log('Color Scale:', colorScale);
 
-                        //render choropleth
                         /* Chopleth Map */
                         this.choroplethVectorSource.clear();
 
@@ -557,43 +298,31 @@ export class Visual implements IVisual {
                             });
 
                             if (validPCodes.length === 0) {
-                                console.warn("No valid PCodes found. Exiting.");
+                                console.warn("No valid PCodes found. Exiting...");
                                 return;
                             }
 
-                            // Only fetch GeoJSON if not already cached
-                            if (this.geojsonDataCache) {
-                                console.log("Using cached GeoJSON data.");
-                                this.renderChoropleth(this.geojsonDataCache, colorValues, validPCodes, choroplethOptions.adminLevel,
-                                    choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
-                                    classBreaks, colorScale);
+                            // Construct the cache key
+                            const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
 
-                                this.createChoroplethLegend(classBreaks, colorScale);
+                            // Construct HDX service URL
+                            const serviceUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+                            const maxAge = 3600000; // Cache expiry time (1 hour)
 
-                            } else {
-                                // Show loading indicator since we're fetching data
-                                //this.showLoadingIndicator();
+                            fetchGeoJsonWithCaching(serviceUrl, cacheKey, maxAge)
+                                .then(geojsonData => {
 
-                                // Construct the dynamic GeoJSON API URL
-                                const geoJsonUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+                                    this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
+                                        choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
+                                        classBreaks, colorScale);
+                                        
+                                    this.fitMapToFeatures();
+                                    
+                                })
+                                .catch(error => {
+                                    console.error("Error fetching GeoJSON data:", error);
+                                });
 
-                                // Fetch GeoJSON data from the API
-                                fetch(geoJsonUrl)
-                                    .then(response => response.json())
-                                    .then(geojsonData => {
-                                        // Cache the GeoJSON data
-                                        this.geojsonDataCache = geojsonData;
-
-                                        // Process the fetched GeoJSON data
-                                        this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
-                                            choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
-                                            classBreaks, colorScale);
-
-                                    })
-                                    .catch(error => {
-                                        console.error("Error fetching GeoJSON data:", error);
-                                    });
-                            }
 
                             if (choroplethOptions.showLegend) {
                                 this.createChoroplethLegend(classBreaks, colorScale);
@@ -613,12 +342,12 @@ export class Visual implements IVisual {
 
             } else {
                 console.warn("PCodes not found.");
-                this.clearMap(this.choroplethVectorSource);
+                this.choroplethVectorSource.clear();
                 //return;
             }
 
         } else {
-            this.clearMap(this.choroplethVectorSource);
+            this.choroplethVectorSource.clear();
         }
 
         //order layers
@@ -631,12 +360,211 @@ export class Visual implements IVisual {
         this.map.updateSize();
     }
 
+
+    // Helper functions
+
+    private getFormattingSettings(options: VisualUpdateOptions) {
+        return this.formattingSettingsService.populateFormattingSettingsModel(
+            HumanitarianMapVisualFormattingSettingsModel,
+            options.dataViews[0]
+        );
+    }
+
+    private getBasemapOptions(): BasemapOptions {
+        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
+        return {
+            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
+            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
+            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
+            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
+            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+            mapboxCustomMapAttribution: basemapSettings.mapBoxSettingsGroup.mapboxCustomMapAttribution.value.toString()
+        };
+    }
+
+    private getCircleOptions(): CircleOptions {
+        const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
+        return {
+            layerControl: circleSettings.topLevelSlice.value,
+            color: circleSettings.proportionalCirclesColor.value.value,
+            minRadius: circleSettings.proportionalCirclesMinimumRadius.value,
+            maxRadius: circleSettings.proportionalCirclesMaximumRadius.value,
+            strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
+            strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
+            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
+            showLegend: circleSettings.showLegend.value
+        };
+    }
+
+    private getChoroplethOptions(): ChoroplethOptions {
+        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
+        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
+        const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
+        return {
+            layerControl: choroplethSettings.topLevelSlice.value,
+            countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
+            adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
+            midColor: choroplethDisplaySettings.midColor.value.value,
+            classes: choroplethDisplaySettings.numClasses.value,
+            classificationMethod: choroplethDisplaySettings.classificationMethod.value.value.toString(),
+            minColor: choroplethDisplaySettings.minColor.value.value,
+            maxColor: choroplethDisplaySettings.maxColor.value.value,
+            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
+            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
+            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
+            showLegend: choroplethDisplaySettings.showLegend.value
+        };
+    }
+
+    private extractTooltips(categorical: any) {
+        if (categorical.values && categorical.values.length > 0) {
+            const tooltipMeasure = categorical?.values?.find(c => c.source?.roles && c.source.roles['Tooltips']);
+            if (tooltipMeasure) {
+                //console.log("Tooltips Found:", tooltipMeasure.values);
+                return tooltipMeasure.values;
+            } else {
+                //console.log("Tooltips not found.");
+            }
+        } else {
+            //console.log("No values found.");
+        }
+        return undefined;
+    }
+
+    private updateBasemap(basemapOptions: BasemapOptions) {
+        if (basemapOptions.selectedBasemap === "mapbox") {
+            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
+            let attribution = '© Mapbox © OpenStreetMap';
+            if (basemapOptions.mapboxCustomMapAttribution) {
+                attribution += " " + basemapOptions.mapboxCustomMapAttribution;
+            }
+            this.mapboxVectorLayer.getSource()?.setAttributions(attribution);
+            this.map.getLayers().setAt(0, this.mapboxVectorLayer);
+        } else {
+            this.basemapLayer = this.basemap.getBasemap(basemapOptions);
+            this.map.getLayers().setAt(0, this.basemapLayer);
+        }
+    }
+
+    private renderCircleLayer(categorical: any, circleOptions: CircleOptions, tooltips: any[]) {
+        let longitudes: number[] | undefined;
+        let latitudes: number[] | undefined;
+        let circleSizeValues: number[] | undefined;
+        let minCircleSizeValue: number | undefined;
+        let maxCircleSizeValue: number | undefined;
+        let circleScale: number | undefined;
+
+        const lonCategory = categorical?.categories?.find(c => c.source?.roles && c.source.roles['Longitude']);
+        const latCategory = categorical?.categories?.find(c => c.source?.roles && c.source.roles['Latitude']);
+        if (lonCategory && latCategory) {
+            longitudes = lonCategory.values as number[];
+            latitudes = latCategory.values as number[];
+
+            if (longitudes.length !== latitudes.length) {
+                console.warn("Longitude and Latitude have different lengths.");
+                this.clearMap(this.circleVectorSource);
+            } else {
+                // Handle Circle Size Measure or default size
+                const CircleSizeMeasure = categorical?.values?.find(c => c.source?.roles && c.source.roles['Size']);
+                if (CircleSizeMeasure) {
+
+                    circleSizeValues = CircleSizeMeasure.values as number[];
+                    minCircleSizeValue = Math.min(...circleSizeValues);
+                    maxCircleSizeValue = Math.max(...circleSizeValues);
+                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+                    this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, maxCircleSizeValue, circleScale);
+                    
+
+                } else {
+
+                    this.renderDefaultCircles(longitudes, latitudes, circleOptions, tooltips);
+                    
+                }
+            }
+        } else {
+            console.warn("Both Longitude and Latitude roles must be assigned.");
+            this.clearMap(this.circleVectorSource);
+        }
+    }
+
+    private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, maxCircleSizeValue: number, circleScale: number) {
+        this.circleVectorSource.clear();
+        longitudes.forEach((lon, i) => {
+            const lat = latitudes[i];
+            const size = circleSizeValues[i];
+            const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
+
+            if (isNaN(lon) || isNaN(lat)) {
+                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                return;
+            }
+
+            const point = new Feature({
+                geometry: new Point(fromLonLat([lon, lat])),
+                size: size,
+                tooltip: tooltips ? tooltips[i] : undefined
+            });
+
+            point.setStyle(new Style({
+                image: new Circle({
+                    radius: radius,
+                    fill: new Fill({ color: circleOptions.color }),
+                    stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth })
+                })
+            }));
+
+            this.circleVectorSource.addFeature(point);
+        });
+        this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
+        this.map.addLayer(this.circleVectorLayer);
+    }
+
+    private renderDefaultCircles(longitudes: number[], latitudes: number[], circleOptions: CircleOptions, tooltips: any[]) {
+        this.circleVectorSource.clear();
+        longitudes.forEach((lon, i) => {
+            const lat = latitudes[i];
+            if (isNaN(lon) || isNaN(lat)) {
+                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                return;
+            }
+
+            const point = new Feature({
+                geometry: new Point(fromLonLat([lon, lat])),
+                tooltip: tooltips ? tooltips[i] : undefined
+            });
+
+            point.setStyle(new Style({
+                image: new Circle({
+                    radius: circleOptions.minRadius, // Default size
+                    fill: new Fill({ color: circleOptions.color }),
+                    stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth })
+                })
+            }));
+
+            this.circleVectorSource.addFeature(point);
+        });
+        this.circleStyle = new Style({
+            image: new Circle({
+                radius: circleOptions.minRadius, // Default size
+                fill: new Fill({ color: circleOptions.color }),
+                stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth })
+            })
+        });
+        this.circleVectorLayer = new VectorLayer({
+            source: this.circleVectorSource,
+            style: this.circleStyle,
+            opacity: circleOptions.layerOpacity
+        });
+        this.map.addLayer(this.circleVectorLayer);
+        
+    }
+
     // Function to process the GeoJSON data
     private renderChoropleth(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
         selectedStrokeColor: any, selectedStrokeWidth: any, layerOpacity: any, classBreaks: any, colorScale: any): void {
 
-        // Create a vector source from the fetched GeoJSON data
-        //console.log("GeoJSON data retrieved:", geojsonData);
+        this.choroplethVectorSource.clear(); // Clear existing features
 
         let pcodeKey = `ADM${selectedAdminLevel}_PCODE`; // Use the appropriate key based on the admin level
 
@@ -645,10 +573,6 @@ export class Visual implements IVisual {
             const featurePCode = feature.properties[pcodeKey]; // Example filter condition
             return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
         });
-
-        //console.log("GeoJSON data filtered:", filteredFeatures);
-
-        this.choroplethVectorSource.clear();
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
@@ -711,9 +635,6 @@ export class Visual implements IVisual {
         });
 
         this.map.addLayer(this.choroplethVectorLayer);
-
-        // Fit map view to the extent of the loaded GeoJSON data
-        this.fitMapToFeatures()
     }
 
     private createChoroplethLegend(classBreaks: number[], colorScale: string[]): void {
@@ -842,3 +763,50 @@ export class Visual implements IVisual {
         this.map.setTarget(null);
     }
 }
+
+const memoryCache: Record<string, { data: any; timestamp: number }> = {};
+
+// Cache GeoJSON data, avoiding overwriting if it's a duplicate
+async function cacheGeoJsonData(key: string, data: any): Promise<void> {
+    const existingCache = memoryCache[key];
+
+    // Check if the data is identical to the current cached data
+    if (existingCache && existingCache.data === data) {
+        console.log("Duplicate cache entry. Skipping cache update.");
+        return;
+    }
+
+    // Cache the new data and update timestamp
+    memoryCache[key] = { data, timestamp: Date.now() };
+    console.log("GeoJSON data cached in memory.");
+}
+
+// Retrieve GeoJSON data from cache
+async function getCachedGeoJsonData(key: string): Promise<any | null> {
+    return memoryCache[key]?.data || null;
+}
+
+// Check if cached data is expired
+async function isCacheExpired(key: string, maxAge: number): Promise<boolean> {
+    const cacheEntry = memoryCache[key];
+    if (!cacheEntry) return true;
+    return (Date.now() - cacheEntry.timestamp) > maxAge;
+}
+
+// Fetch GeoJSON data with caching
+async function fetchGeoJsonWithCaching(serviceUrl: string, cacheKey: string, maxAge: number = 3600000): Promise<any> {
+    if (await isCacheExpired(cacheKey, maxAge)) {
+        console.log("Fetching data from service...");
+        const response = await fetch(serviceUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch GeoJSON data: ${response.statusText}`);
+        }
+        const geojsonData = await response.json();
+        await cacheGeoJsonData(cacheKey, geojsonData);
+        return geojsonData;
+    }
+
+    console.log("Using cached data.");
+    return getCachedGeoJsonData(cacheKey);
+}
+

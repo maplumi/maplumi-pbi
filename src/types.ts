@@ -1,5 +1,4 @@
 
-
 export interface BasemapOptions {
     selectedBasemap: string;
     mapboxCustomStyleUrl: string;
@@ -8,4 +7,39 @@ export interface BasemapOptions {
     mapboxAccessToken: string;
     mapboxBaseUrl: string;
     declutterLabels: boolean;
+}
+
+export interface CircleOptions {
+    layerControl: boolean; 
+    color: string; 
+    minRadius: number; 
+    maxRadius: number; 
+    strokeColor: string; 
+    strokeWidth: number; 
+    layerOpacity: number; 
+    showLegend: boolean; 
+}
+
+export interface ChoroplethOptions {
+    layerControl: boolean; 
+    countryISO3Code: string; 
+    adminLevel: string; 
+    midColor: string; 
+    classes: number; 
+    classificationMethod: string; 
+    minColor: string; 
+    maxColor: string; 
+    strokeColor: string; 
+    strokeWidth: number; 
+    layerOpacity: number; 
+    showLegend: boolean; 
+}
+
+export interface HeatmapOptions {
+    layerControl: boolean; 
+    radius: number; 
+    blur: number; 
+    maxZoom: number; 
+    layerOpacity: number; 
+    showLegend: boolean; 
 }

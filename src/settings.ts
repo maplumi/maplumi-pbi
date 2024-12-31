@@ -150,12 +150,6 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         value: { value: "#f58220" } // Default color
     });
 
-    proportionalCirclesSize: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
-        name: "proportionalCirclesSize",
-        displayName: "Size",
-        value: 6, // Default size
-    });
-
     proportionalCirclesMinimumRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
         name: "proportionalCirclesMinimumRadius",
         displayName: "Mininum Radius",
@@ -174,7 +168,7 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
     });
 
     proportionalCirclesMaximumRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
-        name: "proportionalCirclesMaximunRadius",
+        name: "proportionalCirclesMaximumRadius",
         displayName: "Maximum Radius",
         value: 30,//default value
         options: // optional input value validator  
@@ -230,7 +224,6 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
     displayName: string = "Circles";
     slices: Array<formattingSettings.Slice> = [
         this.proportionalCirclesColor,
-        this.proportionalCirclesSize,
         this.proportionalCirclesMinimumRadius,
         this.proportionalCirclesMaximumRadius,
         this.proportionalCirclesStrokeColor,
@@ -243,7 +236,6 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
 class pcodesAdminLocationSettingsGroup extends formattingSettings.SimpleCard {
  
-
     selectedISO3Code: formattingSettings.TextInput = new TextInput({
         name: "selectedISO3Code",
         displayName: "Country iSO3 Code",
@@ -384,7 +376,7 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
 * visual settings model class
 *
 */
-export class OpenLayersVisualFormattingSettingsModel extends FormattingSettingsModel {
+export class HumanitarianMapVisualFormattingSettingsModel extends FormattingSettingsModel {
 
     // Create formatting settings model formatting cards
     BasemapVisualCardSettings = new basemapVisualCardSettings();

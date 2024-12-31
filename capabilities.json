@@ -190,11 +190,6 @@
             }
           }
         },
-        "proportionalCirclesSize": {
-          "type": {
-            "numeric": true
-          }
-        },
         "proportionalCirclesMinimumRadius": {
           "type": {
             "numeric": true
