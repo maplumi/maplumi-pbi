@@ -110,8 +110,6 @@ export class Visual implements IVisual {
         legendContainer.style.top = "5px";
         legendContainer.style.right = "5px";
         legendContainer.style.backgroundColor = "white";
-        //legendContainer.style.padding = "5px";
-        // legendContainer.style.border = "1px solid black";
         legendContainer.style.display = "none"; // Hidden by default
 
         const legendTitle = document.createElement("h4");
@@ -218,7 +216,7 @@ export class Visual implements IVisual {
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
 
-        this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);        
+        this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
 
         // Check data validity
         const dataView = options.dataViews[0];
@@ -233,12 +231,17 @@ export class Visual implements IVisual {
         // Update the basemap
         this.updateBasemap(basemapOptions);
 
+        // Hide the legend by default during update
+        const legend = document.getElementById("legend");
+
+        if (!choroplethOptions.showLegend || !circleOptions.showLegend) {
+            legend.style.display = "none"; // Hide the legend
+        }
+
         // Handle tooltips
         const tooltips = this.extractTooltips(dataView.categorical);
 
-        const categorical = dataView.categorical;
-
-        // Render the circle layer
+        // Render circle layer
         this.clearMap(this.circleVectorSource);
         if (circleOptions.layerControl) {
 
@@ -252,147 +255,14 @@ export class Visual implements IVisual {
             this.circleVectorSource.clear();
         }
 
-
         // Render choropleth layer
         this.clearMap(this.choroplethVectorSource);
         if (choroplethOptions.layerControl) {
 
-            let pcodes: string[] | undefined;
-            let colorValues: any[] | undefined;
-            let classBreaks: any[] | undefined;
-            let colorScale: any | undefined;
+            console.log("Rendering Choropleth Layer");
+            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
 
-            // Find PCodes (in categories)
-            const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
-
-            if (adminPCodeCategory) {
-                pcodes = adminPCodeCategory.values as string[];
-                //console.log("AdminPCode Found:", pcodes);
-
-                if (categorical.values && categorical.values.length > 0) {
-                    /* Choropleth Color values */
-                    const colorMeasure = categorical?.values?.find(c => c.source?.roles && c.source.roles['Color']);
-
-                    if (colorMeasure) {
-                        colorValues = colorMeasure.values;
-                        //console.log("Color Values FOund:", colorValues);
-
-                        // Classify data
-                        if(choroplethOptions.classifyData) {
-
-                            if (choroplethOptions.classificationMethod === 'j') {
-                            
-                                classBreaks = ss.jenks(colorValues, choroplethOptions.classes);  // Using Jenks Natural Breaks classification
-    
-                            }
-                            else {
-    
-                                classBreaks = chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', 
-                                    choroplethOptions.classes);
-                            }
-
-                        }else{
-                            // calculate class breaks using unique values
-                            classBreaks = Array.from(new Set(colorValues)).sort((a, b) => a - b);
-                        }                        
-
-                        // Log the breaks (optional)
-                        //console.log('Class breaks:', classBreaks); 
-
-                        if (choroplethOptions.usePredefinedColorRamp) {
-
-                            if (choroplethOptions.invertColorRamp) {
-
-                                this.colorRampGenerator.invertRamp(); // Invert the color ramp to start from the darker color
-
-                            }else{
-
-                                this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp); // Reset the color ramp
-                            }
-
-                            if(choroplethOptions.classifyData) {
-
-                                colorScale = this.colorRampGenerator.generateColorRamp(choroplethOptions.classes, classBreaks);
-
-                            }else{
-
-                                colorScale = this.colorRampGenerator.generateColorRamp(classBreaks.length, classBreaks);
-
-                            }                            
-
-                        } else {
-
-                            // Create a color scale based on the breaks
-                            colorScale = chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
-                                .mode('lab') // Use the LAB color space for better color interpolation
-                                .domain(classBreaks)
-                                .colors(choroplethOptions.classes);
-
-                        }
-
-                        console.log('Color Scale:', colorScale);
-
-                        /* Chopleth Map */
-                        this.choroplethVectorSource.clear();
-
-                        if (pcodes && choroplethOptions.adminLevel.length > 0 && choroplethOptions.countryISO3Code.length > 0) {
-                            // Filter and collect valid PCodes
-                            const validPCodes = pcodes.filter(pcode => {
-                                if (!pcode) {
-                                    console.warn(`Skipping invalid PCode: ${pcode}`);
-                                    return false;
-                                }
-                                return true;
-                            });
-
-                            if (validPCodes.length === 0) {
-                                console.warn("No valid PCodes found. Exiting...");
-                                return;
-                            }
-
-                            // Construct the cache key
-                            const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
-
-                            // Construct HDX service URL
-                            const serviceUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
-                            const maxAge = 3600000; // Cache expiry time (1 hour)
-
-                            fetchGeoJsonWithCaching(serviceUrl, cacheKey, maxAge)
-                                .then(geojsonData => {
-
-                                    this.renderChoropleth(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
-                                        choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
-                                        classBreaks, colorScale);
-
-                                    this.fitMapToFeatures();
-
-                                })
-                                .catch(error => {
-                                    console.error("Error fetching GeoJSON data:", error);
-                                });
-
-
-                            if (choroplethOptions.showLegend) {
-                                this.createChoroplethLegend(classBreaks, colorScale,"inside",choroplethOptions.legendTitle);
-                            } else {
-                                const legend = document.getElementById("legend");
-                                if (legend) {
-                                    legend.style.display = "none"; // Hide the legend
-                                }
-                            }
-                        }
-
-                    } else {
-                        // render choropleth with default color
-                        console.log("Color Values not found. Rendering default choropleth.");
-                    }
-                }
-
-            } else {
-                console.warn("PCodes not found.");
-                this.choroplethVectorSource.clear();
-                //return;
-            }
+            this.fitMapToFeatures();
 
         } else {
             this.choroplethVectorSource.clear();
@@ -408,9 +278,7 @@ export class Visual implements IVisual {
         this.map.updateSize();
     }
 
-
     // Helper functions
-
     private getFormattingSettings(options: VisualUpdateOptions) {
         return this.formattingSettingsService.populateFormattingSettingsModel(
             HumanitarianMapVisualFormattingSettingsModel,
@@ -530,6 +398,7 @@ export class Visual implements IVisual {
                     minCircleSizeValue = Math.min(...circleSizeValues);
                     maxCircleSizeValue = Math.max(...circleSizeValues);
                     circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+                    
                     this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, maxCircleSizeValue, circleScale);
 
 
@@ -547,6 +416,7 @@ export class Visual implements IVisual {
 
     private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, maxCircleSizeValue: number, circleScale: number) {
         this.circleVectorSource.clear();
+
         longitudes.forEach((lon, i) => {
             const lat = latitudes[i];
             const size = circleSizeValues[i];
@@ -573,6 +443,7 @@ export class Visual implements IVisual {
 
             this.circleVectorSource.addFeature(point);
         });
+
         this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
         this.map.addLayer(this.circleVectorLayer);
     }
@@ -617,8 +488,82 @@ export class Visual implements IVisual {
 
     }
 
+    private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
+
+        const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
+        if (!adminPCodeCategory) {
+            console.warn("PCodes not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }
+
+        const pcodes = adminPCodeCategory.values as string[];
+        if (!categorical.values || categorical.values.length === 0) {
+            console.warn("Measures not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }
+
+        const colorMeasure = categorical.values.find(c => c.source?.roles && c.source.roles['Color']);
+        if (!colorMeasure) {
+            console.warn("Color Measure not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }
+
+        const colorValues = colorMeasure.values;        
+
+        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);        
+
+        const colorScale = this.getColorScale(classBreaks, choroplethOptions);
+
+        if (!pcodes || choroplethOptions.adminLevel.length === 0 || choroplethOptions.countryISO3Code.length === 0) {
+            console.warn("No PCodes or Admin level or Country iso3 code found. Exiting...");
+            return;
+        }
+
+        const validPCodes = pcodes.filter(pcode => {
+            if (!pcode) {
+                console.warn(`Skipping invalid PCode: ${pcode}`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validPCodes.length === 0) {
+            console.warn("No valid PCodes found. Exiting...");
+            return;
+        }
+
+        const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
+        const serviceUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+        const maxAge = 3600000; // Cache expiry time (1 hour)
+
+        fetchGeoJsonWithCaching(serviceUrl, cacheKey, maxAge)
+            .then(geojsonData => {
+                this.createChoroplethLayer(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
+                    choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
+                    classBreaks, colorScale);
+                this.fitMapToFeatures();
+            })
+            .catch(error => {
+                console.error("Error fetching GeoJSON data:", error);
+            });
+
+        if (choroplethOptions.showLegend) {
+
+            this.createChoroplethLegend(classBreaks, colorScale, "inside", choroplethOptions.legendTitle);
+
+        } else {
+            const legend = document.getElementById("legend");
+            if (legend) {
+                legend.style.display = "none"; // Hide the legend
+            }
+        }
+    }
+
     // Function to process the GeoJSON data
-    private renderChoropleth(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
+    private createChoroplethLayer(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
         selectedStrokeColor: any, selectedStrokeWidth: any, layerOpacity: any, classBreaks: any, colorScale: any): void {
 
         this.choroplethVectorSource.clear(); // Clear existing features
@@ -808,7 +753,36 @@ export class Visual implements IVisual {
         legend.style.display = "flex";
     }
 
+    private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
+        if (choroplethOptions.classifyData) {
+            if (choroplethOptions.classificationMethod === 'j') {
+                return ss.jenks(colorValues, choroplethOptions.classes);
+            } else {
+                return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
+            }
+        } else {
+            return Array.from(new Set(colorValues)).sort((a, b) => a - b);
+        }
+    }
 
+    private getColorScale(classBreaks: any[], choroplethOptions: ChoroplethOptions): any {
+        if (choroplethOptions.usePredefinedColorRamp) {
+            if (choroplethOptions.invertColorRamp) {
+                this.colorRampGenerator.invertRamp();
+            } else {
+                this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
+            }
+
+            return choroplethOptions.classifyData
+                ? this.colorRampGenerator.generateColorRamp(choroplethOptions.classes, classBreaks)
+                : this.colorRampGenerator.generateColorRamp(classBreaks.length, classBreaks);
+        } else {
+            return chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
+                .mode('lab')
+                .domain(classBreaks)
+                .colors(choroplethOptions.classes);
+        }
+    }
 
     private createProportionalCircleLegend(
         minValue: number,
@@ -862,7 +836,6 @@ export class Visual implements IVisual {
             legend.style.display = "block"; // Show the legend
         });
     }
-
 
     private fitMapToFeatures() {
 
