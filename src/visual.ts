@@ -77,6 +77,7 @@ export class Visual implements IVisual {
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
     private map: Map;
+    private fitMapOptions: any;
     private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
     private container: HTMLElement;
@@ -175,6 +176,12 @@ export class Visual implements IVisual {
             })
         });
 
+        this.fitMapOptions = {
+            padding: [50, 50, 50, 50],
+            duration: 1000,
+            easing: easeOut
+        };
+
         // Add the tooltip overlay
         this.tooltip = new Overlay({
             element: document.createElement('div'), // Create a div for the tooltip
@@ -248,8 +255,6 @@ export class Visual implements IVisual {
             console.log("Rendering Circle Layer");
             this.renderCircleLayer(dataView.categorical, circleOptions, tooltips);
 
-            this.fitMapToFeatures();
-
         } else {
 
             this.circleVectorSource.clear();
@@ -261,8 +266,6 @@ export class Visual implements IVisual {
 
             console.log("Rendering Choropleth Layer");
             this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-
-            this.fitMapToFeatures();
 
         } else {
             this.choroplethVectorSource.clear();
@@ -398,8 +401,8 @@ export class Visual implements IVisual {
                     minCircleSizeValue = Math.min(...circleSizeValues);
                     maxCircleSizeValue = Math.max(...circleSizeValues);
                     circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
-                    
-                    this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, maxCircleSizeValue, circleScale);
+
+                    this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, circleScale);
 
 
                 } else {
@@ -414,7 +417,7 @@ export class Visual implements IVisual {
         }
     }
 
-    private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, maxCircleSizeValue: number, circleScale: number) {
+    private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, circleScale: number) {
         this.circleVectorSource.clear();
 
         longitudes.forEach((lon, i) => {
@@ -445,11 +448,14 @@ export class Visual implements IVisual {
         });
 
         this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
+
+        this.fitMapToFeatures();
         this.map.addLayer(this.circleVectorLayer);
     }
 
     private renderDefaultCircles(longitudes: number[], latitudes: number[], circleOptions: CircleOptions, tooltips: any[]) {
         this.circleVectorSource.clear();
+
         longitudes.forEach((lon, i) => {
             const lat = latitudes[i];
             if (isNaN(lon) || isNaN(lat)) {
@@ -484,6 +490,9 @@ export class Visual implements IVisual {
             style: this.circleStyle,
             opacity: circleOptions.layerOpacity
         });
+
+        this.fitMapToFeatures();
+
         this.map.addLayer(this.circleVectorLayer);
 
     }
@@ -511,9 +520,9 @@ export class Visual implements IVisual {
             return;
         }
 
-        const colorValues = colorMeasure.values;        
+        const colorValues = colorMeasure.values;
 
-        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);        
+        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);
 
         const colorScale = this.getColorScale(classBreaks, choroplethOptions);
 
@@ -635,6 +644,8 @@ export class Visual implements IVisual {
             },
             opacity: layerOpacity
         });
+
+        this.fitMapToFeatures();
 
         this.map.addLayer(this.choroplethVectorLayer);
     }
@@ -837,24 +848,22 @@ export class Visual implements IVisual {
         });
     }
 
-    private fitMapToFeatures() {
+    private fitMapToFeatures() {        
+        
+        if (this.circleVectorSource.getFeatures().length > 0) {
 
-        const fitOptions = {
-            padding: [50, 50, 50, 50],
-            duration: 1000,
-            easing: easeOut
-        };
+            // Fit to circleVectorSource if choroplethVectorSource has no features
+            this.map.getView().fit(this.circleVectorSource.getExtent(), this.fitMapOptions);
+        }
 
         if (this.choroplethVectorSource.getFeatures().length > 0) {
 
             // Prioritize fitting to choroplethVectorSource if it has features
-            this.map.getView().fit(this.choroplethVectorSource.getExtent(), fitOptions);
+            this.map.getView().fit(this.choroplethVectorSource.getExtent(), this.fitMapOptions);
 
-        } else if (this.circleVectorSource.getFeatures().length > 0) {
+        } 
 
-            // Fit to circleVectorSource if choroplethVectorSource has no features
-            this.map.getView().fit(this.circleVectorSource.getExtent(), fitOptions);
-        }
+        this.map.updateSize();
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
