@@ -88,6 +88,7 @@
       }
     }
   ],
+  "supportsHighlight": true,
   "objects": {
     "tooltip": {
       "displayName": "Tooltip",
@@ -331,6 +332,44 @@
               {
                 "value": "neutralGrey",
                 "displayName": "Neutral Grey"
+              }
+              ,
+              {
+                "value": "slateGrey",
+                "displayName": "Slate Grey"
+              },
+              {
+                "value": "unblue",
+                "displayName": "UN Blue"
+              },
+              {
+                "value": "sdgred",
+                "displayName": "SDG Red"
+              },
+             
+              {
+                "value": "sdgyellow",
+                "displayName": "SDG Yellow"
+              },             
+              {
+                "value": "sdgorange",
+                "displayName": "SDG Orange"
+              },             
+              {
+                "value": "sdggreen",
+                "displayName": "SDG Green"
+              },              
+              {
+                "value": "sdgdarkgreen",
+                "displayName": "SDG Dark Green"
+              },
+              {
+                "value": "sdgnavyblue",
+                "displayName": "SDG Navy Blue"
+              },
+              {
+                "value": "ipc",
+                "displayName": "IPC"
               }
             ]
           }

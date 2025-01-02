@@ -29,6 +29,32 @@ export class ColorRampGenerator {
     ],
     neutralGrey: [
       '#f2f2f2', '#e6e6e6', '#bfbfbf', '#999999', '#737373', '#4d4d4d', '#262626'
+    ],
+
+    // New Color Ramps
+    unblue: [
+      '#e6f5fb', '#99d8f1', '#4dbbe6', '#009edb', '#006f99', '#003f58'  
+    ],
+    sdgred:[
+      '#fce9eb', '#f5a7b1', '#ed6676', '#e5243b', '#a01929', '#5c0e18'
+    ],
+    sdgyellow: [
+      '#fff9e7', '#fee79d', '#fdd554', '#fcc30b', '#b08908', '#654e04'
+    ],
+    sdgorange: [
+      '#fff0e9', '#fec3a8', '#fe9666', '#fd6925', '#b14a1a', '#652a0f'
+    ],
+    sdggreen:[
+      '#eef9ea', '#bbe6aa', '#89d36b', '#56c02b', '#3c861e', '#224d11'
+    ],
+    sdgdarkgreen: [
+      '#ecf2ec', '#b2cbb4', '#79a57c', '#3f7e44', '#2c5830', '#19321b'
+    ],
+    sdgnavyblue: [
+      '#e8edf0', '#a3b6c3', '#5e7f97', '#19486a', '#12324a', '#0a1d2a'
+    ],
+    ipc: [
+      '#cdfacd','#fae61e','#e67800','#c80000','#640000'
     ]
   };
 

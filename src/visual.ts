@@ -103,7 +103,7 @@ export class Visual implements IVisual {
         this.container.style.width = "100%";
         this.container.style.height = "100%";
 
-        // Ensure the legend container is also appended to the same parent
+        // Ensure the choropleth legend container is also appended to the same parent
         const legendContainer = document.createElement("div");
         legendContainer.setAttribute("id", "legend");
         legendContainer.style.position = "absolute";
@@ -118,6 +118,26 @@ export class Visual implements IVisual {
         legendContainer.appendChild(legendTitle);
 
         this.container.appendChild(legendContainer);
+
+
+        // Ensure the circle legend container is also appended to the same parent
+        const circleLegendContainer = document.createElement("div");
+        circleLegendContainer.setAttribute("id", "legend2");
+        circleLegendContainer.style.position = "absolute";
+        circleLegendContainer.style.zIndex = "1000";
+        circleLegendContainer.style.bottom = "15px";
+        circleLegendContainer.style.left = "5px";
+        circleLegendContainer.style.backgroundColor = "white";
+        circleLegendContainer.style.display = "none"; // Hidden by default
+
+        const circleLegendTitle = document.createElement("h4");
+        circleLegendTitle.textContent = "Legend";
+        circleLegendContainer.appendChild(circleLegendTitle);
+
+        this.container.appendChild(circleLegendContainer);
+
+
+
 
         this.circleStyle = new Style({
             image: new Circle({
@@ -420,6 +440,8 @@ export class Visual implements IVisual {
     private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, circleScale: number) {
         this.circleVectorSource.clear();
 
+        const radii = [];
+
         longitudes.forEach((lon, i) => {
             const lat = latitudes[i];
             const size = circleSizeValues[i];
@@ -429,6 +451,8 @@ export class Visual implements IVisual {
                 console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
                 return;
             }
+
+            radii.push(radius); //store radius values for legend computation
 
             const point = new Feature({
                 geometry: new Point(fromLonLat([lon, lat])),
@@ -451,6 +475,9 @@ export class Visual implements IVisual {
 
         this.fitMapToFeatures();
         this.map.addLayer(this.circleVectorLayer);
+
+        // Create proportional circle legend
+        createProportionalCircleLegend("legend2", circleSizeValues, radii);
     }
 
     private renderDefaultCircles(longitudes: number[], latitudes: number[], circleOptions: CircleOptions, tooltips: any[]) {
@@ -800,10 +827,9 @@ export class Visual implements IVisual {
         maxValue: number,
         circleOptions: { minRadius: number, maxRadius: number }
     ): void {
-        const legend = document.getElementById("legend");
+        const legend = document.getElementById("legend2");
         if (!legend) return;
 
-        // Clear any existing legend content
         // Clear any existing legend content
         while (legend.firstChild) {
             legend.removeChild(legend.firstChild);
@@ -848,8 +874,8 @@ export class Visual implements IVisual {
         });
     }
 
-    private fitMapToFeatures() {        
-        
+    private fitMapToFeatures() {
+
         if (this.circleVectorSource.getFeatures().length > 0) {
 
             // Fit to circleVectorSource if choroplethVectorSource has no features
@@ -861,7 +887,7 @@ export class Visual implements IVisual {
             // Prioritize fitting to choroplethVectorSource if it has features
             this.map.getView().fit(this.choroplethVectorSource.getExtent(), this.fitMapOptions);
 
-        } 
+        }
 
         this.map.updateSize();
     }
@@ -946,3 +972,143 @@ async function fetchGeoJsonWithCaching(serviceUrl: string, cacheKey: string, max
     return getCachedGeoJsonData(cacheKey);
 }
 
+// function to get proportional circle legend data i.e min, medium and max
+function getProportionalCircleLegendData(sizeValues: number[], radii: number[]) {
+    if (sizeValues.length !== radii.length) {
+        console.log("sizeValues and radii arrays must have the same length");
+        return [];
+    }
+
+    // Sort by sizeValues
+    const sortedData = sizeValues
+        .map((size, index) => ({ size, radius: radii[index] }))
+        .sort((a, b) => a.size - b.size);
+
+    // Extract min and max
+    const min = sortedData[0];
+    const max = sortedData[sortedData.length - 1];
+
+    // Compute medium as half of max size, rounded to the nearest thousand
+    const mediumSize = Math.round((max.size / 2) / 1000) * 1000;
+    const mediumRadius = (max.radius / max.size) * mediumSize; // Scale radius proportionally
+
+    const medium = { size: mediumSize, radius: mediumRadius };
+
+    return [min, medium, max];
+}
+
+// Create proportional circle legend
+function createProportionalCircleLegend(
+    containerId: string,
+    sizeValues: number[],
+    radii: number[]
+  ) {
+    const container = document.getElementById(containerId);
+  
+    if (!container) {
+      console.error("Container not found");
+      return;
+    }
+  
+    // Remove background from container and SVG
+    container.style.backgroundColor = "transparent"; // Remove background color from container
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.style.display = "block"; // Ensure SVG takes up the full container width/height
+  
+    // Set container styles for centering
+    container.style.display = "flex";
+    container.style.justifyContent = "center"; // Horizontal centering
+    container.style.alignItems = "center"; // Vertical centering
+    container.style.height = "auto"; // Let container height adjust dynamically
+    container.style.padding = "10px"; // Uniform padding around container
+  
+    // Clear previous content
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+  
+    // Get legend data using the provided function
+    const legendData = getProportionalCircleLegendData(sizeValues, radii);
+  
+    if (!legendData || legendData.length === 0) {
+      console.error("Invalid legend data");
+      return;
+    }
+  
+    // Define padding around circles
+    const padding = 10;
+  
+    // Determine the maximum radius for alignment
+    const maxRadius = Math.max(...legendData.map((item) => item.radius));
+  
+    // Positioning variables
+    const centerX = maxRadius + padding; // X position for all circles
+    const bottomY = 2 * maxRadius + padding; // Y position of the largest circle's bottom
+    let maxLabelWidth = 0; // Track the maximum label width
+  
+    // Add circles, labels, and leader lines to the legend
+    legendData.forEach((item) => {
+      // Calculate the Y position so all circles are aligned at the bottom
+      const currentY = bottomY - item.radius;
+  
+      // Draw the circle
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", centerX.toString());
+      circle.setAttribute("cy", currentY.toString());
+      circle.setAttribute("r", item.radius.toString());
+      circle.setAttribute("stroke", "black");
+      circle.setAttribute("fill", "none");
+  
+      svg.appendChild(circle);
+  
+      // Calculate label position
+      const labelX = centerX + maxRadius + 20;
+      const labelY = currentY - item.radius;
+  
+      // Add the leader line
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", centerX.toString());
+      line.setAttribute("y1", (currentY - item.radius).toString());
+      line.setAttribute("x2", (labelX - 3).toString());
+      line.setAttribute("y2", labelY.toString());
+      line.setAttribute("stroke", "black");
+      line.setAttribute("stroke-width", "1");
+  
+      svg.appendChild(line);
+  
+      // Add the corresponding label (aligned to the top of the circle)
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", labelX.toString());
+      text.setAttribute("y", labelY.toString());
+      text.setAttribute("alignment-baseline", "middle");
+      text.textContent = `${item.size}`;
+  
+      svg.appendChild(text);
+  
+      // Measure the label width
+      const tempLabel = document.createElement("div");
+      tempLabel.style.position = "absolute";
+      tempLabel.style.visibility = "hidden";
+      tempLabel.style.whiteSpace = "nowrap";
+      tempLabel.textContent = `${item.size}`;
+      document.body.appendChild(tempLabel);
+  
+      const labelWidth = tempLabel.offsetWidth;
+      maxLabelWidth = Math.max(maxLabelWidth, labelWidth);
+  
+      document.body.removeChild(tempLabel);
+    });
+  
+    // Calculate the viewBox dimensions based on the legend size and labels
+    const svgWidth = centerX + maxRadius + maxLabelWidth + padding * 2 + 20; // 20px for spacing between circles and labels
+    const svgHeight = bottomY + maxRadius + padding;
+  
+    // Apply viewBox and dimensions
+    svg.setAttribute("width", `${svgWidth}px`);
+    svg.setAttribute("height", `${svgHeight}px`);
+    svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+  
+    // Append the SVG to the container
+    container.appendChild(svg);
+  }
+  

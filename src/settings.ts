@@ -327,7 +327,15 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "purple", displayName: "Purple" },
             { value: "yellow", displayName: "Yellow" },
             { value: "slateGrey", displayName: "Slate Grey" },
-            { value: "neutralGrey", displayName: "Neutral Grey" }
+            { value: "neutralGrey", displayName: "Neutral Grey" },
+            { value: "unblue", displayName: "UN Blue" },
+            { value: "sdgred", displayName: "SDG Red" },
+            { value: "sdgyellow", displayName: "SDG Yellow" },
+            { value: "sdgorange", displayName: "SDG Orange" },
+            { value: "sdggreen", displayName: "SDG Green" },
+            { value: "sdgdarkgreen", displayName: "SDG Dark Green" },
+            { value: "sdgnavyblue", displayName: "SDG Navy Blue" },
+            { value: "ipc", displayName: "IPC" }
         ]
     });
 
