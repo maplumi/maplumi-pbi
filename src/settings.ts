@@ -58,10 +58,17 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         ]
     });
 
+    customMapAttribution: formattingSettings.TextInput = new TextInput({
+        name: "customMapAttribution",
+        displayName: "Custom Map Attribution",
+        value: "",
+        placeholder: "Enter Custom Map Attribution" // Placeholder text
+    });
+
     name: string = "basemapSelectSettingsGroup";
     //displayName: string = "Select Basemap";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.selectedBasemap];
+    slices: formattingSettings.Slice[] = [this.selectedBasemap, this.customMapAttribution];
 
 }
 
@@ -105,13 +112,6 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "mapbox://styles/..." // Placeholder text
     });
 
-    mapboxCustomMapAttribution: formattingSettings.TextInput = new TextInput({
-        name: "mapboxCustomMapAttribution",
-        displayName: "Custom Map Attribution",
-        value: "",
-        placeholder: "Enter Custom Map Attribution" // Placeholder text
-    });
-
     declutterLabels: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
         name: "declutterLabels",
         displayName: "Declutter Labels",
@@ -121,7 +121,7 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
     name: string = "mapBoxSettingsGroup";
     displayName: string = "Mapbox Settings";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyle, this.mapboxCustomStyleUrl,this.mapboxCustomMapAttribution, this.mapboxBaseUrl, this.declutterLabels];
+    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyle, this.mapboxCustomStyleUrl, this.mapboxBaseUrl, this.declutterLabels];
 
 }
 

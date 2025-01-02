@@ -129,18 +129,17 @@
             ]
           }
         },
+        "customMapAttribution": {
+          "type": {
+            "text": true
+          }
+        },
         "mapboxAccessToken": {
           "type": {
             "text": true
           }
         },
         "mapboxBaseUrl": {
-          "type": {
-            "text": true
-          }
-        },
-        
-        "mapboxCustomMapAttribution": {
           "type": {
             "text": true
           }

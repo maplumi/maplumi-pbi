@@ -1,8 +1,8 @@
 
 export interface BasemapOptions {
     selectedBasemap: string;
-    mapboxCustomStyleUrl: string;
-    mapboxCustomMapAttribution: string;
+    customMapAttribution: string;
+    mapboxCustomStyleUrl: string;    
     mapboxStye: string;
     mapboxAccessToken: string;
     mapboxBaseUrl: string;
