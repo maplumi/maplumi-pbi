@@ -271,7 +271,11 @@ export class Visual implements IVisual {
         const choroplethlegend = document.getElementById("legend");
         const circlelegend = document.getElementById("legend2");
 
-        // Ensure legends are hidden by default
+        // Ensure legends are hidden when updating
+        choroplethlegend.style.display = "none";
+        circlelegend.style.display = "none";
+
+        // Ensure legends are hidden when show legend toggle is off
         if (!choroplethOptions.showLegend || !circleOptions.showLegend) {
             choroplethlegend.style.display = "none"; // Hide choropleth legend
             circlelegend.style.display = "none"; // Hide circle legend
@@ -280,18 +284,23 @@ export class Visual implements IVisual {
         // Extract tooltips
         const tooltips = this.extractTooltips(dataView.categorical);
 
-        // Render circle layer        
-        if (circleOptions.layerControl) {
+        // Map each layer control to its respective rendering function
+        const layersToRender = [
+            { condition: choroplethOptions.layerControl, render: () => this.renderChoroplethLayer(dataView.categorical, choroplethOptions) },
+            { condition: circleOptions.layerControl, render: () => this.renderCircleLayer(dataView.categorical, circleOptions, tooltips) }
+            
+        ];
 
-            console.log("Rendering Circle Layer");
-            this.renderCircleLayer(dataView.categorical, circleOptions, tooltips);
+        // Filter and execute rendering for active layers
+        const activeLayers = layersToRender.filter(layer => layer.condition);
+
+        if (activeLayers.length > 0) {
+            console.log(`Rendering ${activeLayers.length > 1 ? "both Circle & Choropleth" : activeLayers[0].condition ? "Circle" : "Choropleth"} Layers`);
+            activeLayers.forEach(layer => layer.render());
+        } else {
+            console.log("No layers to render");
         }
 
-        // Render choropleth layer
-        if (choroplethOptions.layerControl) {
-            console.log("Rendering Choropleth Layer");
-            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-        }
 
         // Force the map to update its size
         this.map.updateSize();
