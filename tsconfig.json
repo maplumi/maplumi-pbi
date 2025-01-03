@@ -17,10 +17,7 @@
         "./src/visual.ts",
         "./src/settings.ts",
         "./src/types.ts",
-        "./src/basemap.ts",
-        "./src/choropleth.ts",
-        "./src/circle.ts",
-        "./src/heatmap.ts",
+        "./src/basemap.ts",       
         "./src/tooltipServiceWrapper.ts",
         "./src/colors.ts"
     ]

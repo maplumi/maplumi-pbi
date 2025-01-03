@@ -219,6 +219,13 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         value: false
     });
 
+    legendTitle: formattingSettings.TextInput = new formattingSettings.TextInput({
+        name: "legendTitle",
+        displayName:"Legend Title",
+        value:"Legend",
+        placeholder:""
+    });
+
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
@@ -229,7 +236,8 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         this.proportionalCirclesStrokeColor,
         this.proportionalCirclesStrokeWidth,
         this.proportionalCirclesLayerOpacity,
-        this.showLegend
+        this.showLegend,
+        this.legendTitle
     ];
 
 }

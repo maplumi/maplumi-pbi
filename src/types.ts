@@ -18,6 +18,7 @@ export interface CircleOptions {
     strokeWidth: number; 
     layerOpacity: number; 
     showLegend: boolean; 
+    legendTitle: string
 }
 
 export interface ChoroplethOptions {

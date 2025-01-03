@@ -108,9 +108,9 @@ export class Visual implements IVisual {
         choroplethLegendContainer.setAttribute("id", "legend");
         choroplethLegendContainer.style.position = "absolute";
         choroplethLegendContainer.style.zIndex = "1000";
-        choroplethLegendContainer.style.top = "5px";
+        choroplethLegendContainer.style.top = "10px";
         choroplethLegendContainer.style.right = "10px";
-        choroplethLegendContainer.style.backgroundColor = "white";
+        choroplethLegendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)";
         choroplethLegendContainer.style.display = "none"; // Hidden by default
 
         const legendTitle = document.createElement("h4");
@@ -119,7 +119,6 @@ export class Visual implements IVisual {
 
         this.container.appendChild(choroplethLegendContainer);
 
-
         // Ensure the circle legend container is also appended to the same parent
         const circleLegendContainer = document.createElement("div");
         circleLegendContainer.setAttribute("id", "legend2");
@@ -127,7 +126,7 @@ export class Visual implements IVisual {
         circleLegendContainer.style.zIndex = "1000";
         circleLegendContainer.style.bottom = "40px";
         circleLegendContainer.style.left = "10px";
-        circleLegendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; //"#ffffff";
+        circleLegendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)";
         circleLegendContainer.style.borderRadius = "4px";
         circleLegendContainer.style.display = "none"; // Hidden by default
 
@@ -338,7 +337,8 @@ export class Visual implements IVisual {
             strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
             strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
             layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
-            showLegend: circleSettings.showLegend.value
+            showLegend: circleSettings.showLegend.value,
+            legendTitle: circleSettings.legendTitle.value
         };
     }
 
@@ -490,7 +490,7 @@ export class Visual implements IVisual {
         // Create proportional circle legend
         if (circleOptions.showLegend) {
 
-            this.createProportionalCircleLegend("legend2", circleSizeValues, radii);
+            this.createProportionalCircleLegend("legend2", circleSizeValues, radii, circleOptions.legendTitle);
         }
 
         this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
@@ -707,21 +707,22 @@ export class Visual implements IVisual {
         titleAlignment: "left" | "center" | "right" = "left", // Title alignment option
         gapSize: number = 2.5 // Custom gap size between color boxes (default 2.5px)
     ): void {
-        const legend = document.getElementById("legend");
-        if (!legend) return;
+        const legendContainer = document.getElementById("legend");
+        if (!legendContainer) return;
 
         // Clear existing legend
-        while (legend.firstChild) {
-            legend.removeChild(legend.firstChild);
+        while (legendContainer.firstChild) {
+            legendContainer.removeChild(legendContainer.firstChild);
         }
 
         // Style the legend container
-        legend.style.display = "flex";
-        legend.style.flexDirection = "column"; // Stack the title and legend items vertically
-        legend.style.alignItems = "flex-start"; // Align the items to the left by default
-        legend.style.gap = "5px"; // Add spacing between title and items
-        legend.style.background = "none"; // Remove white background
-        legend.style.border = "none"; // Remove black outline
+        legendContainer.style.display = "flex";
+        legendContainer.style.flexDirection = "column"; // Stack the title and legend items vertically
+        legendContainer.style.alignItems = "flex-start"; // Align the items to the left by default
+        legendContainer.style.gap = "5px"; // Add spacing between title and items
+        legendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; // Add background color
+        legendContainer.style.border = "none"; // Remove black outline
+        legendContainer.style.padding = "5px";
 
         // Add title to the legend with customizable alignment
         const title = document.createElement("div");
@@ -744,7 +745,7 @@ export class Visual implements IVisual {
         }
 
         // Append the title to the legend
-        legend.appendChild(title);
+        legendContainer.appendChild(title);
 
         // Create horizontal layout for legend items
         const itemsContainer = document.createElement("div");
@@ -806,10 +807,10 @@ export class Visual implements IVisual {
         }
 
         // Append the items container to the legend
-        legend.appendChild(itemsContainer);
+        legendContainer.appendChild(itemsContainer);
 
         // Ensure the legend is visible
-        legend.style.display = "flex";
+        legendContainer.style.display = "flex";
     }
 
     private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
@@ -857,7 +858,7 @@ export class Visual implements IVisual {
             return;
         }
 
-        // Remove background from container and SVG
+        // Set background for container and SVG
         container.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; // Remove background color from container
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.style.display = "block"; // Ensure SVG takes up the full container width/height

@@ -223,6 +223,11 @@
           "type": {
             "bool": true
           }
+        },
+        "legendTitle": {
+          "type": {
+            "text": true
+          }
         }
       }
     },
