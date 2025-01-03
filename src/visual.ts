@@ -315,7 +315,7 @@ export class Visual implements IVisual {
             mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
             mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
             declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-            
+
         };
     }
 
@@ -418,7 +418,7 @@ export class Visual implements IVisual {
             latitudes = latCategory.values as number[];
 
             if (longitudes.length !== latitudes.length) {
-                console.warn("Longitude and Latitude have different lengths.");   
+                console.warn("Longitude and Latitude have different lengths.");
 
             } else {
                 // Handle Circle Size Measure or default size
@@ -479,7 +479,7 @@ export class Visual implements IVisual {
         });
 
         // Create proportional circle legend
-        if(circleOptions.showLegend){
+        if (circleOptions.showLegend) {
 
             this.createProportionalCircleLegend("legend2", circleSizeValues, radii);
         }
@@ -490,7 +490,7 @@ export class Visual implements IVisual {
 
         this.map.addLayer(this.circleVectorLayer);
 
-        
+
     }
 
     private renderDefaultCircles(longitudes: number[], latitudes: number[], circleOptions: CircleOptions, tooltips: any[]) {
@@ -838,7 +838,8 @@ export class Visual implements IVisual {
     private createProportionalCircleLegend(
         containerId: string,
         sizeValues: number[],
-        radii: number[]
+        radii: number[],
+        legendTitle: string = "Legend"
     ) {
         const container = document.getElementById(containerId);
 
@@ -852,17 +853,29 @@ export class Visual implements IVisual {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.style.display = "block"; // Ensure SVG takes up the full container width/height
 
-        // Set container styles for centering
-        container.style.display = "flex";
-        container.style.justifyContent = "center"; // Horizontal centering
-        container.style.alignItems = "center"; // Vertical centering
-        container.style.height = "100px";//"auto"; // Let container height adjust dynamically
-        container.style.padding = "5px"; // Uniform padding around container
-
         // Clear previous content
         while (container.firstChild) {
             container.removeChild(container.firstChild);
         }
+
+        // Set container styles for centering
+        container.style.display = "flex";
+        container.style.flexDirection = "column"; // Stack the title and legend items vertically
+        container.style.alignItems = "flex-start"; // Align the items to the left by default
+        //container.style.alignItems = "center"; // Vertical centering
+        container.style.height = "auto"; // Let container height adjust dynamically
+        container.style.padding = "5px"; // Uniform padding around container     
+
+
+        // Add title to the legend with customizable alignment
+        const title = document.createElement("div");
+        title.textContent = legendTitle;
+        title.style.fontSize = "12px";
+        title.style.fontWeight = "bold";
+        title.style.marginBottom = "5px";
+
+        // Append the title to the legend
+        container.appendChild(title);
 
         // Get legend data using the provided function
         const legendData = getProportionalCircleLegendData(sizeValues, radii);
@@ -938,12 +951,17 @@ export class Visual implements IVisual {
 
         // Calculate the viewBox dimensions based on the legend size and labels
         const svgWidth = centerX + maxRadius + maxLabelWidth + padding * 2 + 20; // 20px for spacing between circles and labels
-        const svgHeight = bottomY + maxRadius + padding;
+        const svgHeight = bottomY + padding;
+
+        console.log(`Max Radius: ${maxRadius}`);
+        console.log(`SVG Width: ${svgWidth}, SVG Height: ${svgHeight}`);
+
 
         // Apply viewBox and dimensions
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+        svg.setAttribute("preserveAspectRatio", "xMinYMin meet"); // Preserve scaling
 
         // Append the SVG to the container
         container.appendChild(svg);
