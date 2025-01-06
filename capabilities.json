@@ -5,7 +5,7 @@
       "kind": "Grouping",
       "displayName": "HDX Admin PCode",
       "description": "HDX CODs Administrative Boundary PCodes for Choropleth Layer. Country and Admin Level must be set in Choropleth Settings under Visual formatting"
-    }, 
+    },
     {
       "name": "Latitude",
       "kind": "Grouping",
@@ -24,7 +24,6 @@
       "displayName": "Size",
       "description": "Numeric data type measure to dispay of different circle/bubble sizes"
     },
-       
     {
       "name": "Color",
       "kind": "Measure",
@@ -63,7 +62,6 @@
                 "in": "Longitude"
               }
             }
-            
           ]
         },
         "values": {
@@ -89,30 +87,8 @@
     }
   ],
   "supportsHighlight": true,
+  "supportsMultiVisualSelection": true,
   "objects": {
-    "tooltip": {
-      "displayName": "Tooltip",
-      "properties": {
-        "type": {
-          "type": {
-            "enumeration": [
-              {
-                "value": "default",
-                "displayName": "Default Tooltip"
-              },
-              {
-                "value": "canvas",
-                "displayName": "Canvas Tooltip"
-              },
-              {
-                "value": "reportPage",
-                "displayName": "Report Page Tooltip"
-              }
-            ]
-          }
-        }
-      }
-    },
     "basemapVisualCardSettings": {
       "properties": {
         "selectedBasemap": {
@@ -168,14 +144,13 @@
         },
         "declutterLabels": {
           "type": {
-            "bool": true 
+            "bool": true
           }
         }
       }
     },
     "proportionalCirclesVisualCardSettings": {
       "properties": {
-
         "showLayerControl": {
           "type": {
             "bool": true
@@ -302,7 +277,7 @@
             "bool": true
           }
         },
-        "colorRamp":{
+        "colorRamp": {
           "type": {
             "enumeration": [
               {
@@ -320,7 +295,7 @@
               {
                 "value": "orange",
                 "displayName": "Orange"
-              },           
+              },
               {
                 "value": "purple",
                 "displayName": "Purple"
@@ -336,8 +311,7 @@
               {
                 "value": "neutralGrey",
                 "displayName": "Neutral Grey"
-              }
-              ,
+              },
               {
                 "value": "slateGrey",
                 "displayName": "Slate Grey"
@@ -350,19 +324,18 @@
                 "value": "sdgred",
                 "displayName": "SDG Red"
               },
-             
               {
                 "value": "sdgyellow",
                 "displayName": "SDG Yellow"
-              },             
+              },
               {
                 "value": "sdgorange",
                 "displayName": "SDG Orange"
-              },             
+              },
               {
                 "value": "sdggreen",
                 "displayName": "SDG Green"
-              },              
+              },
               {
                 "value": "sdgdarkgreen",
                 "displayName": "SDG Dark Green"
@@ -443,6 +416,18 @@
     }
   },
   "suppressDefaultTitle": false,
+  "tooltips": {
+    "supportedTypes": {
+      "default": true,
+      "canvas": true,
+      "reportPage": true
+    },
+    "roles": [
+      "Tooltips"
+    ],
+    "supportEnhancedTooltips": true
+  },
+  "supportsLandingPage": false,
   "privileges": [
     {
       "name": "WebAccess",
@@ -454,6 +439,10 @@
         "https://*.humdata.org",
         "https://*.itos.uga.edu"
       ]
+    },
+    {
+      "name": "LocalStorage",
+      "essential": true
     }
   ]
 }

@@ -17,8 +17,7 @@
         "./src/visual.ts",
         "./src/settings.ts",
         "./src/types.ts",
-        "./src/basemap.ts",       
-        "./src/tooltipServiceWrapper.ts",
+        "./src/basemap.ts",
         "./src/colors.ts"
     ]
 }

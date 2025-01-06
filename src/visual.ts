@@ -29,9 +29,18 @@ import powerbi from "powerbi-visuals-api";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import "./../style/visual.less";
 
+import { createTooltipServiceWrapper, ITooltipServiceWrapper, TooltipEventArgs } from "powerbi-visuals-utils-tooltiputils";
+import ISelectionIdBuilder = powerbi.visuals.ISelectionIdBuilder;
+
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
+
+import IVisualHost = powerbi.extensibility.visual.IVisualHost;
+import ISelectionId = powerbi.visuals.ISelectionId;
+import ISelectionManager = powerbi.extensibility.ISelectionManager;
+import PrimitiveValue = powerbi.PrimitiveValue;
+import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 import { HumanitarianMapVisualFormattingSettingsModel } from "./settings";
 
@@ -61,35 +70,64 @@ import Geostats from 'geostats';
 
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
+
 import TileLayer from "ol/layer/Tile";
 import Attribution from 'ol/control/Attribution';
 import { defaults as defaultControls } from 'ol/control';
 
 import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
+import * as d3 from "d3";
+import { Pixel } from "ol/pixel";
+import { FeatureLike } from "ol/Feature";
+
+interface TooltipDataItem {
+    displayName: string;
+    value: string;
+    data: { displayName: string; value: string; }[];
+    // ... other properties you might need (header, color, etc.)
+}
 
 export class Visual implements IVisual {
 
     private formattingSettingsService: FormattingSettingsService;
     private visualFormattingSettingsModel: HumanitarianMapVisualFormattingSettingsModel;
 
+    private selectionManager: ISelectionManager;
+    private tooltipServiceWrapper: ITooltipServiceWrapper;
+    private tooltipService: powerbi.extensibility.ITooltipService;
+    private selectionIdBuilder: ISelectionIdBuilder;
+
+    private host: IVisualHost;
+    private container: HTMLElement;
+
+    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
+    private d3Container: any;
+    private map: Map;
+    private features: Feature[] = [];
+
     private basemap: Basemap;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
-    private map: Map;
+
     private fitMapOptions: any;
     private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
-    private container: HTMLElement;
+
     private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
     private circleStyle: Style;
+    private circleHighlightStyle: Style;
     private choroplethStyle: Style;
+    private choroplethHighlightStyle: Style;
     private tooltip: Overlay;
     private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
     constructor(options: VisualConstructorOptions) {
+
+        this.host = options.host;
+        this.selectionManager = options.host.createSelectionManager();
 
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new HumanitarianMapVisualFormattingSettingsModel();
@@ -98,6 +136,14 @@ export class Visual implements IVisual {
         this.basemapLayer = this.basemap.getDefaultBasemap();
 
         this.container = options.element;
+
+        const handleTouchDelay = 1000; //default touch delay
+
+        this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService, this.container, handleTouchDelay);
+
+        this.tooltipService = options.host.tooltipService;
+
+        this.selectionIdBuilder = options.host.createSelectionIdBuilder();
 
         // Ensure the container has proper dimensions
         this.container.style.width = "100%";
@@ -193,46 +239,26 @@ export class Visual implements IVisual {
             })
         });
 
+        // D3 for map interaction
+        this.svg = d3.select(this.map.getViewport()).append("svg");
+        this.d3Container = this.svg.append("g"); // Container for features
+
+
+        // Fit map options
         this.fitMapOptions = {
             padding: [50, 50, 50, 50],
             duration: 1000,
             easing: easeOut
         };
 
-        // Add the tooltip overlay
-        this.tooltip = new Overlay({
-            element: document.createElement('div'), // Create a div for the tooltip
-            positioning: 'bottom-center',
-            offset: [0, -10], // Adjust offset as needed
-            stopEvent: false // Important: allow map interactions
-        });
-        this.map.addOverlay(this.tooltip);
-
-        this.map.on('pointermove', (evt) => {
-            const pixel = evt.pixel;
-            const hit = this.map.forEachFeatureAtPixel(pixel, (feature) => {
-                return feature;
-            });
-
-            if (hit) {
-                const tooltipData = hit.get('tooltip');
-                if (tooltipData) {
-                    this.tooltip.getElement().textContent = tooltipData; // Set the tooltip content
-                    this.tooltip.setPosition(evt.coordinate); // Position the tooltip
-                    this.tooltip.getElement().style.display = 'block';
-                } else {
-                    this.tooltip.getElement().style.display = 'none';
-                }
-            } else {
-                this.tooltip.getElement().style.display = 'none';
-            }
-        });
-
         console.log("Visual initialized.");
 
     }
 
     update(options: VisualUpdateOptions) {
+
+        // Clear existing svg elements
+        this.svg.selectAll('*').remove();
 
         // Retrieve the model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
@@ -251,6 +277,15 @@ export class Visual implements IVisual {
             this.clearMap(this.choroplethVectorSource);
             return;
         }
+
+
+        let allowInteractions = this.host.hostCapabilities.allowInteractions;
+        // this.map.on('click', function (d) {
+        //     if (allowInteractions) {
+        //         this.selectionManager.select(d.selectionId);
+
+        //     }
+        // });
 
         // Update the basemap
         this.updateBasemap(basemapOptions);
@@ -287,7 +322,7 @@ export class Visual implements IVisual {
         const layersToRender = [
             { condition: choroplethOptions.layerControl, render: () => this.renderChoroplethLayer(dataView.categorical, choroplethOptions) },
             { condition: circleOptions.layerControl, render: () => this.renderCircleLayer(dataView.categorical, circleOptions, tooltips) }
-            
+
         ];
 
         // Filter and execute rendering for active layers
@@ -440,7 +475,7 @@ export class Visual implements IVisual {
                     maxCircleSizeValue = Math.max(...circleSizeValues);
                     circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
 
-                    this.renderProportionalCircles(longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, circleScale);
+                    this.renderProportionalCircles(lonCategory, longitudes, latitudes, circleSizeValues, circleOptions, tooltips, minCircleSizeValue, circleScale);
 
                 } else {
 
@@ -454,7 +489,7 @@ export class Visual implements IVisual {
         }
     }
 
-    private renderProportionalCircles(longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, circleScale: number) {
+    private renderProportionalCircles(category: any, longitudes: number[], latitudes: number[], circleSizeValues: number[], circleOptions: CircleOptions, tooltips: any[], minCircleSizeValue: number, circleScale: number) {
 
         const radii = [];
 
@@ -472,7 +507,7 @@ export class Visual implements IVisual {
 
             const point = new Feature({
                 geometry: new Point(fromLonLat([lon, lat])),
-                size: size,
+                radius: radius,
                 tooltip: tooltips ? tooltips[i] : undefined
             });
 
@@ -483,6 +518,51 @@ export class Visual implements IVisual {
                     stroke: new Stroke({ color: circleOptions.strokeColor, width: circleOptions.strokeWidth })
                 })
             }));
+
+            this.features.push(point);
+
+            // Update the SVG elements based on the new data
+            // this.d3Container.selectAll(".feature").remove(); // Clear existing features
+
+            // this.tooltipServiceWrapper.addTooltip(
+            //     this.d3Container.selectAll('.feature'),
+            //     (tooltipEvent: TooltipEventArgs<number>) => Visual.getTooltipData(tooltipEvent.data),
+            //     (tooltipEvent: TooltipEventArgs<number>) => null);
+
+            // this.d3Container.selectAll(".feature")
+            // .on("mouseover", (event: MouseEvent, d: Feature, i: number) => { // Include index (i)
+            //     const geometry = d.getGeometry();
+            //     if (geometry instanceof Point) {
+            //         const pixel: Pixel = this.map.getPixelFromCoordinate(geometry.getCoordinates());
+
+            //         const tooltipInfo: TooltipDataItem[] = [{
+            //             displayName: "Location Data", // Example header
+            //             value: "", // No value needed for the header
+            //             data: [{
+            //                 displayName: "Longitude",
+            //                 value: geometry.getCoordinates()[0].toString()
+            //                 // ... add other data points here
+            //             }]
+            //         }];
+
+            //         // Assuming you have a category and can get the rowIndex                    
+            //         const rowIndex = i; // Use the index (i) from the mouseover event
+            //         const selectionId = this.selectionIdBuilder.withCategory(category, rowIndex).createSelectionId();
+
+            //         this.tooltipServiceWrapper.show({
+            //             coordinates: [pixel[0], pixel[1]],
+            //             dataItems: tooltipInfo,
+            //             identities: [selectionId],
+            //             isTouchEvent: false
+            //         });
+            //     }
+            // })
+            // .on("mouseout", () => {
+            //     this.tooltipServiceWrapper.hide({
+            //         isTouchEvent: false,
+            //         immediately: true
+            //     });
+            // });
 
             this.circleVectorSource.addFeature(point);
         });
@@ -499,7 +579,6 @@ export class Visual implements IVisual {
 
         this.map.addLayer(this.circleVectorLayer);
 
-
     }
 
     private renderDefaultCircles(longitudes: number[], latitudes: number[], circleOptions: CircleOptions, tooltips: any[]) {
@@ -513,6 +592,7 @@ export class Visual implements IVisual {
 
             const point = new Feature({
                 geometry: new Point(fromLonLat([lon, lat])),
+                radius: circleOptions.minRadius,
                 tooltip: tooltips ? tooltips[i] : undefined
             });
 
@@ -625,6 +705,8 @@ export class Visual implements IVisual {
 
         this.choroplethVectorSource.clear(); // Clear existing features
 
+        let lastHighlightedFeature: Feature | null = null; // Track the last highlighted feature
+
         let pcodeKey = `ADM${selectedAdminLevel}_PCODE`; // Use the appropriate key based on the admin level
 
         // Filter features based on some condition, e.g., ADM2_PCODE
@@ -661,17 +743,11 @@ export class Visual implements IVisual {
 
                     let color = '#009edb'; // Default color
 
-                    // Use class breaks to assign colors based on value
-                    for (let i = 0; i < classBreaks.length; i++) {
-                        // Check if value falls within the range [classBreaks[i], classBreaks[i+1])
-                        if (value >= classBreaks[i] && value < classBreaks[i + 1]) {
+                    for (let i = 0; i < classBreaks.length - 1; i++) {
+                        if (value >= classBreaks[i] && value <= classBreaks[i + 1]) { // Include upper bound
                             color = colorScale[i];
                             break;
                         }
-                    }
-                    // Handle edge case: value equals the maximum class break
-                    if (value >= classBreaks[classBreaks.length - 1]) {
-                        color = colorScale[colorScale.length - 1];
                     }
 
                     return new Style({
@@ -696,6 +772,7 @@ export class Visual implements IVisual {
         this.fitMapToFeatures();
 
         this.map.addLayer(this.choroplethVectorLayer);
+
     }
 
     private createChoroplethLegend(
@@ -703,7 +780,7 @@ export class Visual implements IVisual {
         colorScale: string[],
         labelPosition: "top" | "inside" | "bottom" = "inside",
         legendTitle: string = "Legend",
-        formatTemplate: string = "{:.1f}", // Custom formatting template
+        formatTemplate: string = "{:.0f}", // Custom formatting template
         titleAlignment: "left" | "center" | "right" = "left", // Title alignment option
         gapSize: number = 2.5 // Custom gap size between color boxes (default 2.5px)
     ): void {
@@ -756,6 +833,7 @@ export class Visual implements IVisual {
 
         for (let i = 0; i < classBreaks.length - 1; i++) {
             const upperValue = classBreaks[i + 1];
+            //const upperValue = i < classBreaks.length - 1 ? classBreaks[i + 1] : classBreaks[i]; 
             const formattedLabel = formatValue(upperValue, formatTemplate); // Format the value dynamically
             const color = colorScale[i];
 
@@ -813,12 +891,37 @@ export class Visual implements IVisual {
         legendContainer.style.display = "flex";
     }
 
+    // private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
+    //     if (choroplethOptions.classifyData) {
+    //         if (choroplethOptions.classificationMethod === 'j') {
+
+    //             return ss.jenks(colorValues, choroplethOptions.classes);
+    //         } else {
+
+    //             return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
+    //         }
+    //     } else {
+    //         return Array.from(new Set(colorValues)).sort((a, b) => a - b);
+    //     }
+    // }
+
     private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
+        const numValues = new Set(colorValues).size; // Get the number of unique values
+    
         if (choroplethOptions.classifyData) {
-            if (choroplethOptions.classificationMethod === 'j') {
-                return ss.jenks(colorValues, choroplethOptions.classes);
+            // Adjust the number of classes if it exceeds the number of unique values
+            const adjustedClasses = Math.min(choroplethOptions.classes, numValues); 
+    
+            if (numValues <= 2) {
+                // Handle cases with less than or equal to two unique values
+                return Array.from(new Set(colorValues)).sort((a, b) => a - b); 
             } else {
-                return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
+                // More than two unique values: Use the existing classification methods
+                if (choroplethOptions.classificationMethod === 'j') {
+                    return ss.jenks(colorValues, adjustedClasses); // Use adjustedClasses
+                } else {
+                    return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', adjustedClasses); // Use adjustedClasses
+                }
             }
         } else {
             return Array.from(new Set(colorValues)).sort((a, b) => a - b);
@@ -834,8 +937,8 @@ export class Visual implements IVisual {
             }
 
             return choroplethOptions.classifyData
-                ? this.colorRampGenerator.generateColorRamp(choroplethOptions.classes, classBreaks)
-                : this.colorRampGenerator.generateColorRamp(classBreaks.length, classBreaks);
+                ? this.colorRampGenerator.generateColorRamp(classBreaks)
+                : this.colorRampGenerator.generateColorRamp(classBreaks);
         } else {
             return chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
                 .mode('lab')
@@ -849,7 +952,8 @@ export class Visual implements IVisual {
         containerId: string,
         sizeValues: number[],
         radii: number[],
-        legendTitle: string = "Legend"
+        legendTitle: string = "Legend",
+        formatTemplate: string = "{:.0f}"
     ) {
         const container = document.getElementById(containerId);
 
@@ -936,12 +1040,14 @@ export class Visual implements IVisual {
 
             svg.appendChild(line);
 
+            const formattedLabel = formatValue(item.size, formatTemplate);
+
             // Add the corresponding label (aligned to the top of the circle)
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
             text.setAttribute("x", labelX.toString());
             text.setAttribute("y", labelY.toString());
             text.setAttribute("alignment-baseline", "middle");
-            text.textContent = `${item.size}`;
+            text.textContent = `${formattedLabel}`;
 
             svg.appendChild(text);
 
@@ -1009,12 +1115,21 @@ export class Visual implements IVisual {
         this.map.setTarget(null);
     }
 
+    private static getTooltipData(value: any): VisualTooltipDataItem[] {
+        return [{
+            displayName: value.category,
+            value: value.value.toString(),
+            color: value.color
+        }];
+    }
+
 }
 
 function formatValue(value: number, formatTemplate: string): string {
     let formattedValue: number;
     let suffix: string = "";
 
+    // Step 1: Check the magnitude of the value and adjust accordingly
     if (value >= 1_000_000) {  // Millions
         formattedValue = value / 1_000_000;
         suffix = "M";
@@ -1022,12 +1137,48 @@ function formatValue(value: number, formatTemplate: string): string {
         formattedValue = value / 1_000;
         suffix = "k";
     } else {
-        formattedValue = value;
+        formattedValue = value;  // If less than 1,000, no adjustment needed
     }
 
-    // Use custom format template to format the number
-    return `${formatTemplate.replace("{:.1f}", formattedValue.toFixed(1))}${suffix}`;
+    // Step 2: Handle dynamic formatting based on the template
+    // Extract the decimal precision (e.g., ".1f" or ".2f")
+    const match = formatTemplate.match(/{:(\.\d+f)}/);
+
+    if (match) {
+        // Extract the precision (e.g., '.1f', '.2f', etc.)
+        const precision = match[1];
+
+        // Apply the precision using toFixed or toPrecision
+        if (precision === '.0f') {
+            formattedValue = Math.round(formattedValue);  // No decimal places
+        } else {
+            const decimals = parseInt(precision.replace('.', '').replace('f', ''));
+            formattedValue = parseFloat(formattedValue.toFixed(decimals));  // Format with decimal places
+        }
+    }
+
+    // Step 3: Return the formatted value with the suffix
+    return `${formattedValue}${suffix}`;
 }
+
+
+// function formatValue(value: number, formatTemplate: string): string {
+//     let formattedValue: number;
+//     let suffix: string = "";
+
+//     if (value >= 1_000_000) {  // Millions
+//         formattedValue = value / 1_000_000;
+//         suffix = "M";
+//     } else if (value >= 1_000) {  // Thousands
+//         formattedValue = value / 1_000;
+//         suffix = "k";
+//     } else {
+//         formattedValue = value;
+//     }
+
+//     // Use custom format template to format the number
+//     return `${formatTemplate.replace("{:.1f}", formattedValue.toFixed(1))}${suffix}`;
+// }
 
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};
 
