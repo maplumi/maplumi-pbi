@@ -374,7 +374,9 @@ export class Visual implements IVisual {
             strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
             layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
             showLegend: circleSettings.showLegend.value,
-            legendTitle: circleSettings.legendTitle.value
+            legendTitle: circleSettings.legendTitle.value,
+            legendBackgroundColor:circleSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value
         };
     }
 
@@ -403,7 +405,9 @@ export class Visual implements IVisual {
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
             showLegend: choroplethLegendSettings.showLegend.value,
-            legendTitle: choroplethLegendSettings.legendTitle.value
+            legendTitle: choroplethLegendSettings.legendTitle.value,
+            legendBackgroundColor:choroplethLegendSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value
         };
     }
 
@@ -571,7 +575,10 @@ export class Visual implements IVisual {
         // Create proportional circle legend
         if (circleOptions.showLegend) {
 
-            this.createProportionalCircleLegend("legend2", circleSizeValues, radii, circleOptions.legendTitle);
+            const opacity = circleOptions.legendBackgroundOpacity/100;
+            const bgColor = circleOptions.legendBackgroundColor
+
+            this.createProportionalCircleLegend("legend2", circleSizeValues, radii,opacity,bgColor, circleOptions.legendTitle);
         }
 
         this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
@@ -631,6 +638,8 @@ export class Visual implements IVisual {
         containerId: string,
         sizeValues: number[],
         radii: number[],
+        opacity: number,
+        backgroundColor: string,
         legendTitle: string = "Legend",
         formatTemplate: string = "{:.0f}"
     ) {
@@ -641,8 +650,11 @@ export class Visual implements IVisual {
             return;
         }
 
+        // compute container background color and opacity        
+        const bgColor = hexToRgba(backgroundColor, opacity)
+
         // Set background for container and SVG
-        container.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; // Remove background color from container
+        container.style.backgroundColor = bgColor;//"rgba(255, 255, 255, 0.5)"; // Remove background color from container
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.style.display = "block"; // Ensure SVG takes up the full container width/height
 
@@ -904,7 +916,7 @@ export class Visual implements IVisual {
 
         if (options.showLegend) {
 
-            this.createChoroplethLegend(measure, options, "inside");
+            this.createChoroplethLegend(colorValues, classBreaks,colorScale, options, "inside");
 
         } else {
             const legend = document.getElementById("legend");
@@ -917,7 +929,9 @@ export class Visual implements IVisual {
 
 
     private createChoroplethLegend(
-        measure: any, 
+        colorValues: number[], 
+        classBreaks: number[],
+        colorScale: any,
         options: ChoroplethOptions,       
         legendLabelPosition: "top" | "inside" | "bottom" = "inside",        
         formatTemplate: string = "{:.0f}", 
@@ -926,13 +940,7 @@ export class Visual implements IVisual {
 
     ): void {
 
-        const colorValues: number[] = measure.values;
-
         const uniqueColorValues: number[] = [...new Set(colorValues)].sort((a, b) => a - b);;
-
-        const classBreaks = this.getClassBreaks(colorValues, options);
-
-        const colorScale = this.getColorScale(classBreaks, options);
 
         const legendContainer = document.getElementById("legend");
         if (!legendContainer) return;
@@ -942,12 +950,16 @@ export class Visual implements IVisual {
             legendContainer.removeChild(legendContainer.firstChild);
         }
 
+        // compute legend background color and opacity
+        const opacity = options.legendBackgroundOpacity/100
+        const bgColor = hexToRgba(options.legendBackgroundColor, opacity)
+
         // Style the legend container
         legendContainer.style.display = "flex";
         legendContainer.style.flexDirection = "column"; 
         legendContainer.style.alignItems = "flex-start"; 
         legendContainer.style.gap = "5px"; 
-        legendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; 
+        legendContainer.style.backgroundColor = bgColor,//"rgba(255, 255, 255, 0.5)"; 
         legendContainer.style.border = "none"; 
         legendContainer.style.padding = "5px";
 
@@ -1193,6 +1205,24 @@ function formatValue(value: number, formatTemplate: string): string {
     // Step 3: Return the formatted value with the suffix
     return `${formattedValue}${suffix}`;
 }
+
+function hexToRgba(hex, opacity) {
+    // Remove the '#' character if it exists
+    hex = hex.replace("#", "");
+  
+    // Ensure the hex code is the correct length
+    if (hex.length === 3) {
+      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+  
+    // Convert the hex code to RGB values
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+  
+    // Return the RGBA value
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
 
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};
 

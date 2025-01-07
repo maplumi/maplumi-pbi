@@ -19,6 +19,8 @@ export interface CircleOptions {
     layerOpacity: number; 
     showLegend: boolean; 
     legendTitle: string
+    legendBackgroundOpacity:number;
+    legendBackgroundColor: string
 }
 
 export interface ChoroplethOptions {
@@ -39,6 +41,8 @@ export interface ChoroplethOptions {
     layerOpacity: number; 
     showLegend: boolean; 
     legendTitle: string;
+    legendBackgroundOpacity:number;
+    legendBackgroundColor: string
 }
 
 export interface HeatmapOptions {

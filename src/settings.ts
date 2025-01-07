@@ -226,6 +226,29 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         placeholder:""
     });
 
+    legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "legendBackgroundOpacity",
+        displayName: "Background Opacity",
+        value: 60,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    legendBackgroundColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendBackgroundColor",
+        displayName: "Background Color",
+        value: { value: "#ffffff" } // Default color
+    });
+
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
@@ -237,7 +260,9 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         this.proportionalCirclesStrokeWidth,
         this.proportionalCirclesLayerOpacity,
         this.showLegend,
-        this.legendTitle
+        this.legendTitle,
+        this.legendBackgroundColor,
+        this.legendBackgroundOpacity 
     ];
 
 }
@@ -430,12 +455,37 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "" // Placeholder text
     });
 
+    legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "legendBackgroundOpacity",
+        displayName: "Background Opacity",
+        value: 60,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    legendBackgroundColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendBackgroundColor",
+        displayName: "Background Color",
+        value: { value: "#ffffff" } // Default color
+    });
+
     
     name: string = "choroplethLegendSettingsGroup";
     displayName: string = "Legend";
     slices: formattingSettings.Slice[] = [
         this.showLegend ,
-        this.legendTitle       
+        this.legendTitle,
+        this.legendBackgroundColor,
+        this.legendBackgroundOpacity       
     ];
 }
 

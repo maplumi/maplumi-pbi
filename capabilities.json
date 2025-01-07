@@ -10,25 +10,81 @@
       "name": "Latitude",
       "kind": "Grouping",
       "displayName": "Latitude",
-      "description": "Latitude or Y geographic point dimension"
+      "description": "Latitude or Y geographic point dimension",
+      "preferredTypes": [
+        {
+          "geography": {
+            "latitude": true
+          }
+        }
+      ],
+      "requiredTypes": [
+        {
+          "numeric": true
+        },
+        {
+          "integer": true
+        },
+        {
+          "geography": {
+            "latitude": true
+          }
+        }
+      ]
     },
     {
       "name": "Longitude",
       "kind": "Grouping",
       "displayName": "Longitude",
-      "description": "Longitude or X geographic point dimension"
+      "description": "Longitude or X geographic point dimension",
+      "preferredTypes": [
+        {
+          "geography": {
+            "longitude": true
+          }
+        }
+      ],
+      "requiredTypes": [
+        {
+          "numeric": true
+        },
+        {
+          "integer": true
+        },
+        {
+          "geography": {
+            "longitude": true
+          }
+        }
+      ]
     },
     {
       "name": "Size",
       "kind": "Measure",
-      "displayName": "Size",
-      "description": "Numeric data type measure to dispay of different circle/bubble sizes"
+      "displayName": "Circle Size",
+      "description": "Numeric data type measure to dispay of different circle/bubble sizes",
+      "requiredTypes": [
+        {
+          "numeric": true
+        },
+        {
+          "integer": true
+        }
+      ]
     },
     {
       "name": "Color",
       "kind": "Measure",
-      "displayName": "Color",
-      "description": "Numeric data type measure to control display of Choropleth or Heatmap colors"
+      "displayName": "Choropleth Color",
+      "description": "Numeric data type measure to control display of Choropleth or Heatmap colors",
+      "requiredTypes": [
+        {
+          "numeric": true
+        },
+        {
+          "integer": true
+        }
+      ]
     },
     {
       "name": "Tooltips",
@@ -39,6 +95,25 @@
   ],
   "dataViewMappings": [
     {
+      "conditions": [
+        {
+          "AdminPCode": {
+            "max": 1
+          },
+          "Latitude": {
+            "max": 1
+          },
+          "Longitude": {
+            "max": 1
+          },
+          "Size": {
+            "max": 1
+          },
+          "Color": {
+            "max": 1
+          }
+        }
+      ],
       "categorical": {
         "categories": {
           "dataReductionAlgorithm": {
@@ -202,6 +277,21 @@
         "legendTitle": {
           "type": {
             "text": true
+          }
+        }
+        ,
+        "legendBackgroundColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "legendBackgroundOpacity": {
+          "type": {
+            "numeric": true
           }
         }
       }
@@ -410,6 +500,20 @@
         "legendTitle": {
           "type": {
             "text": true
+          }
+        },
+        "legendBackgroundColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "legendBackgroundOpacity": {
+          "type": {
+            "numeric": true
           }
         }
       }
