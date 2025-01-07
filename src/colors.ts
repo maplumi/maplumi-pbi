@@ -33,9 +33,9 @@ export class ColorRampGenerator {
 
     // New Color Ramps
     unblue: [
-      '#e6f5fb', '#99d8f1', '#4dbbe6', '#009edb', '#006f99', '#003f58'  
+      '#e6f5fb', '#99d8f1', '#4dbbe6', '#009edb', '#006f99', '#003f58'
     ],
-    sdgred:[
+    sdgred: [
       '#fce9eb', '#f5a7b1', '#ed6676', '#e5243b', '#a01929', '#5c0e18'
     ],
     sdgyellow: [
@@ -44,7 +44,7 @@ export class ColorRampGenerator {
     sdgorange: [
       '#fff0e9', '#fec3a8', '#fe9666', '#fd6925', '#b14a1a', '#652a0f'
     ],
-    sdggreen:[
+    sdggreen: [
       '#eef9ea', '#bbe6aa', '#89d36b', '#56c02b', '#3c861e', '#224d11'
     ],
     sdgdarkgreen: [
@@ -54,7 +54,7 @@ export class ColorRampGenerator {
       '#e8edf0', '#a3b6c3', '#5e7f97', '#19486a', '#12324a', '#0a1d2a'
     ],
     ipc: [
-      '#cdfacd','#fae61e','#e67800','#c80000','#640000'
+      '#cdfacd', '#fae61e', '#e67800', '#c80000', '#640000'
     ]
   };
 
@@ -78,13 +78,16 @@ export class ColorRampGenerator {
   }
 
   // Method to generate colors using Chroma.js with dynamic class breaks
-  public generateColorRamp(classBreaks: number[]): string[] {
+  public generateColorRamp(classBreaks: number[], numberOfClasses): string[] {
+
     // Use the classBreaks to define the domain of the color scale
     const scale = chroma.scale(this.currentRamp).mode('lab').domain(classBreaks);
 
     // Generate `n` colors and return them
-    return scale.colors(classBreaks.length+1); // return an extra color
+    return scale.colors(numberOfClasses); 
   }
+
+
 }
 
 
@@ -95,7 +98,8 @@ const colorRampGenerator = new ColorRampGenerator('blue');  // Choose 'blue' col
 const classBreaks = [0, 50, 100, 150, 200];  // Define breaks for your data
 
 // Generate a color ramp with 5 colors, applying the classBreaks to the scale
-const colorRamp = colorRampGenerator.generateColorRamp(classBreaks);
+// number of classes is always one less number of class breaks
+const colorRamp = colorRampGenerator.generateColorRamp(classBreaks,4);
 console.log(colorRamp);
 
 

@@ -18,6 +18,7 @@
         "./src/settings.ts",
         "./src/types.ts",
         "./src/basemap.ts",
-        "./src/colors.ts"
+        "./src/colors.ts",
+        "./src/constants.ts"
     ]
 }

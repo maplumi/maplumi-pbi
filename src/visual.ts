@@ -28,6 +28,7 @@
 import powerbi from "powerbi-visuals-api";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import "./../style/visual.less";
+import { constants } from "./constants";
 
 import { createTooltipServiceWrapper, ITooltipServiceWrapper, TooltipEventArgs } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionIdBuilder = powerbi.visuals.ISelectionIdBuilder;
@@ -41,6 +42,7 @@ import ISelectionId = powerbi.visuals.ISelectionId;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import PrimitiveValue = powerbi.PrimitiveValue;
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
+
 
 import { HumanitarianMapVisualFormattingSettingsModel } from "./settings";
 
@@ -66,7 +68,6 @@ import { easeOut } from "ol/easing";
 
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from 'simple-statistics';
-import Geostats from 'geostats';
 
 import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
@@ -625,328 +626,6 @@ export class Visual implements IVisual {
 
     }
 
-    private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
-
-        const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
-        if (!adminPCodeCategory) {
-            console.warn("PCodes not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const pcodes = adminPCodeCategory.values as string[];
-        if (!categorical.values || categorical.values.length === 0) {
-            console.warn("Measures not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const colorMeasure = categorical.values.find(c => c.source?.roles && c.source.roles['Color']);
-        if (!colorMeasure) {
-            console.warn("Color Measure not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const colorValues = colorMeasure.values;
-
-        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);
-
-        const colorScale = this.getColorScale(classBreaks, choroplethOptions);
-
-        if (!pcodes || choroplethOptions.adminLevel.length === 0 || choroplethOptions.countryISO3Code.length === 0) {
-            console.warn("No PCodes or Admin level or Country iso3 code found. Exiting...");
-            return;
-        }
-
-        const validPCodes = pcodes.filter(pcode => {
-            if (!pcode) {
-                console.warn(`Skipping invalid PCode: ${pcode}`);
-                return false;
-            }
-            return true;
-        });
-
-        if (validPCodes.length === 0) {
-            console.warn("No valid PCodes found. Exiting...");
-            return;
-        }
-
-        const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
-        const serviceUrl = `https://codgis.itos.uga.edu/arcgis/rest/services/COD_External/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
-        const maxAge = 3600000; // Cache expiry time (1 hour)
-
-        fetchGeoJsonWithCaching(serviceUrl, cacheKey, maxAge)
-            .then(geojsonData => {
-                this.createChoroplethLayer(geojsonData, colorValues, validPCodes, choroplethOptions.adminLevel,
-                    choroplethOptions.strokeColor, choroplethOptions.strokeWidth, choroplethOptions.layerOpacity,
-                    classBreaks, colorScale);
-                //this.fitMapToFeatures();
-            })
-            .catch(error => {
-                console.error("Error fetching GeoJSON data:", error);
-            });
-
-        if (choroplethOptions.showLegend) {
-
-            this.createChoroplethLegend(classBreaks, colorScale, "inside", choroplethOptions.legendTitle);
-
-        } else {
-            const legend = document.getElementById("legend");
-            if (legend) {
-                legend.style.display = "none"; // Hide the legend
-            }
-        }
-    }
-
-    // Function to process the GeoJSON data
-    private createChoroplethLayer(geojsonData: any, colorValues: any, validPCodes: string[], selectedAdminLevel: string,
-        selectedStrokeColor: any, selectedStrokeWidth: any, layerOpacity: any, classBreaks: any, colorScale: any): void {
-
-        this.choroplethVectorSource.clear(); // Clear existing features
-
-        let lastHighlightedFeature: Feature | null = null; // Track the last highlighted feature
-
-        let pcodeKey = `ADM${selectedAdminLevel}_PCODE`; // Use the appropriate key based on the admin level
-
-        // Filter features based on some condition, e.g., ADM2_PCODE
-        const filteredFeatures = geojsonData.features.filter(feature => {
-            const featurePCode = feature.properties[pcodeKey]; // Example filter condition
-            return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
-        });
-
-        // Create a vector source with the filtered features
-        this.choroplethVectorSource = new VectorSource({
-            format: new GeoJSON(),
-            features: new GeoJSON().readFeatures({
-                type: "FeatureCollection",
-                features: filteredFeatures // Only use the filtered features
-            }, {
-                dataProjection: 'EPSG:4326',
-                featureProjection: 'EPSG:3857'
-            })
-        });
-
-        // Create a vector layer using the vector source
-        this.choroplethVectorLayer = new VectorLayer({
-
-            source: this.choroplethVectorSource,
-
-            style: (feature) => { //using arrow function to bind this
-
-                // Check if the feature's ADMx_PCODE (or equivalent) matches any valid PCode
-                const featurePCode = feature.get(pcodeKey);
-
-                if (validPCodes.includes(featurePCode)) {
-
-                    const value = colorValues[validPCodes.indexOf(featurePCode)];
-
-                    let color = '#009edb'; // Default color
-
-                    for (let i = 0; i < classBreaks.length - 1; i++) {
-                        if (value >= classBreaks[i] && value <= classBreaks[i + 1]) { // Include upper bound
-                            color = colorScale[i];
-                            break;
-                        }
-                    }
-
-                    return new Style({
-                        fill: new Fill({
-                            color: color
-                        }),
-                        stroke: new Stroke({
-                            color: selectedStrokeColor,
-                            width: selectedStrokeWidth
-                        })
-                    });
-
-                    //return this.choroplethStyle;
-                } else {
-                    // Return null to skip rendering this feature
-                    return null;
-                }
-            },
-            opacity: layerOpacity
-        });
-
-        this.fitMapToFeatures();
-
-        this.map.addLayer(this.choroplethVectorLayer);
-
-    }
-
-    private createChoroplethLegend(
-        classBreaks: number[],
-        colorScale: string[],
-        labelPosition: "top" | "inside" | "bottom" = "inside",
-        legendTitle: string = "Legend",
-        formatTemplate: string = "{:.0f}", // Custom formatting template
-        titleAlignment: "left" | "center" | "right" = "left", // Title alignment option
-        gapSize: number = 2.5 // Custom gap size between color boxes (default 2.5px)
-    ): void {
-        const legendContainer = document.getElementById("legend");
-        if (!legendContainer) return;
-
-        // Clear existing legend
-        while (legendContainer.firstChild) {
-            legendContainer.removeChild(legendContainer.firstChild);
-        }
-
-        // Style the legend container
-        legendContainer.style.display = "flex";
-        legendContainer.style.flexDirection = "column"; // Stack the title and legend items vertically
-        legendContainer.style.alignItems = "flex-start"; // Align the items to the left by default
-        legendContainer.style.gap = "5px"; // Add spacing between title and items
-        legendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; // Add background color
-        legendContainer.style.border = "none"; // Remove black outline
-        legendContainer.style.padding = "5px";
-
-        // Add title to the legend with customizable alignment
-        const title = document.createElement("div");
-        title.textContent = legendTitle;
-        title.style.fontSize = "12px";
-        title.style.fontWeight = "bold";
-        title.style.marginBottom = "5px";
-
-        // Align the title based on user selection
-        title.style.textAlign = titleAlignment; // Apply the specified alignment
-
-        // Align the title itself depending on the alignment choice
-        if (titleAlignment === "left") {
-            title.style.marginLeft = "0"; // Ensure it's at the left edge of the legend
-        } else if (titleAlignment === "center") {
-            title.style.marginLeft = "auto";
-            title.style.marginRight = "auto"; // Center the title
-        } else if (titleAlignment === "right") {
-            title.style.marginLeft = "auto"; // Align to the right side
-        }
-
-        // Append the title to the legend
-        legendContainer.appendChild(title);
-
-        // Create horizontal layout for legend items
-        const itemsContainer = document.createElement("div");
-        itemsContainer.style.display = "flex";
-        itemsContainer.style.flexDirection = "row";
-        itemsContainer.style.alignItems = "flex-start";
-        itemsContainer.style.gap = `${gapSize}px`; // Set the gap size between color boxes
-
-        for (let i = 0; i < classBreaks.length - 1; i++) {
-            const upperValue = classBreaks[i + 1];
-            //const upperValue = i < classBreaks.length - 1 ? classBreaks[i + 1] : classBreaks[i]; 
-            const formattedLabel = formatValue(upperValue, formatTemplate); // Format the value dynamically
-            const color = colorScale[i];
-
-            // Create legend item container
-            const legendItem = document.createElement("div");
-            legendItem.style.display = "flex";
-            legendItem.style.flexDirection = "column";
-            legendItem.style.alignItems = "center";
-
-            // Calculate the dynamic width of the color box
-            const boxWidth = `${formattedLabel.length * 5 + 10}px`; // Label length * 10px + 20px padding
-
-            // Create color box with reduced size (half the original height)
-            const colorBox = document.createElement("div");
-            colorBox.style.position = "relative"; // For positioning the label inside if needed
-            colorBox.style.width = boxWidth; // Dynamic width
-            colorBox.style.height = "20px"; // Reduced height (half of the original)
-            colorBox.style.backgroundColor = color;
-            colorBox.style.textAlign = "center";
-            colorBox.style.display = "flex"; // Flexbox for centering content
-            colorBox.style.justifyContent = "center";
-            colorBox.style.alignItems = labelPosition === "inside" ? "center" : "flex-start";
-
-            // Add label
-            const label = document.createElement("span");
-            label.textContent = formattedLabel;
-            label.style.color = labelPosition === "inside" ? "#fff" : "#000"; // Contrast label color for inside
-            label.style.fontSize = "10px";
-
-            // Append label based on position
-            if (labelPosition === "top") {
-                // Add label on top
-                label.style.marginBottom = "5px";
-                legendItem.appendChild(label);
-                legendItem.appendChild(colorBox);
-            } else if (labelPosition === "bottom") {
-                // Add label below
-                label.style.marginTop = "5px";
-                legendItem.appendChild(colorBox);
-                legendItem.appendChild(label);
-            } else {
-                // Add label inside the box
-                colorBox.appendChild(label);
-                legendItem.appendChild(colorBox);
-            }
-
-            // Append each legend item to the items container
-            itemsContainer.appendChild(legendItem);
-        }
-
-        // Append the items container to the legend
-        legendContainer.appendChild(itemsContainer);
-
-        // Ensure the legend is visible
-        legendContainer.style.display = "flex";
-    }
-
-    // private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
-    //     if (choroplethOptions.classifyData) {
-    //         if (choroplethOptions.classificationMethod === 'j') {
-
-    //             return ss.jenks(colorValues, choroplethOptions.classes);
-    //         } else {
-
-    //             return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', choroplethOptions.classes);
-    //         }
-    //     } else {
-    //         return Array.from(new Set(colorValues)).sort((a, b) => a - b);
-    //     }
-    // }
-
-    private getClassBreaks(colorValues: any[], choroplethOptions: ChoroplethOptions): any[] {
-        const numValues = new Set(colorValues).size; // Get the number of unique values
-    
-        if (choroplethOptions.classifyData) {
-            // Adjust the number of classes if it exceeds the number of unique values
-            const adjustedClasses = Math.min(choroplethOptions.classes, numValues); 
-    
-            if (numValues <= 2) {
-                // Handle cases with less than or equal to two unique values
-                return Array.from(new Set(colorValues)).sort((a, b) => a - b); 
-            } else {
-                // More than two unique values: Use the existing classification methods
-                if (choroplethOptions.classificationMethod === 'j') {
-                    return ss.jenks(colorValues, adjustedClasses); // Use adjustedClasses
-                } else {
-                    return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l' | 'k', adjustedClasses); // Use adjustedClasses
-                }
-            }
-        } else {
-            return Array.from(new Set(colorValues)).sort((a, b) => a - b);
-        }
-    }
-
-    private getColorScale(classBreaks: any[], choroplethOptions: ChoroplethOptions): any {
-        if (choroplethOptions.usePredefinedColorRamp) {
-            if (choroplethOptions.invertColorRamp) {
-                this.colorRampGenerator.invertRamp();
-            } else {
-                this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
-            }
-
-            return choroplethOptions.classifyData
-                ? this.colorRampGenerator.generateColorRamp(classBreaks)
-                : this.colorRampGenerator.generateColorRamp(classBreaks);
-        } else {
-            return chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
-                .mode('lab')
-                .domain(classBreaks)
-                .colors(choroplethOptions.classes);
-        }
-    }
-
     // Create proportional circle legend
     private createProportionalCircleLegend(
         containerId: string,
@@ -1083,6 +762,316 @@ export class Visual implements IVisual {
         container.appendChild(svg);
     }
 
+    private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
+
+        if (!categorical.values || categorical.values.length === 0) {
+            console.warn("Measures not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }        
+        
+        const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
+
+        if (!adminPCodeCategory) {
+            console.warn("PCodes not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }
+
+        const colorMeasure = categorical.values.find(c => c.source?.roles && c.source.roles['Color']);  
+              
+        if (!colorMeasure) {
+            console.warn("Color Measure not found.");
+            this.choroplethVectorSource.clear();
+            return;
+        }
+
+        const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
+        const serviceUrl = `${constants.ADMIN_BOUNDARY_SERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+        const maxAge = 3600000; // Cache expiry time (1 hour)
+
+        fetchAndCacheGeoJsonAdminBoundary(serviceUrl, cacheKey, maxAge)
+            .then(geojsonData => {
+                this.createChoroplethLayer(geojsonData, adminPCodeCategory, colorMeasure, choroplethOptions);                
+            })
+            .catch(error => {
+                console.error("Error fetching GeoJSON data:", error);
+            });
+    }
+
+    // Function to process the GeoJSON data & create choropleth
+    private createChoroplethLayer(geojsonData: any, category: any, measure: any, options: ChoroplethOptions ): void {
+
+        this.choroplethVectorSource.clear(); // Clear existing features
+
+        // get pcodes
+        const pCodes = category.values as string[];
+
+        if (!pCodes || options.adminLevel.length === 0 || options.countryISO3Code.length === 0) {
+            console.warn("No PCodes or Admin level or Country iso3 code found. Exiting...");
+            return;
+        }
+
+        const validPCodes = pCodes.filter(pcode => {
+            if (!pcode) {
+                console.warn(`Skipping invalid PCode: ${pcode}`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validPCodes.length === 0) {
+            console.warn("No valid PCodes found. Exiting...");
+            return;
+        }
+
+        const colorValues: number[] = measure.values;
+
+        const classBreaks = this.getClassBreaks(colorValues, options);
+
+        const colorScale = this.getColorScale(classBreaks, options);
+
+        let pcodeKey = `ADM${options.adminLevel}_PCODE`; // Use the appropriate key based on the admin level
+
+        // Filter features based on some condition, e.g., ADM2_PCODE
+        const filteredFeatures = geojsonData.features.filter(feature => {
+            const featurePCode = feature.properties[pcodeKey]; // Example filter condition
+            return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
+        });
+
+        // Create a vector source with the filtered features
+        this.choroplethVectorSource = new VectorSource({
+            format: new GeoJSON(),
+            features: new GeoJSON().readFeatures({
+                type: "FeatureCollection",
+                features: filteredFeatures // Only use the filtered features
+            }, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: 'EPSG:3857'
+            })
+        });
+
+        // Create a vector layer using the vector source
+        this.choroplethVectorLayer = new VectorLayer({
+
+            source: this.choroplethVectorSource,
+
+            style: (feature) => { //using arrow function to bind this
+
+                // Check if the feature's ADMx_PCODE (or equivalent) matches any valid PCode
+                const featurePCode = feature.get(pcodeKey);
+
+                if (validPCodes.includes(featurePCode)) {
+
+                    const value = colorValues[validPCodes.indexOf(featurePCode)];
+                    let color = '#009edb'; // Default color
+
+                    if (value < classBreaks[0]) {
+                        color = colorScale[0];
+                    } else if (value > classBreaks[classBreaks.length - 1]) {
+                        color = colorScale[colorScale.length - 1];
+                    } else {
+                        for (let i = 0; i < classBreaks.length - 1; i++) {
+                            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
+                                color = colorScale[i];
+                                break;
+                            }
+                        }
+                    }
+
+                    return new Style({
+                        fill: new Fill({
+                            color: color
+                        }),
+                        stroke: new Stroke({
+                            color: options.strokeColor,
+                            width: options.strokeWidth
+                        })
+                    });
+
+                    //return this.choroplethStyle;
+                } else {
+                    // Return null to skip rendering this feature
+                    return null;
+                }
+            },
+            opacity: options.layerOpacity
+        });
+
+        this.fitMapToFeatures();
+
+        this.map.addLayer(this.choroplethVectorLayer);
+
+        if (options.showLegend) {
+
+            this.createChoroplethLegend(measure, options, "inside");
+
+        } else {
+            const legend = document.getElementById("legend");
+            if (legend) {
+                legend.style.display = "none"; // Hide the legend
+            }
+        }
+
+    }
+
+
+    private createChoroplethLegend(
+        measure: any, 
+        options: ChoroplethOptions,       
+        legendLabelPosition: "top" | "inside" | "bottom" = "inside",        
+        formatTemplate: string = "{:.0f}", 
+        titleAlignment: "left" | "center" | "right" = "left", 
+        gapSize: number = 2.5 
+
+    ): void {
+
+        const colorValues: number[] = measure.values;
+
+        const uniqueColorValues: number[] = [...new Set(colorValues)].sort((a, b) => a - b);;
+
+        const classBreaks = this.getClassBreaks(colorValues, options);
+
+        const colorScale = this.getColorScale(classBreaks, options);
+
+        const legendContainer = document.getElementById("legend");
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        while (legendContainer.firstChild) {
+            legendContainer.removeChild(legendContainer.firstChild);
+        }
+
+        // Style the legend container
+        legendContainer.style.display = "flex";
+        legendContainer.style.flexDirection = "column"; 
+        legendContainer.style.alignItems = "flex-start"; 
+        legendContainer.style.gap = "5px"; 
+        legendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)"; 
+        legendContainer.style.border = "none"; 
+        legendContainer.style.padding = "5px";
+
+        // Add title to the legend with customizable alignment
+        const title = document.createElement("div");
+        title.textContent = options.legendTitle;
+        title.style.fontSize = "12px";
+        title.style.fontWeight = "bold";
+        title.style.marginBottom = "5px";
+
+        // Align the title based on user selection
+        title.style.textAlign = titleAlignment; 
+
+        // Align the title itself depending on the alignment choice
+        if (titleAlignment === "left") {
+            title.style.marginLeft = "0"; 
+        } else if (titleAlignment === "center") {
+            title.style.marginLeft = "auto";
+            title.style.marginRight = "auto"; 
+        } else if (titleAlignment === "right") {
+            title.style.marginLeft = "auto"; 
+        }
+
+        // Append the title to the legend
+        legendContainer.appendChild(title);
+
+        // Create horizontal layout for legend items
+        const itemsContainer = document.createElement("div");
+        itemsContainer.style.display = "flex";
+        itemsContainer.style.flexDirection = "row";
+        itemsContainer.style.alignItems = "flex-start";
+        itemsContainer.style.gap = `${gapSize}px`; 
+
+        if (options.classifyData) {
+            // Classified Mode
+            for (let i = 0; i < classBreaks.length - 1; i++) {
+                const color = colorScale[i];
+                let labelText = "";
+
+                // Determine label text based on index
+                labelText = `${formatValue(classBreaks[i], formatTemplate)} - ${formatValue(classBreaks[i + 1], formatTemplate)}`;
+
+                // Create legend item
+                const legendItem = createLegendItem(labelText, color, legendLabelPosition);
+                itemsContainer.appendChild(legendItem);
+            }
+        } else {
+            // Unique Value Mode
+            for (let i = 0; i < uniqueColorValues.length; i++) {
+                const uniqueValue = uniqueColorValues[i];
+                const color = colorScale[i]; // Get color from colorScale
+                const labelText = formatValue(uniqueValue, formatTemplate); // Format the unique value
+
+                // Create legend item
+                const legendItem = createLegendItem(labelText, color, legendLabelPosition);
+                itemsContainer.appendChild(legendItem);
+            }
+        }
+
+        // Append the items container to the legend
+        legendContainer.appendChild(itemsContainer);
+
+        // Ensure the legend is visible
+        legendContainer.style.display = "flex";
+    }
+
+    private getClassBreaks(colorValues: number[], choroplethOptions: ChoroplethOptions): number[] {
+
+        const numValues = new Set(colorValues).size; // Get the number of unique values
+
+        if (choroplethOptions.classifyData) {
+            // Adjust the number of classes if it exceeds the number of unique values
+            const adjustedClasses = Math.min(choroplethOptions.classes, numValues);
+
+            if (numValues <= 2) {
+                // Handle cases with less than or equal to two unique values
+                return Array.from(new Set(colorValues)).sort((a, b) => a - b);
+            } else {
+                // More than two unique values: Use the existing classification methods
+                if (choroplethOptions.classificationMethod === 'j') {
+                    return ss.jenks(colorValues, adjustedClasses); // Use adjustedClasses
+
+                } if (choroplethOptions.classificationMethod === 'k') {
+
+                    const clusters = ss.ckmeans(colorValues, adjustedClasses);
+
+                    // Extract the maximum value from each cluster
+                    const maxValues = clusters.map(cluster => Math.max(...cluster));
+
+                    // Sort the maximum values in ascending order
+                    maxValues.sort((a, b) => a - b);
+
+                    // Construct the class breaks array
+                    const classBreaks = [Math.min(...colorValues), ...maxValues];
+
+                    return classBreaks;
+                }
+                else {
+                    return chroma.limits(colorValues, choroplethOptions.classificationMethod as 'q' | 'e' | 'l', adjustedClasses); // Use adjustedClasses
+                }
+            }
+        } else {
+            return Array.from(new Set(colorValues)).sort((a, b) => a - b);
+        }
+    }
+
+    private getColorScale(classBreaks: any[], choroplethOptions: ChoroplethOptions): any {
+        if (choroplethOptions.usePredefinedColorRamp) {
+
+            if (choroplethOptions.invertColorRamp) {
+                this.colorRampGenerator.invertRamp();
+            } else {
+                this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
+            }
+
+            return this.colorRampGenerator.generateColorRamp(classBreaks, choroplethOptions.classes);
+        } else {
+            return chroma.scale([choroplethOptions.minColor, choroplethOptions.midColor, choroplethOptions.maxColor])
+                .mode('lab')
+                .domain(classBreaks)
+                .colors(choroplethOptions.classes);
+        }
+    }
+
     private fitMapToFeatures() {
 
         if (this.circleVectorSource.getFeatures().length > 0) {
@@ -1125,6 +1114,50 @@ export class Visual implements IVisual {
 
 }
 
+// Helper function to create a legend item (extracted for reuse)
+function createLegendItem(labelText: string, color: string, labelPosition: "top" | "inside" | "bottom"): HTMLElement {
+    const legendItem = document.createElement("div");
+    legendItem.style.display = "flex";
+    legendItem.style.flexDirection = "column";
+    legendItem.style.alignItems = "center";
+
+    // Calculate the dynamic width of the color box
+    const boxWidth = `${labelText.length * 5 + 10}px`;
+
+    // Create color box
+    const colorBox = document.createElement("div");
+    colorBox.style.position = "relative";
+    colorBox.style.width = boxWidth;
+    colorBox.style.height = "20px";
+    colorBox.style.backgroundColor = color;
+    colorBox.style.textAlign = "center";
+    colorBox.style.display = "flex";
+    colorBox.style.justifyContent = "center";
+    colorBox.style.alignItems = labelPosition === "inside" ? "center" : "flex-start";
+
+    // Add label
+    const label = document.createElement("span");
+    label.textContent = labelText;
+    label.style.color = labelPosition === "inside" ? "#fff" : "#000";
+    label.style.fontSize = "10px";
+
+    // Append label based on position
+    if (labelPosition === "top") {
+        label.style.marginBottom = "5px";
+        legendItem.appendChild(label);
+        legendItem.appendChild(colorBox);
+    } else if (labelPosition === "bottom") {
+        label.style.marginTop = "5px";
+        legendItem.appendChild(colorBox);
+        legendItem.appendChild(label);
+    } else {
+        colorBox.appendChild(label);
+        legendItem.appendChild(colorBox);
+    }
+
+    return legendItem;
+}
+
 function formatValue(value: number, formatTemplate: string): string {
     let formattedValue: number;
     let suffix: string = "";
@@ -1161,25 +1194,6 @@ function formatValue(value: number, formatTemplate: string): string {
     return `${formattedValue}${suffix}`;
 }
 
-
-// function formatValue(value: number, formatTemplate: string): string {
-//     let formattedValue: number;
-//     let suffix: string = "";
-
-//     if (value >= 1_000_000) {  // Millions
-//         formattedValue = value / 1_000_000;
-//         suffix = "M";
-//     } else if (value >= 1_000) {  // Thousands
-//         formattedValue = value / 1_000;
-//         suffix = "k";
-//     } else {
-//         formattedValue = value;
-//     }
-
-//     // Use custom format template to format the number
-//     return `${formatTemplate.replace("{:.1f}", formattedValue.toFixed(1))}${suffix}`;
-// }
-
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};
 
 // Cache GeoJSON data, avoiding overwriting if it's a duplicate
@@ -1210,7 +1224,7 @@ async function isCacheExpired(key: string, maxAge: number): Promise<boolean> {
 }
 
 // Fetch GeoJSON data with caching
-async function fetchGeoJsonWithCaching(serviceUrl: string, cacheKey: string, maxAge: number = 3600000): Promise<any> {
+async function fetchAndCacheGeoJsonAdminBoundary(serviceUrl: string, cacheKey: string, maxAge: number = 3600000): Promise<any> {
     if (await isCacheExpired(cacheKey, maxAge)) {
         console.log("Fetching data from service...");
         const response = await fetch(serviceUrl);
