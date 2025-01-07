@@ -229,7 +229,7 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
         name: "legendBackgroundOpacity",
         displayName: "Background Opacity",
-        value: 60,//default value
+        value: 90,//default value
         options: // optional input value validator  
         {
             maxValue: {
@@ -458,7 +458,7 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
         name: "legendBackgroundOpacity",
         displayName: "Background Opacity",
-        value: 60,//default value
+        value: 90,//default value
         options: // optional input value validator  
         {
             maxValue: {
