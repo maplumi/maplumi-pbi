@@ -54,7 +54,8 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         },
         items: [
             { value: "openstreetmap", displayName: "OpenStreetMap" },
-            { value: "mapbox", displayName: "Mapbox" }
+            { value: "mapbox", displayName: "Mapbox" },
+            { value: "none", displayName: "No Basemap" }
         ]
     });
 
@@ -69,6 +70,8 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
     //displayName: string = "Select Basemap";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [this.selectedBasemap, this.customMapAttribution];
+
+    
 
 }
 
@@ -249,6 +252,35 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         value: { value: "#ffffff" } // Default color
     });
 
+    legendTitleColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendTitleColor",
+        displayName: "Legend Title Color",
+        value: { value: "#000000" } // Default color
+    });
+
+    legendItemsColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendItemsColor",
+        displayName: "Legend Items Color",
+        value: { value: "#000000" } // Default color
+    });
+
+    legendBottomMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendBottomMargin",
+        displayName: "Bottom Margin",
+        value: 40, // Default size
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 80
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 10
+            }
+        }
+    });
+
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
@@ -261,27 +293,50 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         this.proportionalCirclesLayerOpacity,
         this.showLegend,
         this.legendTitle,
+        this.legendTitleColor,
+        this.legendItemsColor,
         this.legendBackgroundColor,
-        this.legendBackgroundOpacity 
+        this.legendBackgroundOpacity,
+        this.legendBottomMargin
     ];
 
 }
 
-class pcodesAdminLocationSettingsGroup extends formattingSettings.SimpleCard {
+class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
  
+    selectedLocationFileSource: DropDown = new DropDown({
+        name: "selectedLocationFileSource",
+        displayName: "Geojson File Source",
+        value: {
+            value: "hdx",  // default
+            displayName: "HDX COD-AB Geoservice"
+        },
+        items: [
+            { value: "hdx", displayName: "HDX COD-AB Geoservice" },            
+            { value: "github", displayName: "Github Raw" },
+        ]
+    });
+
+    boundaryPcodeNameId: formattingSettings.TextInput = new TextInput({
+        name: "boundaryPcodeNameId",
+        displayName: "PCode/Name/Id Field Name",
+        value: "", 
+        placeholder: "Geojson Field Name"
+    });
+    
     selectedISO3Code: formattingSettings.TextInput = new TextInput({
         name: "selectedISO3Code",
-        displayName: "Country iSO3 Code",
+        displayName: "HDX iSO3 Country Code",
         value: "", // Default country
         placeholder: "Enter ISO3 code" // Placeholder text
     });
 
     selectedAdminLevel: DropDown = new DropDown({
         name: "selectedAdminLevel",
-        displayName: "Admin Level",
+        displayName: "HDX Country Admin Level",
         value: {
-            value: "",  // The actual value
-            displayName: "" // The display name
+            value: "",
+            displayName: ""
         },
         items: [
             { value: "1", displayName: "ADM1" },
@@ -291,10 +346,18 @@ class pcodesAdminLocationSettingsGroup extends formattingSettings.SimpleCard {
         ]
     });
 
-    name: string = "pcodesAdminLocationSettingsGroup";
-    displayName: string = "Location";
+    githubRawFilePath: formattingSettings.TextInput = new TextInput({
+        name: "githubRawFilePath",
+        displayName: "Github Raw File Path",
+        value: "", // Default country
+        placeholder: "username/repo/branch/file.geojson" // Placeholder text
+    });
+
+    name: string = "choroplethLocationBoundarySettingsGroup";
+    displayName: string = "Location Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.selectedISO3Code, this.selectedAdminLevel];
+    slices: formattingSettings.Slice[] = [this.selectedLocationFileSource,this.boundaryPcodeNameId, this.selectedISO3Code, this.selectedAdminLevel, 
+        this.githubRawFilePath];
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
@@ -455,6 +518,18 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "" // Placeholder text
     });
 
+    legendTitleColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendTitleColor",
+        displayName: "Legend Title Color",
+        value: { value: "#000000" } // Default color
+    });
+
+    legendLabelsColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendLabelsColor",
+        displayName: "Legend Labels Color",
+        value: { value: "#000000" } // Default color
+    });
+
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
         name: "legendBackgroundOpacity",
         displayName: "Background Opacity",
@@ -484,6 +559,8 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
     slices: formattingSettings.Slice[] = [
         this.showLegend ,
         this.legendTitle,
+        this.legendTitleColor,
+        this.legendLabelsColor,
         this.legendBackgroundColor,
         this.legendBackgroundOpacity       
     ];
@@ -497,7 +574,7 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
         value: false
     });
     
-    public pcodesAdminLocationSettingsGroup: pcodesAdminLocationSettingsGroup = new pcodesAdminLocationSettingsGroup();
+    public choroplethLocationBoundarySettingsGroup: choroplethLocationBoundarySettingsGroup = new choroplethLocationBoundarySettingsGroup();
     public choroplethClassificationSettingsGroup: choroplethClassificationSettingsGroup = new choroplethClassificationSettingsGroup();
     public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
     public choroplethLegendSettingsGroup: choroplethLegendSettingsGroup = new choroplethLegendSettingsGroup();
@@ -505,7 +582,7 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "choroplethVisualCardSettings";
     displayName: string = "Choropleth";
-    groups: formattingSettings.Group[] = [this.pcodesAdminLocationSettingsGroup,this.choroplethClassificationSettingsGroup,
+    groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup,this.choroplethClassificationSettingsGroup,
          this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
    
 }
@@ -522,6 +599,7 @@ export class HumanitarianMapVisualFormattingSettingsModel extends FormattingSett
     ChoroplethVisualCardSettings = new choroplethVisualCardSettings();
 
     cards = [this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings];
+
 }
 
 

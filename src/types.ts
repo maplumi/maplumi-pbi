@@ -18,15 +18,22 @@ export interface CircleOptions {
     strokeWidth: number; 
     layerOpacity: number; 
     showLegend: boolean; 
-    legendTitle: string
+    legendTitle: string;
+    legendTitleColor: string;
+    legendItemsColor:string;
     legendBackgroundOpacity:number;
-    legendBackgroundColor: string
+    legendBackgroundColor: string;
+    legendBottomMargin: number;
 }
 
 export interface ChoroplethOptions {
     layerControl: boolean; 
+    selectedLocationFileSource: string,
+    boundaryPcodeNameId: string,
     countryISO3Code: string; 
     adminLevel: string; 
+    githubRawFilePath: string,
+
     classifyData: boolean;
     usePredefinedColorRamp: boolean;
     invertColorRamp: boolean;
@@ -41,6 +48,8 @@ export interface ChoroplethOptions {
     layerOpacity: number; 
     showLegend: boolean; 
     legendTitle: string;
+    legendTitleColor: string;
+    legendLabelsColor: string;
     legendBackgroundOpacity:number;
     legendBackgroundColor: string
 }

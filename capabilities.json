@@ -1,10 +1,10 @@
 {
   "dataRoles": [
     {
-      "name": "AdminPCode",
+      "name": "AdminPCodeNameID",
       "kind": "Grouping",
-      "displayName": "HDX Admin PCode",
-      "description": "HDX CODs Administrative Boundary PCodes for Choropleth Layer. Country and Admin Level must be set in Choropleth Settings under Visual formatting"
+      "displayName": "Boundary PCode/Name/ID",
+      "description": "Boundary PCodes/Name/ID for Choropleth Layer. Same Field from Geojson properties must be set in Choropleth Settings under Visual formatting. For HDX COD-AB specify on county ISO3 & AdminLevel in choropleth settings."
     },
     {
       "name": "Latitude",
@@ -168,16 +168,7 @@
       "properties": {
         "selectedBasemap": {
           "type": {
-            "enumeration": [
-              {
-                "value": "openstreetmap",
-                "displayName": "OpenStreetMap"
-              },
-              {
-                "value": "mapbox",
-                "displayName": "Mapbox"
-              }
-            ]
+            "enumeration": []
           }
         },
         "customMapAttribution": {
@@ -197,24 +188,7 @@
         },
         "mapboxStyle": {
           "type": {
-            "enumeration": [
-              {
-                "value": "mapbox://styles/mapbox/light-v10?optimize=true",
-                "displayName": "Light"
-              },
-              {
-                "value": "mapbox://styles/mapbox/dark-v10?optimize=true",
-                "displayName": "Dark"
-              },
-              {
-                "value": "mapbox://styles/mapbox/streets-v11?optimize=true",
-                "displayName": "Streets"
-              },
-              {
-                "value": "custom",
-                "displayName": "Custom"
-              }
-            ]
+            "enumeration": []
           }
         },
         "declutterLabels": {
@@ -278,6 +252,24 @@
           "type": {
             "text": true
           }
+        },
+        "legendTitleColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "legendItemsColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         }
         ,
         "legendBackgroundColor": {
@@ -293,6 +285,11 @@
           "type": {
             "numeric": true
           }
+        },
+        "legendBottomMargin": {
+          "type": {
+            "numeric": true
+          }
         }
       }
     },
@@ -303,6 +300,16 @@
             "bool": true
           }
         },
+        "selectedLocationFileSource":{
+          "type": {
+            "enumeration": []
+          }
+        },
+        "boundaryPcodeNameId":{
+          "type": {
+            "text": true
+          }
+        },
         "selectedISO3Code": {
           "type": {
             "text": true
@@ -310,20 +317,12 @@
         },
         "selectedAdminLevel": {
           "type": {
-            "enumeration": [
-              {
-                "value": "1",
-                "displayName": "ADM1"
-              },
-              {
-                "value": "2",
-                "displayName": "ADM2"
-              },
-              {
-                "value": "3",
-                "displayName": "ADM3"
-              }
-            ]
+            "enumeration": []
+          }
+        },
+        "githubRawFilePath": {
+          "type": {
+            "text": true
           }
         },
         "classifyData": {
@@ -338,28 +337,7 @@
         },
         "classificationMethod": {
           "type": {
-            "enumeration": [
-              {
-                "value": "q",
-                "displayName": "Quantile"
-              },
-              {
-                "value": "e",
-                "displayName": "Equal Interval"
-              },
-              {
-                "value": "l",
-                "displayName": "Logarithmic"
-              },
-              {
-                "value": "k",
-                "displayName": "K-means"
-              },
-              {
-                "value": "j",
-                "displayName": "Jenks Natural Breaks"
-              }
-            ]
+            "enumeration": []
           }
         },
         "usePredefinedColorRamp": {
@@ -369,76 +347,7 @@
         },
         "colorRamp": {
           "type": {
-            "enumeration": [
-              {
-                "value": "blue",
-                "displayName": "Blue"
-              },
-              {
-                "value": "red",
-                "displayName": "Red"
-              },
-              {
-                "value": "green",
-                "displayName": "Green"
-              },
-              {
-                "value": "orange",
-                "displayName": "Orange"
-              },
-              {
-                "value": "purple",
-                "displayName": "Purple"
-              },
-              {
-                "value": "yellow",
-                "displayName": "Yellow"
-              },
-              {
-                "value": "slateGrey",
-                "displayName": "Slate Grey"
-              },
-              {
-                "value": "neutralGrey",
-                "displayName": "Neutral Grey"
-              },
-              {
-                "value": "slateGrey",
-                "displayName": "Slate Grey"
-              },
-              {
-                "value": "unblue",
-                "displayName": "UN Blue"
-              },
-              {
-                "value": "sdgred",
-                "displayName": "SDG Red"
-              },
-              {
-                "value": "sdgyellow",
-                "displayName": "SDG Yellow"
-              },
-              {
-                "value": "sdgorange",
-                "displayName": "SDG Orange"
-              },
-              {
-                "value": "sdggreen",
-                "displayName": "SDG Green"
-              },
-              {
-                "value": "sdgdarkgreen",
-                "displayName": "SDG Dark Green"
-              },
-              {
-                "value": "sdgnavyblue",
-                "displayName": "SDG Navy Blue"
-              },
-              {
-                "value": "ipc",
-                "displayName": "IPC"
-              }
-            ]
+            "enumeration": []
           }
         },
         "invertColorRamp": {
@@ -502,6 +411,24 @@
             "text": true
           }
         },
+        "legendTitleColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "legendLabelsColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
         "legendBackgroundColor": {
           "type": {
             "fill": {
@@ -541,7 +468,16 @@
         "https://*.arcgisonline.com",
         "https://*.mapbox.com",
         "https://*.humdata.org",
-        "https://*.itos.uga.edu"
+        "https://*.itos.uga.edu",
+        "https://*.google.com",
+        "https://*.onedrive.com",
+        "https://*.dropbox.com",
+        "https://*.dropboxusercontent.com",
+        "https://*.amazonaws.com",
+        "https://*.googleapis.com",
+        "https://*.githubusercontent.com",
+        "https://*.blob.core.windows.net",
+        "https://*.com"
       ]
     },
     {

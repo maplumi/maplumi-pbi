@@ -375,8 +375,11 @@ export class Visual implements IVisual {
             layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
             showLegend: circleSettings.showLegend.value,
             legendTitle: circleSettings.legendTitle.value,
-            legendBackgroundColor:circleSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value
+            legendTitleColor:circleSettings.legendTitleColor.value.value,
+            legendItemsColor: circleSettings.legendItemsColor.value.value,
+            legendBackgroundColor: circleSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value,
+            legendBottomMargin: circleSettings.legendBottomMargin.value
         };
     }
 
@@ -384,14 +387,18 @@ export class Visual implements IVisual {
 
         const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
         const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings = choroplethSettings.pcodesAdminLocationSettingsGroup;
+        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
         const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
         const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
 
         return {
             layerControl: choroplethSettings.topLevelSlice.value,
+            selectedLocationFileSource: choroplethLocationSettings.selectedLocationFileSource.value.value.toString(),
+            boundaryPcodeNameId: choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
             countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
             adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
+            githubRawFilePath: choroplethLocationSettings.githubRawFilePath.value,
+
             classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
@@ -406,7 +413,9 @@ export class Visual implements IVisual {
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
             showLegend: choroplethLegendSettings.showLegend.value,
             legendTitle: choroplethLegendSettings.legendTitle.value,
-            legendBackgroundColor:choroplethLegendSettings.legendBackgroundColor.value.value,
+            legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
+            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
+            legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,
             legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value
         };
     }
@@ -431,18 +440,20 @@ export class Visual implements IVisual {
         let attribution = '';
         if (basemapOptions.selectedBasemap === "mapbox") {
             this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
-            attribution = '© Mapbox © OpenStreetMap';
+            const mapboxAttribution = '© Mapbox © OpenStreetMap';
 
             if (basemapOptions.customMapAttribution) {
-                attribution += " " + basemapOptions.customMapAttribution;
+                attribution = basemapOptions.customMapAttribution +" "+ mapboxAttribution ;
             }
             this.mapboxVectorLayer.getSource()?.setAttributions(attribution);
             this.map.getLayers().setAt(0, this.mapboxVectorLayer);
-        } else {
+        }
+        
+        if(basemapOptions.selectedBasemap === "openstreetmap") {
             this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-            attribution = '© OpenStreetMap';
+            const osmAttribution = '© OpenStreetMap';
             if (basemapOptions.customMapAttribution) {
-                attribution += " " + basemapOptions.customMapAttribution;
+                attribution = basemapOptions.customMapAttribution +" "+ osmAttribution ;
             }
             this.basemapLayer.getSource().setAttributions(attribution);
             this.map.getLayers().setAt(0, this.basemapLayer);
@@ -575,10 +586,11 @@ export class Visual implements IVisual {
         // Create proportional circle legend
         if (circleOptions.showLegend) {
 
-            const opacity = circleOptions.legendBackgroundOpacity/100;
+            const opacity = circleOptions.legendBackgroundOpacity / 100;
             const bgColor = circleOptions.legendBackgroundColor
+            const bottomMargin = circleOptions.legendBottomMargin.toString()+'px';
 
-            this.createProportionalCircleLegend("legend2", circleSizeValues, radii,opacity,bgColor, circleOptions.legendTitle);
+            this.createProportionalCircleLegend("legend2", circleSizeValues, radii, opacity, bgColor,bottomMargin, circleOptions.legendTitle, circleOptions);
         }
 
         this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
@@ -640,7 +652,9 @@ export class Visual implements IVisual {
         radii: number[],
         opacity: number,
         backgroundColor: string,
-        legendTitle: string = "Legend",
+        bottomMargin: string,
+        legendTitle: string,  
+        circleOptions: CircleOptions,      
         formatTemplate: string = "{:.0f}"
     ) {
         const container = document.getElementById(containerId);
@@ -654,7 +668,9 @@ export class Visual implements IVisual {
         const bgColor = hexToRgba(backgroundColor, opacity)
 
         // Set background for container and SVG
-        container.style.backgroundColor = bgColor;//"rgba(255, 255, 255, 0.5)"; // Remove background color from container
+        container.style.backgroundColor = bgColor;
+        container.style.bottom = bottomMargin;
+
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.style.display = "block"; // Ensure SVG takes up the full container width/height
 
@@ -667,7 +683,6 @@ export class Visual implements IVisual {
         container.style.display = "flex";
         container.style.flexDirection = "column"; // Stack the title and legend items vertically
         container.style.alignItems = "flex-start"; // Align the items to the left by default
-        //container.style.alignItems = "center"; // Vertical centering
         container.style.height = "auto"; // Let container height adjust dynamically
         container.style.padding = "5px"; // Uniform padding around container     
 
@@ -675,6 +690,7 @@ export class Visual implements IVisual {
         // Add title to the legend with customizable alignment
         const title = document.createElement("div");
         title.textContent = legendTitle;
+        title.style.color = circleOptions.legendTitleColor;
         title.style.fontSize = "12px";
         title.style.fontWeight = "bold";
         title.style.marginBottom = "5px";
@@ -711,7 +727,7 @@ export class Visual implements IVisual {
             circle.setAttribute("cx", centerX.toString());
             circle.setAttribute("cy", currentY.toString());
             circle.setAttribute("r", item.radius.toString());
-            circle.setAttribute("stroke", "black");
+            circle.setAttribute("stroke", circleOptions.legendItemsColor);
             circle.setAttribute("fill", "none");
 
             svg.appendChild(circle);
@@ -726,7 +742,7 @@ export class Visual implements IVisual {
             line.setAttribute("y1", (currentY - item.radius).toString());
             line.setAttribute("x2", (labelX - 3).toString());
             line.setAttribute("y2", labelY.toString());
-            line.setAttribute("stroke", "black");
+            line.setAttribute("stroke", circleOptions.legendItemsColor);
             line.setAttribute("stroke-width", "1");
 
             svg.appendChild(line);
@@ -738,6 +754,7 @@ export class Visual implements IVisual {
             text.setAttribute("x", labelX.toString());
             text.setAttribute("y", labelY.toString());
             text.setAttribute("alignment-baseline", "middle");
+            text.setAttribute("fill", circleOptions.legendItemsColor)
             text.textContent = `${formattedLabel}`;
 
             svg.appendChild(text);
@@ -760,10 +777,6 @@ export class Visual implements IVisual {
         const svgWidth = centerX + maxRadius + maxLabelWidth + padding * 2 + 20; // 20px for spacing between circles and labels
         const svgHeight = bottomY + padding;
 
-        console.log(`Max Radius: ${maxRadius}`);
-        console.log(`SVG Width: ${svgWidth}, SVG Height: ${svgHeight}`);
-
-
         // Apply viewBox and dimensions
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
@@ -780,31 +793,52 @@ export class Visual implements IVisual {
             console.warn("Measures not found.");
             this.choroplethVectorSource.clear();
             return;
-        }        
-        
-        const adminPCodeCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCode']);
+        }
 
-        if (!adminPCodeCategory) {
+        const AdminPCodeNameIDCategory = categorical.categories.find(c => c.source?.roles && c.source.roles['AdminPCodeNameID']);
+
+        if (!AdminPCodeNameIDCategory) {
             console.warn("PCodes not found.");
             this.choroplethVectorSource.clear();
             return;
         }
 
-        const colorMeasure = categorical.values.find(c => c.source?.roles && c.source.roles['Color']);  
-              
+        const colorMeasure = categorical.values.find(c => c.source?.roles && c.source.roles['Color']);
+
         if (!colorMeasure) {
             console.warn("Color Measure not found.");
             this.choroplethVectorSource.clear();
             return;
         }
 
+        let serviceUrl: string = '';
+
+        if (choroplethOptions.selectedLocationFileSource == "hdx") {
+            serviceUrl = `${constants.HDX_ADMIN_BOUNDARY_GEOSERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/MapServer/${choroplethOptions.adminLevel}/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`;
+
+        }
+        else if (choroplethOptions.selectedLocationFileSource == "github") {
+
+            if (choroplethOptions.githubRawFilePath.length > 0) {
+                serviceUrl = `https://raw.githubusercontent.com/${choroplethOptions.githubRawFilePath}`;
+
+            } else {
+                console.log(' File Path not provided')
+            }
+
+        }
+        else {
+
+            return; //handle other file sources
+        }
+
         const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
-        const serviceUrl = `${constants.ADMIN_BOUNDARY_SERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/FeatureServer/${choroplethOptions.adminLevel}/query?where=0%3D0&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=*&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=&resultOffset=&resultRecordCount=&returnTrueCurves=false&sqlFormat=none&f=geojson`;
+
         const maxAge = 3600000; // Cache expiry time (1 hour)
 
         fetchAndCacheGeoJsonAdminBoundary(serviceUrl, cacheKey, maxAge)
             .then(geojsonData => {
-                this.createChoroplethLayer(geojsonData, adminPCodeCategory, colorMeasure, choroplethOptions);                
+                this.createChoroplethLayer(geojsonData, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
             })
             .catch(error => {
                 console.error("Error fetching GeoJSON data:", error);
@@ -812,7 +846,7 @@ export class Visual implements IVisual {
     }
 
     // Function to process the GeoJSON data & create choropleth
-    private createChoroplethLayer(geojsonData: any, category: any, measure: any, options: ChoroplethOptions ): void {
+    private createChoroplethLayer(geojsonData: any, category: any, measure: any, options: ChoroplethOptions): void {
 
         this.choroplethVectorSource.clear(); // Clear existing features
 
@@ -916,7 +950,7 @@ export class Visual implements IVisual {
 
         if (options.showLegend) {
 
-            this.createChoroplethLegend(colorValues, classBreaks,colorScale, options, "inside");
+            this.createChoroplethLegend(colorValues, classBreaks, colorScale, options, "inside");
 
         } else {
             const legend = document.getElementById("legend");
@@ -929,14 +963,14 @@ export class Visual implements IVisual {
 
 
     private createChoroplethLegend(
-        colorValues: number[], 
+        colorValues: number[],
         classBreaks: number[],
         colorScale: any,
-        options: ChoroplethOptions,       
-        legendLabelPosition: "top" | "inside" | "bottom" = "inside",        
-        formatTemplate: string = "{:.0f}", 
-        titleAlignment: "left" | "center" | "right" = "left", 
-        gapSize: number = 2.5 
+        options: ChoroplethOptions,
+        legendLabelPosition: "top" | "inside" | "bottom" = "inside",
+        formatTemplate: string = "{:.0f}",
+        titleAlignment: "left" | "center" | "right" = "left",
+        gapSize: number = 2.5
 
     ): void {
 
@@ -951,36 +985,37 @@ export class Visual implements IVisual {
         }
 
         // compute legend background color and opacity
-        const opacity = options.legendBackgroundOpacity/100
+        const opacity = options.legendBackgroundOpacity / 100
         const bgColor = hexToRgba(options.legendBackgroundColor, opacity)
 
         // Style the legend container
         legendContainer.style.display = "flex";
-        legendContainer.style.flexDirection = "column"; 
-        legendContainer.style.alignItems = "flex-start"; 
-        legendContainer.style.gap = "5px"; 
+        legendContainer.style.flexDirection = "column";
+        legendContainer.style.alignItems = "flex-start";
+        legendContainer.style.gap = "5px";
         legendContainer.style.backgroundColor = bgColor,//"rgba(255, 255, 255, 0.5)"; 
-        legendContainer.style.border = "none"; 
+        legendContainer.style.border = "none";
         legendContainer.style.padding = "5px";
 
         // Add title to the legend with customizable alignment
         const title = document.createElement("div");
         title.textContent = options.legendTitle;
+        title.style.color = options.legendTitleColor;
         title.style.fontSize = "12px";
         title.style.fontWeight = "bold";
         title.style.marginBottom = "5px";
 
         // Align the title based on user selection
-        title.style.textAlign = titleAlignment; 
+        title.style.textAlign = titleAlignment;
 
         // Align the title itself depending on the alignment choice
         if (titleAlignment === "left") {
-            title.style.marginLeft = "0"; 
+            title.style.marginLeft = "0";
         } else if (titleAlignment === "center") {
             title.style.marginLeft = "auto";
-            title.style.marginRight = "auto"; 
+            title.style.marginRight = "auto";
         } else if (titleAlignment === "right") {
-            title.style.marginLeft = "auto"; 
+            title.style.marginLeft = "auto";
         }
 
         // Append the title to the legend
@@ -991,7 +1026,7 @@ export class Visual implements IVisual {
         itemsContainer.style.display = "flex";
         itemsContainer.style.flexDirection = "row";
         itemsContainer.style.alignItems = "flex-start";
-        itemsContainer.style.gap = `${gapSize}px`; 
+        itemsContainer.style.gap = `${gapSize}px`;
 
         if (options.classifyData) {
             // Classified Mode
@@ -1003,7 +1038,7 @@ export class Visual implements IVisual {
                 labelText = `${formatValue(classBreaks[i], formatTemplate)} - ${formatValue(classBreaks[i + 1], formatTemplate)}`;
 
                 // Create legend item
-                const legendItem = createLegendItem(labelText, color, legendLabelPosition);
+                const legendItem = createChoroplethLegendItem(labelText, color, options.legendLabelsColor, legendLabelPosition);
                 itemsContainer.appendChild(legendItem);
             }
         } else {
@@ -1014,7 +1049,7 @@ export class Visual implements IVisual {
                 const labelText = formatValue(uniqueValue, formatTemplate); // Format the unique value
 
                 // Create legend item
-                const legendItem = createLegendItem(labelText, color, legendLabelPosition);
+                const legendItem = createChoroplethLegendItem(labelText, color, options.legendLabelsColor, legendLabelPosition);
                 itemsContainer.appendChild(legendItem);
             }
         }
@@ -1127,7 +1162,7 @@ export class Visual implements IVisual {
 }
 
 // Helper function to create a legend item (extracted for reuse)
-function createLegendItem(labelText: string, color: string, labelPosition: "top" | "inside" | "bottom"): HTMLElement {
+function createChoroplethLegendItem(labelText: string, boxColor: string, labelColor: string, labelPosition: "top" | "inside" | "bottom"): HTMLElement {
     const legendItem = document.createElement("div");
     legendItem.style.display = "flex";
     legendItem.style.flexDirection = "column";
@@ -1141,7 +1176,7 @@ function createLegendItem(labelText: string, color: string, labelPosition: "top"
     colorBox.style.position = "relative";
     colorBox.style.width = boxWidth;
     colorBox.style.height = "20px";
-    colorBox.style.backgroundColor = color;
+    colorBox.style.backgroundColor = boxColor;
     colorBox.style.textAlign = "center";
     colorBox.style.display = "flex";
     colorBox.style.justifyContent = "center";
@@ -1150,7 +1185,7 @@ function createLegendItem(labelText: string, color: string, labelPosition: "top"
     // Add label
     const label = document.createElement("span");
     label.textContent = labelText;
-    label.style.color = labelPosition === "inside" ? "#fff" : "#000";
+    label.style.color = labelColor;//labelPosition === "inside" ? "#fff" : "#000";
     label.style.fontSize = "10px";
 
     // Append label based on position
@@ -1209,25 +1244,25 @@ function formatValue(value: number, formatTemplate: string): string {
 function hexToRgba(hex, opacity) {
     // Remove the '#' character if it exists
     hex = hex.replace("#", "");
-  
+
     // Ensure the hex code is the correct length
     if (hex.length === 3) {
-      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
     }
-  
+
     // Convert the hex code to RGB values
     const r = parseInt(hex.substring(0, 2), 16);
     const g = parseInt(hex.substring(2, 4), 16);
     const b = parseInt(hex.substring(4, 6), 16);
-  
+
     // Return the RGBA value
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  }
+}
 
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};
 
 // Cache GeoJSON data, avoiding overwriting if it's a duplicate
-async function cacheGeoJsonData(key: string, data: any): Promise<void> {
+async function cacheGeoJsonDataOld(key: string, data: any): Promise<void> {
     const existingCache = memoryCache[key];
 
     // Check if the data is identical to the current cached data
@@ -1240,6 +1275,80 @@ async function cacheGeoJsonData(key: string, data: any): Promise<void> {
     memoryCache[key] = { data, timestamp: Date.now() };
     console.log("GeoJSON data cached in memory.");
 }
+
+
+// Initialize IndexedDB
+function openDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("GeoJsonCacheDB", 1);
+
+        request.onupgradeneeded = (event) => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains("geoJsonData")) {
+                db.createObjectStore("geoJsonData", { keyPath: "key" });
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function cacheGeoJsonData(key: string, data: any): Promise<void> {
+    try {
+        const db = await openDatabase();
+
+        // Start a transaction and get the object store
+        const transaction = db.transaction("geoJsonData", "readwrite");
+        const store = transaction.objectStore("geoJsonData");
+
+        // Check for existing data
+        const existingData = await new Promise<any | undefined>((resolve) => {
+            const getRequest = store.get(key);
+            getRequest.onsuccess = () => resolve(getRequest.result);
+            getRequest.onerror = () => resolve(undefined);
+        });
+
+        if (existingData && existingData.data === data) {
+            console.log("Duplicate cache entry in IndexedDB. Skipping cache update.");
+            return;
+        }
+
+        // Add or update the data
+        const cacheEntry = { key, data, timestamp: Date.now() };
+        const putRequest = store.put(cacheEntry);
+
+        putRequest.onsuccess = () => {
+            console.log("GeoJSON data cached in IndexedDB.");
+        };
+
+        putRequest.onerror = (e) => {
+            console.error("Error caching data in IndexedDB. Falling back to memory cache.", e);
+            memoryCache[key] = { data, timestamp: Date.now() };
+            console.log("GeoJSON data cached in memory.");
+        };
+
+        // Close the transaction
+        transaction.oncomplete = () => db.close();
+    } catch (error) {
+        if (error.name === "SecurityError") {
+            console.warn("IndexedDB is restricted in this context (e.g., file:// or incognito). Using memory cache.");
+        } else {
+            console.error("IndexedDB error. Falling back to memory cache.", error);
+        }
+
+        // Memory cache fallback
+        const existingCache = memoryCache[key];
+        if (existingCache && existingCache.data === data) {
+            console.log("Duplicate cache entry in memory. Skipping cache update.");
+            return;
+        }
+
+        memoryCache[key] = { data, timestamp: Date.now() };
+        console.log("GeoJSON data cached in memory.");
+    }
+}
+
 
 // Retrieve GeoJSON data from cache
 async function getCachedGeoJsonData(key: string): Promise<any | null> {
@@ -1259,15 +1368,58 @@ async function fetchAndCacheGeoJsonAdminBoundary(serviceUrl: string, cacheKey: s
         console.log("Fetching data from service...");
         const response = await fetch(serviceUrl);
         if (!response.ok) {
-            throw new Error(`Failed to fetch GeoJSON data: ${response.statusText}`);
+            console.log(`Failed to fetch GeoJSON data: ${response.statusText}`);
+            return;
+            //throw new Error(`Failed to fetch GeoJSON data: ${response.statusText}`);            
         }
         const geojsonData = await response.json();
+
+        // Check if the fetched data is a valid GeoJSON object
+        if (!isValidGeoJson(geojsonData)) {
+            console.log("Fetched data is not a valid GeoJSON object.");
+            return;
+        }
+
         await cacheGeoJsonData(cacheKey, geojsonData);
         return geojsonData;
     }
 
     console.log("Using cached data.");
     return getCachedGeoJsonData(cacheKey);
+}
+
+
+// Helper function to validate GeoJSON data
+function isValidGeoJson(data: any): boolean {
+    if (!data || typeof data !== "object" || !data.type) {
+        return false;
+    }
+
+    const validGeoJsonTypes = [
+        "Feature",
+        "FeatureCollection",
+        "Point",
+        "LineString",
+        "Polygon",
+        "MultiPoint",
+        "MultiLineString",
+        "MultiPolygon",
+    ];
+
+    if (!validGeoJsonTypes.includes(data.type)) {
+        return false;
+    }
+
+    // Additional checks for "Feature" and "FeatureCollection"
+    if (data.type === "Feature" && (!data.geometry || typeof data.geometry !== "object")) {
+        return false;
+    }
+
+    if (data.type === "FeatureCollection" && (!Array.isArray(data.features))) {
+        return false;
+    }
+
+    return true;
 }
 
 // function to get proportional circle legend data i.e min, medium and max
