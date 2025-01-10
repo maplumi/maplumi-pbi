@@ -89,7 +89,7 @@ interface TooltipDataItem {
     // ... other properties you might need (header, color, etc.)
 }
 
-export class Visual implements IVisual {
+export class OpenMapVisual implements IVisual {
 
     private formattingSettingsService: FormattingSettingsService;
     private visualFormattingSettingsModel: HumanitarianMapVisualFormattingSettingsModel;

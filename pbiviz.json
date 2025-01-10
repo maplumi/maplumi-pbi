@@ -3,13 +3,13 @@
         "name":"humanitarian-map-visual",
         "displayName":"Humanitarian Map Visual",
         "guid":"humanitarianmapvisual5F98ECA4D79E4FE1AC2FBF871216584B",
-        "visualClassName":"Visual",
+        "visualClassName":"OpenMapVisual",
         "version":"1.0.0.0",
         "description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs",
         "supportUrl":"https://github.com/datauga/humanitarian-map-visual/issues",
         "gitHubUrl":"https://github.com/datauga/humanitarian-map-visual"
     },
-    "apiVersion":"5.3.0",
+    "apiVersion":"5.11.0",
     "author":{
         "name":"Elvis Ayiemba",
         "email":"ayiembaelvis@gmail.com"
