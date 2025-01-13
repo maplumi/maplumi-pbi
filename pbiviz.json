@@ -1,13 +1,13 @@
 {
     "visual":{
-        "name":"humanitarian-map-visual",
-        "displayName":"Humanitarian Map Visual",
-        "guid":"humanitarianmapvisual5F98ECA4D79E4FE1AC2FBF871216584B",
+        "name":"open-map-visual",
+        "displayName":"Open Map Visual",
+        "guid":"openmapvisual5F98ECA4D79E4FE1AC2FBF871216584B",
         "visualClassName":"OpenMapVisual",
         "version":"1.0.0.0",
-        "description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs",
-        "supportUrl":"https://github.com/datauga/humanitarian-map-visual/issues",
-        "gitHubUrl":"https://github.com/datauga/humanitarian-map-visual"
+        "description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs as well as geojson data hosted in select locations",
+        "supportUrl":"https://github.com/ayiemba/open-map-visual/issues",
+        "gitHubUrl":"https://github.com/ayiemba/open-map-visual"
     },
     "apiVersion":"5.11.0",
     "author":{

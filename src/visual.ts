@@ -48,13 +48,14 @@ import { Basemap } from "./basemap";
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
+import { Layer } from "ol/layer";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { MapboxVectorLayer } from "ol-mapbox-style";
 
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
-import { fromLonLat } from "ol/proj";
+import { fromLonLat, toLonLat } from "ol/proj";
 
 import Style from "ol/style/Style";
 import Circle from "ol/style/Circle";
@@ -79,11 +80,72 @@ import * as d3 from "d3";
 import { Pixel } from "ol/pixel";
 import { FeatureLike } from "ol/Feature";
 
+import { geoBounds, geoMercator, geoPath } from 'd3-geo';
+import { getCenter, getWidth } from 'ol/extent.js';
+import { json } from 'd3-fetch';
+import { select } from 'd3-selection';
+
 interface TooltipDataItem {
     displayName: string;
     value: string;
     data: { displayName: string; value: string }[];
     // ... other properties you might need (header, color, etc.)
+}
+
+class CanvasLayer extends Layer {
+    svg: any;
+    features: any;
+
+    constructor(options: any) {
+        super(options);
+        this.features = options.features;
+
+        this.svg = d3.select(document.createElement('div'))
+            .append('svg')
+            .style('position', 'absolute');
+
+        this.svg.append('path')
+            .datum(this.features)
+            .attr('class', 'boundary');
+    }
+
+    render(frameState: any) {
+        const width = frameState.size[0];
+        const height = frameState.size[1];
+        const projection = frameState.viewState.projection;
+
+        const d3Projection = geoMercator().scale(1).translate([0, 0]);
+        const d3Path = geoPath().projection(d3Projection);
+
+        const bounds = geoBounds(this.features);
+
+        const geoBoundsLeftBottom = fromLonLat(bounds[0], projection);
+        const geoBoundsRightTop = fromLonLat(bounds[1], projection);
+
+        const widthResolution =
+            (geoBoundsRightTop[0] - geoBoundsLeftBottom[0]) / width;
+        const heightResolution =
+            (geoBoundsRightTop[1] - geoBoundsLeftBottom[1]) / height;
+
+        const scale = Math.max(widthResolution, heightResolution) / frameState.viewState.resolution;
+
+        const center = toLonLat(getCenter(frameState.extent), projection);
+
+        const transformedCenter: [number, number] = [center[0], center[1]];
+
+        d3Projection
+            .scale(scale)
+            .center(transformedCenter)
+            .translate([width / 2, height / 2]);
+
+        this.svg
+            .attr('width', width)
+            .attr('height', height)
+            .select('path')
+            .attr('d', d3Path);
+
+        return this.svg.node();
+    }
 }
 
 export class OpenMapVisual implements IVisual {
@@ -98,6 +160,7 @@ export class OpenMapVisual implements IVisual {
     private container: HTMLElement;
 
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
+    private svgOverlay: SVGSVGElement;
     private d3Container: any;
     private map: Map;
     private features: Feature[] = [];
@@ -232,12 +295,6 @@ export class OpenMapVisual implements IVisual {
         this.choroplethLegend = document.getElementById("legend");
         this.circleLegend = document.getElementById("legend2");
 
-        // D3 for map interaction
-        this.svg = d3.select(this.map.getViewport()).append("svg");
-        this.d3Container = this.svg.append("g"); // Container for features
-
-
-
         // Fit map options
         this.fitMapOptions = {
             padding: [50, 50, 50, 50],
@@ -245,66 +302,25 @@ export class OpenMapVisual implements IVisual {
             easing: easeOut,
         };
 
+        this.svgOverlay = this.container.querySelector('svg');
+        if (!this.svgOverlay) {
+            this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            this.svgOverlay.style.position = 'absolute';
+            this.svgOverlay.style.zIndex = '1000';
+            this.svgOverlay.style.top = '0';
+            this.svgOverlay.style.left = '0';
+            this.svgOverlay.style.width = '100%';
+            this.svgOverlay.style.height = '100%';
+            this.svgOverlay.style.pointerEvents = 'none';
+            this.container.appendChild(this.svgOverlay); // Append directly to options.element
+        }
+
         console.log("Visual initialized.");
     }
 
     update(options: VisualUpdateOptions) {
 
-        console.log(options.dataViews);
-
-        const tooltipMeasure = options.dataViews[0].categorical?.values?.find((c) => c.source?.roles && c.source.roles["Tooltips"]);
-
-        // Handle the tooltip data from the measure
-        //const tooltipData = tooltipMeasure?.values[0]?.values || [];
-
-        // Set up a listener for the pointer move event on the map
-        // this.map.on('pointermove', (event) => {
-        //     const feature = this.map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
-
-        //     if (feature) {
-        //         console.log('Displaying tooltip...');
-
-        //         // Retrieve the index for the feature (you'll need to map the feature to your tooltip data)
-        //         const featureId = feature.getId(); // Assuming each feature has an ID or other identifiable attribute
-        //         const dataPoint = tooltipData[featureId]; // Map feature to the corresponding tooltip data point
-
-        //         // If data for the feature exists, show the tooltip
-        //         if (dataPoint) {
-        //             this.tooltipServiceWrapper.addTooltip(
-        //                 d3.select(this.container), // Your DOM element
-        //                 () => [
-        //                     { displayName: 'Category', value: dataPoint.category || 'N/A' },
-        //                     { displayName: 'Value', value: dataPoint.value?.toString() || 'N/A' }
-        //                 ],
-        //                 () => null // Use your selection ID logic if needed
-        //             );
-        //         }
-        //     } else {
-        //         if (this.tooltipServiceWrapper) {
-        //             this.tooltipServiceWrapper.hide();
-        //         }
-        //     }
-        // });
-
-        this.map.on('pointermove', (event) => {
-            // Check if a feature exists at the mouse pointer position
-            const feature = this.map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
-            if (feature) {
-
-                console.log('Displaying tooltip...')
-
-                this.tooltipServiceWrapper.addTooltip(
-                    d3.select(this.container), // Simple DOM element
-                    () => [{ displayName: 'Test', value: 'Tooltip works' }],
-                    () => null
-                );                
-
-            } else {
-                // Optionally, hide the tooltip when no feature is hovered
-                console.log('Hiding Tooltip...')
-                this.tooltipServiceWrapper.hide();
-            }
-        });
+        console.log('Data Views', options.dataViews);
 
         // Retrieve the model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
@@ -323,15 +339,6 @@ export class OpenMapVisual implements IVisual {
             this.clearMap(this.choroplethVectorSource);
             return;
         }
-
-        let allowInteractions = this.host.hostCapabilities.allowInteractions;
-
-        // this.map.on('click', function (d) {
-        //     if (allowInteractions) {
-        //         this.selectionManager.select(d.selectionId);
-
-        //     }
-        // });
 
         // Update the basemap
         this.updateBasemap(basemapOptions);
@@ -500,32 +507,6 @@ export class OpenMapVisual implements IVisual {
         return undefined;
     }
 
-    // private updateBasemap(basemapOptions: BasemapOptions) {
-    //     let attribution = "";
-    //     if (basemapOptions.selectedBasemap === "mapbox") {
-    //         this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
-    //         const mapboxAttribution = "© Mapbox © OpenStreetMap";
-
-    //         if (basemapOptions.customMapAttribution) {
-    //             attribution =
-    //                 basemapOptions.customMapAttribution + " " + mapboxAttribution;
-    //         }
-    //         this.mapboxVectorLayer.getSource()?.setAttributions(attribution);
-    //         this.map.getLayers().setAt(0, this.mapboxVectorLayer);
-    //     }
-
-    //     if (basemapOptions.selectedBasemap === "openstreetmap") {
-    //         this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-    //         const osmAttribution = "© OpenStreetMap";
-    //         if (basemapOptions.customMapAttribution) {
-    //             attribution =
-    //                 basemapOptions.customMapAttribution + " " + osmAttribution;
-    //         }
-    //         this.basemapLayer.getSource().setAttributions(attribution);
-    //         this.map.getLayers().setAt(0, this.basemapLayer);
-    //     }
-    // }
-
     private updateBasemap(basemapOptions: BasemapOptions): void {
 
         // Dictionary to store default attributions
@@ -625,7 +606,7 @@ export class OpenMapVisual implements IVisual {
         }
     }
 
-    private renderProportionalCircles(
+    private renderProportionalCirclesxx(
         category: any,
         longitudes: number[],
         latitudes: number[],
@@ -635,7 +616,9 @@ export class OpenMapVisual implements IVisual {
         minCircleSizeValue: number,
         circleScale: number
     ) {
+
         const radii = [];
+        let currentFeature = null;
 
         longitudes.forEach((lon, i) => {
             const lat = latitudes[i];
@@ -668,58 +651,8 @@ export class OpenMapVisual implements IVisual {
                 })
             );
 
-            // this.features.push(point);
-
-            // const selectionManager = this.host.createSelectionManager();
-            // const selectionIdBuilder = this.host.createSelectionIdBuilder();
-
-            // const tooltipMeasure = category?.values?.find(
-            //     (c) => c.source?.roles && c.source.roles["Tooltips"]
-            // );
-
-            // const selectionId = selectionIdBuilder
-            //     .withCategory(tooltipMeasure, 0)
-            //     .createSelectionId();
-
-            //const selection = selectionManager.select(selectionId);
-
-            // this.map.on('pointermove', (event) => {
-            //     // Check if a feature exists at the mouse pointer position
-            //     const feature = this.map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
-            //     if (feature) {
-
-            //         console.log('Displaying tooltip...')
-
-            //         this.tooltipServiceWrapper.addTooltip(
-            //             d3.select(this.map.getTargetElement()), // Pass map's DOM element
-            //             (dataPoint: any) => [
-            //                 {
-            //                     displayName: 'Category',
-            //                     value: tooltipMeasure?.values[dataPoint.index] || "N/A",
-            //                 },
-            //                 {
-            //                     displayName: 'Value',
-            //                     value: dataPoint.data.value?.toString() || "N/A",
-            //                 },
-            //             ],
-            //             (dataPoint: any) => {
-            //                 // Use tooltipMeasure to create a selection ID
-
-
-            //                 return this.host.createSelectionIdBuilder()
-            //                     .withCategory(tooltipMeasure, dataPoint.index)
-            //                     .createSelectionId();
-            //             }
-            //         );
-
-            //     } else {
-            //         // Optionally, hide the tooltip when no feature is hovered
-            //         console.log('Hiding Tooltip...')
-            //         this.tooltipServiceWrapper.hide();
-            //     }
-            // });
-
             this.circleVectorSource.addFeature(point);
+
         });
 
         // Create proportional circle legend
@@ -744,9 +677,239 @@ export class OpenMapVisual implements IVisual {
         this.fitMapToFeatures();
 
         this.map.addLayer(this.circleVectorLayer);
+
+        this.showTooltip();
     }
 
+    private renderProportionalCircles(
+        category: any,
+        longitudes: number[],
+        latitudes: number[],
+        circleSizeValues: number[],
+        circleOptions: CircleOptions,
+        tooltips: any[],
+        minCircleSizeValue: number,
+        circleScale: number
+    ) {
+    
+        const svg = d3.select(this.svgOverlay);
+
+        // Clear existing SVG content
+        svg.selectAll('*').remove(); 
+
+        const g = svg.append('g');
+    
+        const project = (lon: number, lat: number): [number, number] => {
+            const coord = fromLonLat([lon, lat]);
+            const pixel = this.map.getPixelFromCoordinate(coord);
+            return [pixel[0], pixel[1]];
+        };
+    
+        const radii = [];
+    
+        longitudes.forEach((lon, i) => {
+            const lat = latitudes[i];
+            const size = circleSizeValues[i];
+            const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
+    
+            if (isNaN(lon) || isNaN(lat)) {
+                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                return;
+            }
+    
+            radii.push(radius);
+    
+            const [x, y] = project(lon, lat);
+    
+            g.append('circle')
+                .attr('cx', x)
+                .attr('cy', y)
+                .attr('r', radius)
+                .attr('fill', circleOptions.color)
+                .attr('stroke', circleOptions.strokeColor)
+                .attr('stroke-width', circleOptions.strokeWidth)
+                .style('pointer-events', 'all') // enable pointer events 
+                .on('mouseover', function() {  // Add mouseover event
+                    d3.select(this).attr('fill', 'red'); // Change fill color on hover
+                })
+                .on('mouseout', function() {   // Add mouseout event
+                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
+                })
+                .append('title')
+                .text(tooltips ? tooltips[i] : '');
+        });
+    
+        // // Calculate extent of features
+        // const extent = this.calculateExtent(longitudes, latitudes);
+    
+        // this.map.getView().fit(extent, {
+        //     size: this.map.getSize(),
+        //     padding: [50, 50, 50, 50],
+        //     duration: 1000
+        // });
+    
+        // Debounce the update function
+        const debouncedUpdate = this.debounce(() => {
+            g.selectAll('circle').each(function (_, i) {
+                const lon = longitudes[i];
+                const lat = latitudes[i];
+                if (isNaN(lon) || isNaN(lat)) return;
+    
+                const [x, y] = project(lon, lat);
+                d3.select(this)
+                    .attr('cx', x)
+                    .attr('cy', y);
+            });
+        }, 100);
+    
+        //this.map.on('movestart', debouncedUpdate);
+        this.map.on('pointerdrag', debouncedUpdate);
+        this.map.on('moveend', debouncedUpdate);
+    
+        // Create proportional circle legend
+        if (circleOptions.showLegend) {
+            const opacity = circleOptions.legendBackgroundOpacity / 100;
+            const bgColor = circleOptions.legendBackgroundColor;
+            const bottomMargin = circleOptions.legendBottomMargin.toString() + "px";
+    
+            this.createProportionalCircleLegend(
+                circleSizeValues,
+                radii,
+                opacity,
+                bgColor,
+                bottomMargin,
+                circleOptions.legendTitle,
+                circleOptions
+            );
+        }
+    }
+    
+
     private renderDefaultCircles(
+        longitudes: number[],
+        latitudes: number[],
+        circleOptions: CircleOptions,
+        tooltips: any[]
+    ) {
+
+        const svg = d3.select(this.svgOverlay);
+
+        // Clear existing SVG content
+        svg.selectAll('*').remove(); 
+
+
+        const g = svg.append('g'); // Group for circles
+
+        // Projection function to convert map coordinates to pixel coordinates
+        const project = (lon: number, lat: number): [number, number] => {
+            const coord = fromLonLat([lon, lat]);
+            const pixel = this.map.getPixelFromCoordinate(coord);
+            return [pixel[0], pixel[1]];
+        };
+
+        // Render circles using D3
+        longitudes.forEach((lon, i) => {
+            const lat = latitudes[i];
+            if (isNaN(lon) || isNaN(lat)) {
+                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                return;
+            }
+
+            const [x, y] = project(lon, lat);
+
+            g.append('circle')
+                .attr('cx', x)
+                .attr('cy', y)
+                .attr('r', circleOptions.minRadius)
+                .attr('fill', circleOptions.color)
+                .attr('stroke', circleOptions.strokeColor)
+                .attr('stroke-width', circleOptions.strokeWidth)
+                .style('pointer-events', 'all') // enable pointer events
+                .on('mouseover', function() {  // Add mouseover event
+                    d3.select(this).attr('fill', 'red'); // Change fill color on hover
+                })
+                .on('mouseout', function() {   // Add mouseout event
+                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
+                })
+                .append('title') // Add tooltips
+                .text(tooltips ? tooltips[i] : '');
+        });
+
+
+        // Debounce the update function
+        const debouncedUpdate = this.debounce(() => {
+            g.selectAll('circle').each(function (_, i) {
+                const lon = longitudes[i];
+                const lat = latitudes[i];
+                if (isNaN(lon) || isNaN(lat)) return;
+
+                const [x, y] = project(lon, lat);
+                d3.select(this)
+                    .attr('cx', x)
+                    .attr('cy', y);
+            });
+        }, 1); // Adjust the delay (in milliseconds) as needed
+
+        // Use the debounced function in your event listeners
+        //this.map.on('movestart', debouncedUpdate);
+        this.map.on('pointerdrag', debouncedUpdate);
+        this.map.on('moveend', debouncedUpdate);
+
+
+        // this.map.on('movestart', () => {
+        //     g.selectAll('circle').each(function (_, i) {
+        //         const lon = longitudes[i];
+        //         const lat = latitudes[i];
+        //         if (isNaN(lon) || isNaN(lat)) return;
+
+        //         const [x, y] = project(lon, lat);
+        //         d3.select(this)
+        //             .attr('cx', x)
+        //             .attr('cy', y);
+        //     });
+        // });
+
+        // this.map.on('pointerdrag', () => {
+        //     g.selectAll('circle').each(function (_, i) {
+        //         const lon = longitudes[i];
+        //         const lat = latitudes[i];
+        //         if (isNaN(lon) || isNaN(lat)) return;
+
+        //         const [x, y] = project(lon, lat);
+        //         d3.select(this)
+        //             .attr('cx', x)
+        //             .attr('cy', y);
+        //     });
+        // });
+
+        // // Update circles on map movement
+        // this.map.on('moveend', () => {
+        //     g.selectAll('circle').each(function (_, i) {
+        //         const lon = longitudes[i];
+        //         const lat = latitudes[i];
+        //         if (isNaN(lon) || isNaN(lat)) return;
+
+        //         const [x, y] = project(lon, lat);
+        //         d3.select(this)
+        //             .attr('cx', x)
+        //             .attr('cy', y);
+        //     });
+        // });
+    }
+
+    // Debounce function implementation
+    private debounce(func: Function, delay: number) {
+        let timeoutId: number | undefined;
+        return function (this: any, ...args: any[]) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+    }
+
+
+    private renderDefaultCirclesx(
         longitudes: number[],
         latitudes: number[],
         circleOptions: CircleOptions,
@@ -1363,6 +1526,78 @@ export class OpenMapVisual implements IVisual {
         this.map.setTarget(null);
     }
 
+    private showTooltip() {
+
+        const mapContainer = this.container; // The OpenLayers map container
+        const svgOverlay = d3.select(mapContainer)
+            .append('svg')
+            .attr('class', 'map-overlay-svg')
+            .style('position', 'absolute')
+            .style('zIndex', '2000')
+            .style('top', '0')
+            .style('left', '0')
+            .style('width', '100%')
+            .style('height', '100%')
+            .style('pointer-events', 'none'); // Ensure no interaction with the SVG
+
+        let currentFeature: FeatureLike;
+
+        this.map.on('pointermove', (event) => {
+            const feature = this.map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
+
+            if (feature && feature !== currentFeature) {
+                // Update the current feature
+                currentFeature = feature;
+
+                console.log('Displaying tooltip...');
+
+                // Convert pixel coordinates to SVG coordinates
+                const [x, y] = event.pixel;
+
+                // Get the radius of the point feature
+                const radius = feature.get('radius') || 4; // Default to 5 if radius is not set
+
+                // Ensure the SVG circle element is added to the overlay for positioning
+                let tooltipCircle = svgOverlay.select('.tooltip-circle');
+                if (tooltipCircle.empty()) {
+                    tooltipCircle = svgOverlay.append('circle')
+                        .attr('class', 'tooltip-circle')
+                        .style('fill', 'none') // Make the circle invisible
+                        .style('stroke', 'none') // Don't show a border
+                        .style('visibility', 'hidden') // Make it invisible
+                        .style('pointer-events', 'none'); // Avoid interactions
+                }
+
+                // Update the circle position and size based on the feature's radius and pixel coordinates
+                tooltipCircle
+                    .attr('cx', x) // X position
+                    .attr('cy', y) // Y position
+                    .attr('r', radius)
+                    .style('zIndex', '2000') // Set the radius to the feature's radius
+                    .style('visibility', 'visible'); // Make it visible temporarily for positioning the tooltip
+
+                this.tooltipServiceWrapper.addTooltip(
+                    tooltipCircle, // Pass the SVG overlay as the container for the tooltip
+                    () => [{
+                        displayName: 'Property Name', // Example of property name from feature
+                        value: feature.get('tooltip') || 'N/A', // Example of value from feature
+                    }],
+                    () => null // Identity can be passed here if needed (or null)
+                );
+
+            } else if (!feature && currentFeature) {
+                // Reset when no feature is hovered
+                console.log('Hiding tooltip...');
+                svgOverlay.select('.tooltip-circle').style('visibility', 'hidden');
+                this.tooltipServiceWrapper.hide();
+                currentFeature = null;
+            }
+        });
+
+
+    }
+
+
     private static getTooltipData(value: any): VisualTooltipDataItem[] {
         return [
             {
@@ -1493,21 +1728,6 @@ function hexToRgba(hex, opacity) {
 
 const memoryCache: Record<string, { data: any; timestamp: number }> = {};
 
-// Cache GeoJSON data, avoiding overwriting if it's a duplicate
-async function cacheGeoJsonDataOld(key: string, data: any): Promise<void> {
-    const existingCache = memoryCache[key];
-
-    // Check if the data is identical to the current cached data
-    if (existingCache && existingCache.data === data) {
-        console.log("Duplicate cache entry. Skipping cache update.");
-        return;
-    }
-
-    // Cache the new data and update timestamp
-    memoryCache[key] = { data, timestamp: Date.now() };
-    console.log("GeoJSON data cached in memory.");
-}
-
 // Initialize IndexedDB
 function openDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -1541,7 +1761,7 @@ async function cacheGeoJsonData(key: string, data: any): Promise<void> {
         });
 
         if (existingData && existingData.data === data) {
-            console.log("Duplicate cache entry in IndexedDB. Skipping cache update.");
+            //console.log("Duplicate cache entry in IndexedDB. Skipping cache update.");
             return;
         }
 
@@ -1550,16 +1770,16 @@ async function cacheGeoJsonData(key: string, data: any): Promise<void> {
         const putRequest = store.put(cacheEntry);
 
         putRequest.onsuccess = () => {
-            console.log("GeoJSON data cached in IndexedDB.");
+            //console.log("GeoJSON data cached in IndexedDB.");
         };
 
         putRequest.onerror = (e) => {
-            console.error(
-                "Error caching data in IndexedDB. Falling back to memory cache.",
-                e
-            );
+            // console.error(
+            //     "Error caching data in IndexedDB. Falling back to memory cache.",
+            //     e
+            // );
             memoryCache[key] = { data, timestamp: Date.now() };
-            console.log("GeoJSON data cached in memory.");
+            //console.log("GeoJSON data cached in memory.");
         };
 
         // Close the transaction
