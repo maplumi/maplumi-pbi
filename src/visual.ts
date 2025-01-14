@@ -89,65 +89,11 @@ import { select } from 'd3-selection';
 interface TooltipDataItem {
     displayName: string;
     value: string;
-    data: { displayName: string; value: string }[];
+    data: { displayName: string; value: any }[];
     // ... other properties you might need (header, color, etc.)
 }
 
-class CanvasLayer extends Layer {
-    svg: any;
-    features: any;
 
-    constructor(options: any) {
-        super(options);
-        this.features = options.features;
-
-        this.svg = d3.select(document.createElement('div'))
-            .append('svg')
-            .style('position', 'absolute');
-
-        this.svg.append('path')
-            .datum(this.features)
-            .attr('class', 'boundary');
-    }
-
-    render(frameState: any) {
-        const width = frameState.size[0];
-        const height = frameState.size[1];
-        const projection = frameState.viewState.projection;
-
-        const d3Projection = geoMercator().scale(1).translate([0, 0]);
-        const d3Path = geoPath().projection(d3Projection);
-
-        const bounds = geoBounds(this.features);
-
-        const geoBoundsLeftBottom = fromLonLat(bounds[0], projection);
-        const geoBoundsRightTop = fromLonLat(bounds[1], projection);
-
-        const widthResolution =
-            (geoBoundsRightTop[0] - geoBoundsLeftBottom[0]) / width;
-        const heightResolution =
-            (geoBoundsRightTop[1] - geoBoundsLeftBottom[1]) / height;
-
-        const scale = Math.max(widthResolution, heightResolution) / frameState.viewState.resolution;
-
-        const center = toLonLat(getCenter(frameState.extent), projection);
-
-        const transformedCenter: [number, number] = [center[0], center[1]];
-
-        d3Projection
-            .scale(scale)
-            .center(transformedCenter)
-            .translate([width / 2, height / 2]);
-
-        this.svg
-            .attr('width', width)
-            .attr('height', height)
-            .select('path')
-            .attr('d', d3Path);
-
-        return this.svg.node();
-    }
-}
 
 export class OpenMapVisual implements IVisual {
 
@@ -220,10 +166,7 @@ export class OpenMapVisual implements IVisual {
         choroplethLegendContainer.appendChild(legendTitle);
 
         choroplethLegendContainer.style.pointerEvents = 'none';
-
         this.container.appendChild(choroplethLegendContainer);
-
-        
 
         // Ensure the circle legend container is also appended to the same parent
         const circleLegendContainer = document.createElement("div");
@@ -312,14 +255,20 @@ export class OpenMapVisual implements IVisual {
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            this.svgOverlay.id = 'svgOverlay'
             this.svgOverlay.style.position = 'absolute';
-            this.svgOverlay.style.zIndex = '5';
+            this.svgOverlay.style.zIndex = '0';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
-            
-            this.container.appendChild(this.svgOverlay); // Append directly to options.element
+
+            // Append directly to options.element
+            //this.container.appendChild(this.svgOverlay); 
+
+            // Append the svgOverlay to the viewport
+            const viewport = this.map.getViewport();
+            viewport.appendChild(this.svgOverlay);
 
             this.svgOverlay.style.pointerEvents = 'none';
         }
@@ -417,23 +366,15 @@ export class OpenMapVisual implements IVisual {
     }
 
     private getBasemapOptions(): BasemapOptions {
-        const basemapSettings =
-            this.visualFormattingSettingsModel.BasemapVisualCardSettings;
+        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
         return {
-            selectedBasemap:
-                basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            customMapAttribution:
-                basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
-            mapboxCustomStyleUrl:
-                basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStye:
-                basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken:
-                basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            mapboxBaseUrl:
-                basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
-            declutterLabels:
-                basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
+            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
+            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
+            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
+            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
+            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
         };
     }
 
@@ -459,37 +400,26 @@ export class OpenMapVisual implements IVisual {
     }
 
     private getChoroplethOptions(): ChoroplethOptions {
-        const choroplethSettings =
-            this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
-        const choroplethDisplaySettings =
-            choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings =
-            choroplethSettings.choroplethLocationBoundarySettingsGroup;
-        const choroplethClassificationSettings =
-            choroplethSettings.choroplethClassificationSettingsGroup;
-        const choroplethLegendSettings =
-            choroplethSettings.choroplethLegendSettingsGroup;
+        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
+        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
+        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
+        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
+        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
 
         return {
             layerControl: choroplethSettings.topLevelSlice.value,
-            selectedLocationFileSource:
-                choroplethLocationSettings.selectedLocationFileSource.value.value.toString(),
-            boundaryPcodeNameId:
-                choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
+            selectedLocationFileSource: choroplethLocationSettings.selectedLocationFileSource.value.value.toString(),
+            boundaryPcodeNameId: choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
             countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
-            adminLevel:
-                choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
+            adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
             githubRawFilePath: choroplethLocationSettings.githubRawFilePath.value,
-
             classifyData: choroplethClassificationSettings.classifyData.value,
-            usePredefinedColorRamp:
-                choroplethDisplaySettings.usePredefinedColorRamp.value,
+            usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
             colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
             midColor: choroplethDisplaySettings.midColor.value.value,
             classes: choroplethClassificationSettings.numClasses.value,
-            classificationMethod:
-                choroplethClassificationSettings.classificationMethod.value.value.toString(),
+            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString(),
             minColor: choroplethDisplaySettings.minColor.value.value,
             maxColor: choroplethDisplaySettings.maxColor.value.value,
             strokeColor: choroplethDisplaySettings.strokeColor.value.value,
@@ -499,10 +429,8 @@ export class OpenMapVisual implements IVisual {
             legendTitle: choroplethLegendSettings.legendTitle.value,
             legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
             legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
-            legendBackgroundColor:
-                choroplethLegendSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity:
-                choroplethLegendSettings.legendBackgroundOpacity.value,
+            legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value,
         };
     }
 
@@ -573,12 +501,8 @@ export class OpenMapVisual implements IVisual {
         let maxCircleSizeValue: number | undefined;
         let circleScale: number | undefined;
 
-        const lonCategory = categorical?.categories?.find(
-            (c) => c.source?.roles && c.source.roles["Longitude"]
-        );
-        const latCategory = categorical?.categories?.find(
-            (c) => c.source?.roles && c.source.roles["Latitude"]
-        );
+        const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
+        const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
 
         if (lonCategory && latCategory) {
             longitudes = lonCategory.values as number[];
@@ -588,17 +512,14 @@ export class OpenMapVisual implements IVisual {
                 console.warn("Longitude and Latitude have different lengths.");
             } else {
                 // Handle Circle Size Measure or default size
-                const CircleSizeMeasure = categorical?.values?.find(
-                    (c) => c.source?.roles && c.source.roles["Size"]
-                );
+                const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
                 if (CircleSizeMeasure) {
+
                     circleSizeValues = CircleSizeMeasure.values as number[];
                     minCircleSizeValue = Math.min(...circleSizeValues);
                     maxCircleSizeValue = Math.max(...circleSizeValues);
-                    circleScale =
-                        (circleOptions.maxRadius - circleOptions.minRadius) /
-                        (maxCircleSizeValue - minCircleSizeValue);
+                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
 
                     this.renderCircles(
                         longitudes,
@@ -611,9 +532,8 @@ export class OpenMapVisual implements IVisual {
                     );
 
                 } else {
-
+                    // default circle size
                     this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
-
                 }
             }
         } else {
@@ -632,8 +552,8 @@ export class OpenMapVisual implements IVisual {
         circleScale?: number
     ) {
 
-
-        const g = this.svg.append('g').style('pointer-events', 'none');; // Group for circles  
+        //const viewport = this.map.getViewport();
+        const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles  
 
         const project = (lon: number, lat: number): [number, number] => {
             const coord = fromLonLat([lon, lat]);
@@ -666,24 +586,11 @@ export class OpenMapVisual implements IVisual {
                 .attr('r', radius)
                 .attr('fill', circleOptions.color)
                 .attr('stroke', circleOptions.strokeColor)
-                .attr('stroke-width', circleOptions.strokeWidth)   
-                .style('z-index','1')  
-                .style('pointer-events', 'mouseover, mouseout, click') // Enable pointer events           
-                .on('mouseover', function (event) {
-                    d3.select(this).attr('fill', 'red'); // Change fill color on hover  
-                    event.stopPropagation();               
-                })
-                .on('mouseout', function (event) {
-                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
-                    event.stopPropagation(); 
-                })
-                .on('click', function (event) {
-                    d3.select(this).attr('fill', 'blue');
-                    event.stopPropagation(); 
-                    
-                })                
-                // .append('title')
-                // .text(tooltips ? tooltips[i] : '');
+                .attr('stroke-width', circleOptions.strokeWidth)
+                //.style('z-index', '10')
+                .style('pointer-events', 'none') // Disbale pointer events          
+            // .append('title')
+            // .text(tooltips ? tooltips[i] : '');
         });
 
         // Debounce the update function
@@ -700,6 +607,45 @@ export class OpenMapVisual implements IVisual {
                     .attr('cy', y);
             });
         }, 1);
+
+
+        this.map.on('singleclick', function (event) {
+            const mousePosition = event.pixel; // Get mouse coordinates in pixels
+            const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
+
+            g.selectAll('circle').each(function () {
+                const circle = d3.select(this);
+                const circleX = parseFloat(circle.attr('cx'));
+                const circleY = parseFloat(circle.attr('cy'));
+                const radius = parseFloat(circle.attr('r'));
+
+                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                    // Circle clicked! Perform your action here
+                    circle.attr('fill', 'blue');
+                }
+            });
+        });
+
+        // Use the map's 'pointermove' event for mouseover/mouseout
+        this.map.on('pointermove', function (event) {
+            const mousePosition = event.pixel;
+            const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
+
+            g.selectAll('circle').each(function () {
+                const circle = d3.select(this);
+                const circleX = parseFloat(circle.attr('cx'));
+                const circleY = parseFloat(circle.attr('cy'));
+                const radius = parseFloat(circle.attr('r'));
+
+                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                    // Mouse is over the circle
+                    circle.attr('fill', 'red');
+                } else {
+                    // Mouse is outside the circle
+                    circle.attr('fill', circleOptions.color); // Revert to original color
+                }
+            });
+        });
 
         this.map.on('movestart', debouncedUpdate);
         this.map.on('pointerdrag', debouncedUpdate);
@@ -727,6 +673,7 @@ export class OpenMapVisual implements IVisual {
 
         this.map.getView().fit(extent, this.fitMapOptions);
     }
+
 
     // Debounce function
     private debounce(func: Function, delay: number) {
@@ -1836,4 +1783,53 @@ function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
 
     return transformedExtent;
 }
+
+function getElementUnderSvg(x: number, y: number): Element | null {
+    let resultingElement: Element | null;
+    const firstElement = document.elementFromPoint(x, y);
+
+    if (firstElement && firstElement.nodeName === "circle") {
+        const display = (firstElement as HTMLElement).style.display; // Save the display property of the SVG element
+        (firstElement as HTMLElement).style.display = "none";       // Make the SVG element invisible
+        resultingElement = document.elementFromPoint(x, y);         // Get the underlying element
+        (firstElement as HTMLElement).style.display = display;      // Restore the display property
+    } else {
+        resultingElement = firstElement;                            // Use the first element if it's not an SVG element
+    }
+
+    return resultingElement;
+}
+
+function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void {
+    const { clientX: x, clientY: y } = event;
+
+    // Get the topmost element under the cursor
+    const firstElement = document.elementFromPoint(x, y);
+
+    if (firstElement && firstElement.nodeName === 'circle') {
+        // Temporarily hide the SVG circle
+        const display = (firstElement as HTMLElement).style.display;
+        (firstElement as HTMLElement).style.display = 'none';
+
+        // Get the underlying element
+        const underlyingElement = document.elementFromPoint(x, y);
+        (firstElement as HTMLElement).style.display = display;
+
+        // If the underlying element is the map, pass the event to it
+        if (underlyingElement === mapElement) {
+            mapElement.dispatchEvent(new WheelEvent(event.type, event));
+        }
+    } else if (firstElement === mapElement) {
+        // If the event is already on the map, let it proceed
+        mapElement.dispatchEvent(new WheelEvent(event.type, event));
+    }
+}
+
+
+// Helper function to check if a point is inside a circle
+function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
+    const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
+    return distanceSquared <= radius ** 2;
+}
+
 
