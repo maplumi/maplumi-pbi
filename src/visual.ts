@@ -55,7 +55,7 @@ import { MapboxVectorLayer } from "ol-mapbox-style";
 
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
-import { fromLonLat, toLonLat } from "ol/proj";
+import { fromLonLat, toLonLat, transformExtent } from "ol/proj";
 
 import Style from "ol/style/Style";
 import Circle from "ol/style/Circle";
@@ -73,6 +73,7 @@ import GeoJSON from "ol/format/GeoJSON";
 import TileLayer from "ol/layer/Tile";
 import Attribution from "ol/control/Attribution";
 import { defaults as defaultControls } from "ol/control";
+import { Extent } from "ol/extent.js";
 
 import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
@@ -218,7 +219,11 @@ export class OpenMapVisual implements IVisual {
         legendTitle.textContent = "Legend";
         choroplethLegendContainer.appendChild(legendTitle);
 
+        choroplethLegendContainer.style.pointerEvents = 'none';
+
         this.container.appendChild(choroplethLegendContainer);
+
+        
 
         // Ensure the circle legend container is also appended to the same parent
         const circleLegendContainer = document.createElement("div");
@@ -234,6 +239,8 @@ export class OpenMapVisual implements IVisual {
         const circleLegendTitle = document.createElement("h4");
         circleLegendTitle.textContent = "Legend";
         circleLegendContainer.appendChild(circleLegendTitle);
+
+        choroplethLegendContainer.style.pointerEvents = 'none';
 
         this.container.appendChild(circleLegendContainer);
 
@@ -306,14 +313,18 @@ export class OpenMapVisual implements IVisual {
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             this.svgOverlay.style.position = 'absolute';
-            this.svgOverlay.style.zIndex = '1000';
+            this.svgOverlay.style.zIndex = '5';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
-            this.svgOverlay.style.pointerEvents = 'none';
+            
             this.container.appendChild(this.svgOverlay); // Append directly to options.element
+
+            this.svgOverlay.style.pointerEvents = 'none';
         }
+
+        this.svg = d3.select(this.svgOverlay);
 
         console.log("Visual initialized.");
     }
@@ -337,6 +348,8 @@ export class OpenMapVisual implements IVisual {
             console.log("No categorical data found.");
             this.clearMap(this.circleVectorSource);
             this.clearMap(this.choroplethVectorSource);
+            // Clear existing SVG content
+            this.svg.selectAll('*').remove();
             return;
         }
 
@@ -352,6 +365,9 @@ export class OpenMapVisual implements IVisual {
         // Clear vector sources before rendering
         this.circleVectorSource.clear();
         this.choroplethVectorSource.clear();
+
+        // Clear existing SVG content
+        this.svg.selectAll('*').remove();
 
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
@@ -541,12 +557,15 @@ export class OpenMapVisual implements IVisual {
         }
     }
 
-
     private renderCircleLayer(
         categorical: any,
         circleOptions: CircleOptions,
         tooltips: any[]
     ) {
+
+        // Clear existing SVG content
+        this.svg.selectAll('*').remove();
+
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
         let circleSizeValues: number[] | undefined;
@@ -581,29 +600,143 @@ export class OpenMapVisual implements IVisual {
                         (circleOptions.maxRadius - circleOptions.minRadius) /
                         (maxCircleSizeValue - minCircleSizeValue);
 
-                    this.renderProportionalCircles(
-                        lonCategory,
+                    this.renderCircles(
                         longitudes,
                         latitudes,
-                        circleSizeValues,
                         circleOptions,
                         tooltips,
+                        circleSizeValues,
                         minCircleSizeValue,
                         circleScale
                     );
+
                 } else {
-                    this.renderDefaultCircles(
-                        longitudes,
-                        latitudes,
-                        circleOptions,
-                        tooltips
-                    );
+
+                    this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
+
                 }
             }
         } else {
             console.warn("Both Longitude and Latitude roles must be assigned.");
             this.clearMap(this.circleVectorSource);
         }
+    }
+
+    private renderCircles(
+        longitudes: number[],
+        latitudes: number[],
+        circleOptions: CircleOptions,
+        tooltips: any[],
+        circleSizeValues?: number[], // Optional for proportional circles
+        minCircleSizeValue?: number,
+        circleScale?: number
+    ) {
+
+
+        const g = this.svg.append('g').style('pointer-events', 'none');; // Group for circles  
+
+        const project = (lon: number, lat: number): [number, number] => {
+            const coord = fromLonLat([lon, lat]);
+            const pixel = this.map.getPixelFromCoordinate(coord);
+            return [pixel[0], pixel[1]];
+        };
+
+        const radii: number[] = [];
+
+        // Render circles
+        longitudes.forEach((lon, i) => {
+            const lat = latitudes[i];
+            if (isNaN(lon) || isNaN(lat)) {
+                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                return;
+            }
+
+            // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
+            const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
+                ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
+                : circleOptions.minRadius;
+
+            radii.push(radius);
+
+            const [x, y] = project(lon, lat);
+
+            g.append('circle')
+                .attr('cx', x)
+                .attr('cy', y)
+                .attr('r', radius)
+                .attr('fill', circleOptions.color)
+                .attr('stroke', circleOptions.strokeColor)
+                .attr('stroke-width', circleOptions.strokeWidth)   
+                .style('z-index','1')  
+                .style('pointer-events', 'mouseover, mouseout, click') // Enable pointer events           
+                .on('mouseover', function (event) {
+                    d3.select(this).attr('fill', 'red'); // Change fill color on hover  
+                    event.stopPropagation();               
+                })
+                .on('mouseout', function (event) {
+                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
+                    event.stopPropagation(); 
+                })
+                .on('click', function (event) {
+                    d3.select(this).attr('fill', 'blue');
+                    event.stopPropagation(); 
+                    
+                })                
+                // .append('title')
+                // .text(tooltips ? tooltips[i] : '');
+        });
+
+        // Debounce the update function
+        const debouncedUpdate = this.debounce(() => {
+            g.selectAll('circle').each(function (_, i) {
+                const lon = longitudes[i];
+                const lat = latitudes[i];
+                if (isNaN(lon) || isNaN(lat)) return;
+
+                const [x, y] = project(lon, lat);
+
+                d3.select(this)
+                    .attr('cx', x)
+                    .attr('cy', y);
+            });
+        }, 1);
+
+        this.map.on('movestart', debouncedUpdate);
+        this.map.on('pointerdrag', debouncedUpdate);
+        this.map.on('moveend', debouncedUpdate);
+
+        // Render legend if proportional circles are used
+        if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
+            const opacity = circleOptions.legendBackgroundOpacity / 100;
+            const bgColor = circleOptions.legendBackgroundColor;
+            const bottomMargin = `${circleOptions.legendBottomMargin}px`;
+
+            this.createProportionalCircleLegend(
+                circleSizeValues,
+                radii,
+                opacity,
+                bgColor,
+                bottomMargin,
+                circleOptions.legendTitle,
+                circleOptions
+            );
+        }
+
+        // Calculate extent of features
+        const extent = calculateExtent(longitudes, latitudes);
+
+        this.map.getView().fit(extent, this.fitMapOptions);
+    }
+
+    // Debounce function
+    private debounce(func: Function, delay: number) {
+        let timeoutId: number | undefined;
+        return function (this: any, ...args: any[]) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
     }
 
     private renderProportionalCirclesxx(
@@ -680,234 +813,6 @@ export class OpenMapVisual implements IVisual {
 
         this.showTooltip();
     }
-
-    private renderProportionalCircles(
-        category: any,
-        longitudes: number[],
-        latitudes: number[],
-        circleSizeValues: number[],
-        circleOptions: CircleOptions,
-        tooltips: any[],
-        minCircleSizeValue: number,
-        circleScale: number
-    ) {
-    
-        const svg = d3.select(this.svgOverlay);
-
-        // Clear existing SVG content
-        svg.selectAll('*').remove(); 
-
-        const g = svg.append('g');
-    
-        const project = (lon: number, lat: number): [number, number] => {
-            const coord = fromLonLat([lon, lat]);
-            const pixel = this.map.getPixelFromCoordinate(coord);
-            return [pixel[0], pixel[1]];
-        };
-    
-        const radii = [];
-    
-        longitudes.forEach((lon, i) => {
-            const lat = latitudes[i];
-            const size = circleSizeValues[i];
-            const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
-    
-            if (isNaN(lon) || isNaN(lat)) {
-                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                return;
-            }
-    
-            radii.push(radius);
-    
-            const [x, y] = project(lon, lat);
-    
-            g.append('circle')
-                .attr('cx', x)
-                .attr('cy', y)
-                .attr('r', radius)
-                .attr('fill', circleOptions.color)
-                .attr('stroke', circleOptions.strokeColor)
-                .attr('stroke-width', circleOptions.strokeWidth)
-                .style('pointer-events', 'all') // enable pointer events 
-                .on('mouseover', function() {  // Add mouseover event
-                    d3.select(this).attr('fill', 'red'); // Change fill color on hover
-                })
-                .on('mouseout', function() {   // Add mouseout event
-                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
-                })
-                .append('title')
-                .text(tooltips ? tooltips[i] : '');
-        });
-    
-        // // Calculate extent of features
-        // const extent = this.calculateExtent(longitudes, latitudes);
-    
-        // this.map.getView().fit(extent, {
-        //     size: this.map.getSize(),
-        //     padding: [50, 50, 50, 50],
-        //     duration: 1000
-        // });
-    
-        // Debounce the update function
-        const debouncedUpdate = this.debounce(() => {
-            g.selectAll('circle').each(function (_, i) {
-                const lon = longitudes[i];
-                const lat = latitudes[i];
-                if (isNaN(lon) || isNaN(lat)) return;
-    
-                const [x, y] = project(lon, lat);
-                d3.select(this)
-                    .attr('cx', x)
-                    .attr('cy', y);
-            });
-        }, 100);
-    
-        //this.map.on('movestart', debouncedUpdate);
-        this.map.on('pointerdrag', debouncedUpdate);
-        this.map.on('moveend', debouncedUpdate);
-    
-        // Create proportional circle legend
-        if (circleOptions.showLegend) {
-            const opacity = circleOptions.legendBackgroundOpacity / 100;
-            const bgColor = circleOptions.legendBackgroundColor;
-            const bottomMargin = circleOptions.legendBottomMargin.toString() + "px";
-    
-            this.createProportionalCircleLegend(
-                circleSizeValues,
-                radii,
-                opacity,
-                bgColor,
-                bottomMargin,
-                circleOptions.legendTitle,
-                circleOptions
-            );
-        }
-    }
-    
-
-    private renderDefaultCircles(
-        longitudes: number[],
-        latitudes: number[],
-        circleOptions: CircleOptions,
-        tooltips: any[]
-    ) {
-
-        const svg = d3.select(this.svgOverlay);
-
-        // Clear existing SVG content
-        svg.selectAll('*').remove(); 
-
-
-        const g = svg.append('g'); // Group for circles
-
-        // Projection function to convert map coordinates to pixel coordinates
-        const project = (lon: number, lat: number): [number, number] => {
-            const coord = fromLonLat([lon, lat]);
-            const pixel = this.map.getPixelFromCoordinate(coord);
-            return [pixel[0], pixel[1]];
-        };
-
-        // Render circles using D3
-        longitudes.forEach((lon, i) => {
-            const lat = latitudes[i];
-            if (isNaN(lon) || isNaN(lat)) {
-                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                return;
-            }
-
-            const [x, y] = project(lon, lat);
-
-            g.append('circle')
-                .attr('cx', x)
-                .attr('cy', y)
-                .attr('r', circleOptions.minRadius)
-                .attr('fill', circleOptions.color)
-                .attr('stroke', circleOptions.strokeColor)
-                .attr('stroke-width', circleOptions.strokeWidth)
-                .style('pointer-events', 'all') // enable pointer events
-                .on('mouseover', function() {  // Add mouseover event
-                    d3.select(this).attr('fill', 'red'); // Change fill color on hover
-                })
-                .on('mouseout', function() {   // Add mouseout event
-                    d3.select(this).attr('fill', circleOptions.color); // Revert fill color
-                })
-                .append('title') // Add tooltips
-                .text(tooltips ? tooltips[i] : '');
-        });
-
-
-        // Debounce the update function
-        const debouncedUpdate = this.debounce(() => {
-            g.selectAll('circle').each(function (_, i) {
-                const lon = longitudes[i];
-                const lat = latitudes[i];
-                if (isNaN(lon) || isNaN(lat)) return;
-
-                const [x, y] = project(lon, lat);
-                d3.select(this)
-                    .attr('cx', x)
-                    .attr('cy', y);
-            });
-        }, 1); // Adjust the delay (in milliseconds) as needed
-
-        // Use the debounced function in your event listeners
-        //this.map.on('movestart', debouncedUpdate);
-        this.map.on('pointerdrag', debouncedUpdate);
-        this.map.on('moveend', debouncedUpdate);
-
-
-        // this.map.on('movestart', () => {
-        //     g.selectAll('circle').each(function (_, i) {
-        //         const lon = longitudes[i];
-        //         const lat = latitudes[i];
-        //         if (isNaN(lon) || isNaN(lat)) return;
-
-        //         const [x, y] = project(lon, lat);
-        //         d3.select(this)
-        //             .attr('cx', x)
-        //             .attr('cy', y);
-        //     });
-        // });
-
-        // this.map.on('pointerdrag', () => {
-        //     g.selectAll('circle').each(function (_, i) {
-        //         const lon = longitudes[i];
-        //         const lat = latitudes[i];
-        //         if (isNaN(lon) || isNaN(lat)) return;
-
-        //         const [x, y] = project(lon, lat);
-        //         d3.select(this)
-        //             .attr('cx', x)
-        //             .attr('cy', y);
-        //     });
-        // });
-
-        // // Update circles on map movement
-        // this.map.on('moveend', () => {
-        //     g.selectAll('circle').each(function (_, i) {
-        //         const lon = longitudes[i];
-        //         const lat = latitudes[i];
-        //         if (isNaN(lon) || isNaN(lat)) return;
-
-        //         const [x, y] = project(lon, lat);
-        //         d3.select(this)
-        //             .attr('cx', x)
-        //             .attr('cy', y);
-        //     });
-        // });
-    }
-
-    // Debounce function implementation
-    private debounce(func: Function, delay: number) {
-        let timeoutId: number | undefined;
-        return function (this: any, ...args: any[]) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
-        };
-    }
-
 
     private renderDefaultCirclesx(
         longitudes: number[],
@@ -1910,3 +1815,25 @@ function getProportionalCircleLegendData(
 
     return [min, medium, max];
 }
+
+function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
+    if (longitudes.length === 0 || latitudes.length === 0) {
+        throw new Error("Longitude and latitude arrays must not be empty.");
+    }
+
+    if (longitudes.length !== latitudes.length) {
+        throw new Error("Longitude and latitude arrays must have the same length.");
+    }
+
+    const minX = Math.min(...longitudes);
+    const maxX = Math.max(...longitudes);
+    const minY = Math.min(...latitudes);
+    const maxY = Math.max(...latitudes);
+
+    const extent = [minX, minY, maxX, maxY];
+
+    const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+
+    return transformedExtent;
+}
+

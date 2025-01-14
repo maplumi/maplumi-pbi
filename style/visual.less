@@ -22,9 +22,17 @@ p {
 }
 
 .ol-attribution {
+    text-align: left;
     left: 10px;
     right: 10px;
 }
+
+.ol-control {
+    position: absolute;
+    z-index: 1500;
+    /* Additional styling */
+}
+
 
 #legend {
     font-family: Arial, sans-serif;
@@ -34,4 +42,8 @@ p {
 #legend div {
     display: flex;
     align-items: center;
+}
+
+.svg-overlay {
+    pointer-events: none; /* Let the map handle pointer events by default */
 }
