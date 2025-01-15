@@ -117,10 +117,10 @@ export class OpenMapVisual implements IVisual {
     private mapboxVectorLayer: MapboxVectorLayer;
 
     private fitMapOptions: any;
-    private circleVectorSource: VectorSource;
+    //private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
 
-    private circleVectorLayer: VectorLayer;
+    //private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
     private circleStyle: Style;
     private circleHighlightStyle: Style;
@@ -211,13 +211,13 @@ export class OpenMapVisual implements IVisual {
         });
 
         // Initialize the vector source and layer
-        this.circleVectorSource = new VectorSource();
+        //this.circleVectorSource = new VectorSource();
         this.choroplethVectorSource = new VectorSource();
 
-        this.circleVectorLayer = new VectorLayer({
-            source: this.circleVectorSource,
-            style: this.circleStyle,
-        });
+        // this.circleVectorLayer = new VectorLayer({
+        //     source: this.circleVectorSource,
+        //     style: this.circleStyle,
+        // });
 
         this.choroplethVectorLayer = new VectorLayer({
             source: this.choroplethVectorSource,
@@ -263,12 +263,16 @@ export class OpenMapVisual implements IVisual {
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
 
-            // Append directly to options.element
-            //this.container.appendChild(this.svgOverlay); 
-
-            // Append the svgOverlay to the viewport
             const viewport = this.map.getViewport();
-            viewport.appendChild(this.svgOverlay);
+            
+            //viewport.appendChild(this.svgOverlay);
+            
+            const overlayContainer = viewport.querySelector('.ol-overlaycontainer-stopevent') as HTMLElement;
+            if (overlayContainer) {
+                viewport.insertBefore(this.svgOverlay, overlayContainer); // Insert SVG before controls
+            } else {
+                viewport.appendChild(this.svgOverlay); // Fallback in case attribution container is missing
+            }
 
             this.svgOverlay.style.pointerEvents = 'none';
         }
@@ -295,28 +299,19 @@ export class OpenMapVisual implements IVisual {
 
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
-            this.clearMap(this.circleVectorSource);
-            this.clearMap(this.choroplethVectorSource);
-            // Clear existing SVG content
+            
             this.svg.selectAll('*').remove();
+            this.clearMap(this.choroplethVectorSource);
+            
             return;
         }
 
         // Update the basemap
         this.updateBasemap(basemapOptions);
 
-        // Order layers if both circle and choropleth layers are enabled
-        if (circleOptions.layerControl && choroplethOptions.layerControl) {
-            this.choroplethVectorLayer.setZIndex(1); // Lower zIndex (below)
-            this.circleVectorLayer.setZIndex(2); // Higher zIndex (above)
-        }
-
         // Clear vector sources before rendering
-        this.circleVectorSource.clear();
-        this.choroplethVectorSource.clear();
-
-        // Clear existing SVG content
         this.svg.selectAll('*').remove();
+        this.choroplethVectorSource.clear();        
 
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
@@ -334,13 +329,13 @@ export class OpenMapVisual implements IVisual {
         // Map each layer control to its respective rendering function
         const layersToRender = [
             {
-                condition: choroplethOptions.layerControl,
-                render: () => this.renderChoroplethLayer(dataView.categorical, choroplethOptions),
-            },
-            {
                 condition: circleOptions.layerControl,
                 render: () => this.renderCircleLayer(dataView.categorical, circleOptions, tooltips),
             },
+            {
+                condition: choroplethOptions.layerControl,
+                render: () => this.renderChoroplethLayer(dataView.categorical, choroplethOptions),
+            }
         ];
 
         // Filter and execute rendering for active layers
@@ -491,9 +486,6 @@ export class OpenMapVisual implements IVisual {
         tooltips: any[]
     ) {
 
-        // Clear existing SVG content
-        this.svg.selectAll('*').remove();
-
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
         let circleSizeValues: number[] | undefined;
@@ -538,7 +530,8 @@ export class OpenMapVisual implements IVisual {
             }
         } else {
             console.warn("Both Longitude and Latitude roles must be assigned.");
-            this.clearMap(this.circleVectorSource);
+            //this.svg.selectAll('*').remove();
+            //this.clearMap(this.circleVectorSource);
         }
     }
 
@@ -552,8 +545,10 @@ export class OpenMapVisual implements IVisual {
         circleScale?: number
     ) {
 
-        //const viewport = this.map.getViewport();
-        const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles  
+        // Clear existing SVG content
+        //this.svg.selectAll('*').remove();
+
+        const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles
 
         const project = (lon: number, lat: number): [number, number] => {
             const coord = fromLonLat([lon, lat]);
@@ -587,7 +582,6 @@ export class OpenMapVisual implements IVisual {
                 .attr('fill', circleOptions.color)
                 .attr('stroke', circleOptions.strokeColor)
                 .attr('stroke-width', circleOptions.strokeWidth)
-                //.style('z-index', '10')
                 .style('pointer-events', 'none') // Disbale pointer events          
             // .append('title')
             // .text(tooltips ? tooltips[i] : '');
@@ -684,136 +678,6 @@ export class OpenMapVisual implements IVisual {
                 func.apply(this, args);
             }, delay);
         };
-    }
-
-    private renderProportionalCirclesxx(
-        category: any,
-        longitudes: number[],
-        latitudes: number[],
-        circleSizeValues: number[],
-        circleOptions: CircleOptions,
-        tooltips: any[],
-        minCircleSizeValue: number,
-        circleScale: number
-    ) {
-
-        const radii = [];
-        let currentFeature = null;
-
-        longitudes.forEach((lon, i) => {
-            const lat = latitudes[i];
-            const size = circleSizeValues[i];
-            const radius = circleOptions.minRadius + (size - minCircleSizeValue) * circleScale;
-
-            if (isNaN(lon) || isNaN(lat)) {
-                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                return;
-            }
-
-            radii.push(radius); //store radius values for legend computation
-
-            const point = new Feature({
-                geometry: new Point(fromLonLat([lon, lat])),
-                radius: radius,
-                tooltip: tooltips ? tooltips[i] : undefined,
-            });
-
-            point.setStyle(
-                new Style({
-                    image: new Circle({
-                        radius: radius,
-                        fill: new Fill({ color: circleOptions.color }),
-                        stroke: new Stroke({
-                            color: circleOptions.strokeColor,
-                            width: circleOptions.strokeWidth,
-                        }),
-                    }),
-                })
-            );
-
-            this.circleVectorSource.addFeature(point);
-
-        });
-
-        // Create proportional circle legend
-        if (circleOptions.showLegend) {
-            const opacity = circleOptions.legendBackgroundOpacity / 100;
-            const bgColor = circleOptions.legendBackgroundColor;
-            const bottomMargin = circleOptions.legendBottomMargin.toString() + "px";
-
-            this.createProportionalCircleLegend(
-                circleSizeValues,
-                radii,
-                opacity,
-                bgColor,
-                bottomMargin,
-                circleOptions.legendTitle,
-                circleOptions
-            );
-        }
-
-        this.circleVectorLayer.setOpacity(circleOptions.layerOpacity);
-
-        this.fitMapToFeatures();
-
-        this.map.addLayer(this.circleVectorLayer);
-
-        this.showTooltip();
-    }
-
-    private renderDefaultCirclesx(
-        longitudes: number[],
-        latitudes: number[],
-        circleOptions: CircleOptions,
-        tooltips: any[]
-    ) {
-        longitudes.forEach((lon, i) => {
-            const lat = latitudes[i];
-            if (isNaN(lon) || isNaN(lat)) {
-                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                return;
-            }
-
-            const point = new Feature({
-                geometry: new Point(fromLonLat([lon, lat])),
-                radius: circleOptions.minRadius,
-                tooltip: tooltips ? tooltips[i] : undefined,
-            });
-
-            point.setStyle(
-                new Style({
-                    image: new Circle({
-                        radius: circleOptions.minRadius, // Default size
-                        fill: new Fill({ color: circleOptions.color }),
-                        stroke: new Stroke({
-                            color: circleOptions.strokeColor,
-                            width: circleOptions.strokeWidth,
-                        }),
-                    }),
-                })
-            );
-
-            this.circleVectorSource.addFeature(point);
-        });
-        this.circleStyle = new Style({
-            image: new Circle({
-                radius: circleOptions.minRadius, // Default size
-                fill: new Fill({ color: circleOptions.color }),
-                stroke: new Stroke({
-                    color: circleOptions.strokeColor,
-                    width: circleOptions.strokeWidth,
-                }),
-            }),
-        });
-        this.circleVectorLayer = new VectorLayer({
-            source: this.circleVectorSource,
-            style: this.circleStyle,
-            opacity: circleOptions.layerOpacity,
-        });
-
-        this.fitMapToFeatures();
-
-        this.map.addLayer(this.circleVectorLayer);
     }
 
     // Create proportional circle legend
@@ -1036,7 +900,7 @@ export class OpenMapVisual implements IVisual {
 
         // check conditions depending on set choropleth options
 
-        if(!pCodes){
+        if (!pCodes) {
             console.warn(
                 "No PCodes or Admin level or Country iso3 code found. Exiting..."
             );
@@ -1352,12 +1216,6 @@ export class OpenMapVisual implements IVisual {
     }
 
     private fitMapToFeatures() {
-        if (this.circleVectorSource.getFeatures().length > 0) {
-            // Fit to circleVectorSource if choroplethVectorSource has no features
-            this.map
-                .getView()
-                .fit(this.circleVectorSource.getExtent(), this.fitMapOptions);
-        }
 
         if (this.choroplethVectorSource.getFeatures().length > 0) {
             // Prioritize fitting to choroplethVectorSource if it has features
