@@ -7,32 +7,6 @@
       "description": "Boundary PCodes/Name/ID for Choropleth Layer. Same Field from Geojson properties must be set in Choropleth Settings under Visual formatting. For HDX COD-AB specify on county ISO3 & AdminLevel in choropleth settings."
     },
     {
-      "name": "Latitude",
-      "kind": "Grouping",
-      "displayName": "Latitude",
-      "description": "Latitude or Y geographic point dimension",
-      "preferredTypes": [
-        {
-          "geography": {
-            "latitude": true
-          }
-        }
-      ],
-      "requiredTypes": [
-        {
-          "numeric": true
-        },
-        {
-          "integer": true
-        },
-        {
-          "geography": {
-            "latitude": true
-          }
-        }
-      ]
-    },
-    {
       "name": "Longitude",
       "kind": "Grouping",
       "displayName": "Longitude",
@@ -54,6 +28,32 @@
         {
           "geography": {
             "longitude": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "Latitude",
+      "kind": "Grouping",
+      "displayName": "Latitude",
+      "description": "Latitude or Y geographic point dimension",
+      "preferredTypes": [
+        {
+          "geography": {
+            "latitude": true
+          }
+        }
+      ],
+      "requiredTypes": [
+        {
+          "numeric": true
+        },
+        {
+          "integer": true
+        },
+        {
+          "geography": {
+            "latitude": true
           }
         }
       ]
@@ -97,7 +97,7 @@
     {
       "conditions": [
         {
-          "AdminPCode": {
+          "AdminPCodeNameID": {
             "max": 1
           },
           "Latitude": {
@@ -124,7 +124,7 @@
           "select": [
             {
               "for": {
-                "in": "AdminPCode"
+                "in": "AdminPCodeNameID"
               }
             },
             {
@@ -320,7 +320,7 @@
             "enumeration": []
           }
         },
-        "githubRawFilePath": {
+        "githubPagesFileUrl":{
           "type": {
             "text": true
           }
@@ -469,15 +469,10 @@
         "https://*.mapbox.com",
         "https://*.humdata.org",
         "https://*.itos.uga.edu",
-        "https://*.google.com",
-        "https://*.onedrive.com",
-        "https://*.dropbox.com",
-        "https://*.dropboxusercontent.com",
-        "https://*.amazonaws.com",
-        "https://*.googleapis.com",
         "https://*.githubusercontent.com",
-        "https://*.blob.core.windows.net",
-        "https://*.com"
+        "https://*.github.io"
+        
+        
       ]
     },
     {

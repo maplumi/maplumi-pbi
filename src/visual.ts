@@ -412,7 +412,7 @@ export class OpenMapVisual implements IVisual {
             boundaryPcodeNameId: choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
             countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
             adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
-            githubRawFilePath: choroplethLocationSettings.githubRawFilePath.value,
+            githubPagesFileUrl: choroplethLocationSettings.githubPagesFileUrl.value,
             classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
@@ -975,12 +975,10 @@ export class OpenMapVisual implements IVisual {
             return;
         }
 
-        const AdminPCodeNameIDCategory = categorical.categories.find(
-            (c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]
-        );
+        const AdminPCodeNameIDCategory = categorical.categories.find((c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]);
 
         if (!AdminPCodeNameIDCategory) {
-            console.warn("PCodes not found.");
+            console.warn("Admin PCode/Name/ID not found.");
             this.choroplethVectorSource.clear();
             return;
         }
@@ -1000,11 +998,8 @@ export class OpenMapVisual implements IVisual {
         if (choroplethOptions.selectedLocationFileSource == "hdx") {
             serviceUrl = `${constants.HDX_ADMIN_BOUNDARY_GEOSERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/MapServer/${choroplethOptions.adminLevel}/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`;
         } else if (choroplethOptions.selectedLocationFileSource == "github") {
-            if (choroplethOptions.githubRawFilePath.length > 0) {
-                serviceUrl = `https://raw.githubusercontent.com/${choroplethOptions.githubRawFilePath}`;
-            } else {
-                console.log(" File Path not provided");
-            }
+            //TO DO: Check this Url
+            serviceUrl = choroplethOptions.githubPagesFileUrl;
         } else {
             return; //handle other file sources
         }
@@ -1039,16 +1034,25 @@ export class OpenMapVisual implements IVisual {
         // get pcodes
         const pCodes = category.values as string[];
 
-        if (
-            !pCodes ||
-            options.adminLevel.length === 0 ||
-            options.countryISO3Code.length === 0
-        ) {
+        // check conditions depending on set choropleth options
+
+        if(!pCodes){
             console.warn(
                 "No PCodes or Admin level or Country iso3 code found. Exiting..."
             );
             return;
         }
+
+        // if (
+        //     !pCodes ||
+        //     options.adminLevel.length === 0 ||
+        //     options.countryISO3Code.length === 0
+        // ) {
+        //     console.warn(
+        //         "No PCodes or Admin level or Country iso3 code found. Exiting..."
+        //     );
+        //     return;
+        // }
 
         const validPCodes = pCodes.filter((pcode) => {
             if (!pcode) {
@@ -1069,13 +1073,15 @@ export class OpenMapVisual implements IVisual {
 
         const colorScale = this.getColorScale(classBreaks, options);
 
-        let pcodeKey = `ADM${options.adminLevel}_PCODE`; // Use the appropriate key based on the admin level
+        let pcodeKey = options.boundaryPcodeNameId; // `ADM${options.adminLevel}_PCODE`; // Use the appropriate key based on the admin level
 
         // Filter features based on some condition, e.g., ADM2_PCODE
         const filteredFeatures = geojsonData.features.filter((feature) => {
             const featurePCode = feature.properties[pcodeKey]; // Example filter condition
             return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
         });
+
+        //console.log('features:', filteredFeatures)
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
@@ -1132,6 +1138,7 @@ export class OpenMapVisual implements IVisual {
                     //return this.choroplethStyle;
                 } else {
                     // Return null to skip rendering this feature
+                    console.log(`feature ${featurePCode} not rendered. skipping...`)
                     return null;
                 }
             },

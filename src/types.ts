@@ -32,7 +32,7 @@ export interface ChoroplethOptions {
     boundaryPcodeNameId: string,
     countryISO3Code: string; 
     adminLevel: string; 
-    githubRawFilePath: string,
+    githubPagesFileUrl: string,
 
     classifyData: boolean;
     usePredefinedColorRamp: boolean;

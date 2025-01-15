@@ -313,7 +313,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         },
         items: [
             { value: "hdx", displayName: "HDX COD-AB Geoservice" },            
-            { value: "github", displayName: "Github Raw" },
+            { value: "github", displayName: "Github Pages" },
         ]
     });
 
@@ -346,18 +346,18 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         ]
     });
 
-    githubRawFilePath: formattingSettings.TextInput = new TextInput({
-        name: "githubRawFilePath",
-        displayName: "Github Raw File Path",
+    githubPagesFileUrl: formattingSettings.TextInput = new TextInput({
+        name: "githubPagesFileUrl",
+        displayName: "Github Pages File Url",
         value: "", // Default country
-        placeholder: "username/repo/branch/file.geojson" // Placeholder text
+        placeholder: "https://{username}.github.io/{repo}/{file.geojson}" // Placeholder text
     });
 
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Location Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.selectedLocationFileSource,this.boundaryPcodeNameId, this.selectedISO3Code, this.selectedAdminLevel, 
-        this.githubRawFilePath];
+    slices: formattingSettings.Slice[] = [this.selectedLocationFileSource, this.boundaryPcodeNameId, this.selectedISO3Code, this.selectedAdminLevel, 
+        this.githubPagesFileUrl ];
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
