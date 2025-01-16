@@ -31,8 +31,7 @@ export class ColorRampGenerator {
       '#f2f2f2', '#e6e6e6', '#bfbfbf', '#999999', '#737373', '#4d4d4d', '#262626'
     ],
 
-    // New Color Ramps
-    unblue: [
+    azurecascade: [
       '#e6f5fb', '#99d8f1', '#4dbbe6', '#009edb', '#006f99', '#003f58'
     ],
     sdgred: [

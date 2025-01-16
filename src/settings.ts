@@ -424,7 +424,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "yellow", displayName: "Yellow" },
             { value: "slateGrey", displayName: "Slate Grey" },
             { value: "neutralGrey", displayName: "Neutral Grey" },
-            { value: "unblue", displayName: "UN Blue" },
+            { value: "azurecascade", displayName: "Azure Cascade" },
             { value: "sdgred", displayName: "SDG Red" },
             { value: "sdgyellow", displayName: "SDG Yellow" },
             { value: "sdgorange", displayName: "SDG Orange" },
