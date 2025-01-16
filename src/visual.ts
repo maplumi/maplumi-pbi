@@ -51,7 +51,6 @@ import View from "ol/View";
 import { Layer } from "ol/layer";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import { MapboxVectorLayer } from "ol-mapbox-style";
 
 import { Feature } from "ol";
 import Point from "ol/geom/Point";
@@ -61,28 +60,33 @@ import Style from "ol/style/Style";
 import Circle from "ol/style/Circle";
 import Fill from "ol/style/Fill";
 import Stroke from "ol/style/Stroke";
+import FeatureLike from "ol/Feature";
+
+import Overlay from "ol/Overlay"; // Import Overlay class
+import GeoJSON from "ol/format/GeoJSON";
+import TopoJSON from "ol/format/TopoJSON"
+
+import TileLayer from "ol/layer/Tile";
+import Attribution from "ol/control/Attribution";
 
 import { easeOut } from "ol/easing";
+import { Pixel } from "ol/pixel";
+import { defaults as defaultControls } from "ol/control";
+import { Extent } from "ol/extent.js";
+import { getCenter, getWidth } from 'ol/extent.js';
+
+import { MapboxVectorLayer } from "ol-mapbox-style";
 
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
-import Overlay from "ol/Overlay"; // Import Overlay class
-import GeoJSON from "ol/format/GeoJSON";
-
-import TileLayer from "ol/layer/Tile";
-import Attribution from "ol/control/Attribution";
-import { defaults as defaultControls } from "ol/control";
-import { Extent } from "ol/extent.js";
-
 import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
+
 import * as d3 from "d3";
-import { Pixel } from "ol/pixel";
-import { FeatureLike } from "ol/Feature";
 
 import { geoBounds, geoMercator, geoPath } from 'd3-geo';
-import { getCenter, getWidth } from 'ol/extent.js';
+
 import { json } from 'd3-fetch';
 import { select } from 'd3-selection';
 
@@ -264,9 +268,9 @@ export class OpenMapVisual implements IVisual {
             this.svgOverlay.style.height = '100%';
 
             const viewport = this.map.getViewport();
-            
+
             //viewport.appendChild(this.svgOverlay);
-            
+
             const overlayContainer = viewport.querySelector('.ol-overlaycontainer-stopevent') as HTMLElement;
             if (overlayContainer) {
                 viewport.insertBefore(this.svgOverlay, overlayContainer); // Insert SVG before controls
@@ -299,10 +303,10 @@ export class OpenMapVisual implements IVisual {
 
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
-            
+
             this.svg.selectAll('*').remove();
             this.clearMap(this.choroplethVectorSource);
-            
+
             return;
         }
 
@@ -311,7 +315,7 @@ export class OpenMapVisual implements IVisual {
 
         // Clear vector sources before rendering
         this.svg.selectAll('*').remove();
-        this.choroplethVectorSource.clear();        
+        this.choroplethVectorSource.clear();
 
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
@@ -861,7 +865,7 @@ export class OpenMapVisual implements IVisual {
 
         if (choroplethOptions.selectedLocationFileSource == "hdx") {
             serviceUrl = `${constants.HDX_ADMIN_BOUNDARY_GEOSERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/MapServer/${choroplethOptions.adminLevel}/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`;
-        } else if (choroplethOptions.selectedLocationFileSource == "github") {
+        } else if (choroplethOptions.selectedLocationFileSource == "customurl") {
             //TO DO: Check this Url
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl;
         } else {
@@ -872,10 +876,10 @@ export class OpenMapVisual implements IVisual {
 
         const maxAge = 3600000; // Cache expiry time (1 hour)
 
-        fetchAndCacheGeoJsonAdminBoundary(serviceUrl, cacheKey, maxAge)
-            .then((geojsonData) => {
+        fetchAndCacheJsonAdminBoundary(serviceUrl, cacheKey, maxAge)
+            .then((jsondata) => {
                 this.createChoroplethLayer(
-                    geojsonData,
+                    jsondata,
                     AdminPCodeNameIDCategory,
                     colorMeasure,
                     choroplethOptions
@@ -886,37 +890,23 @@ export class OpenMapVisual implements IVisual {
             });
     }
 
-    // Function to process the GeoJSON data & create choropleth
+    // Function to process the GeoJSON/TopoJSON data and create a choropleth
     private createChoroplethLayer(
-        geojsonData: any,
+        jsonBoundaryData: any,
         category: any,
         measure: any,
         options: ChoroplethOptions
     ): void {
+
         this.choroplethVectorSource.clear(); // Clear existing features
 
-        // get pcodes
+        // Get PCodes
         const pCodes = category.values as string[];
 
-        // check conditions depending on set choropleth options
-
         if (!pCodes) {
-            console.warn(
-                "No PCodes or Admin level or Country iso3 code found. Exiting..."
-            );
+            console.warn("No PCodes found. Exiting...");
             return;
         }
-
-        // if (
-        //     !pCodes ||
-        //     options.adminLevel.length === 0 ||
-        //     options.countryISO3Code.length === 0
-        // ) {
-        //     console.warn(
-        //         "No PCodes or Admin level or Country iso3 code found. Exiting..."
-        //     );
-        //     return;
-        // }
 
         const validPCodes = pCodes.filter((pcode) => {
             if (!pcode) {
@@ -932,44 +922,46 @@ export class OpenMapVisual implements IVisual {
         }
 
         const colorValues: number[] = measure.values;
-
         const classBreaks = this.getClassBreaks(colorValues, options);
-
         const colorScale = this.getColorScale(classBreaks, options);
+        const pcodeKey = options.boundaryPcodeNameId;
 
-        let pcodeKey = options.boundaryPcodeNameId; // `ADM${options.adminLevel}_PCODE`; // Use the appropriate key based on the admin level
+        let format: any;
+        let features: any;
 
-        // Filter features based on some condition, e.g., ADM2_PCODE
-        const filteredFeatures = geojsonData.features.filter((feature) => {
-            const featurePCode = feature.properties[pcodeKey]; // Example filter condition
-            return validPCodes.includes(featurePCode); // Keep features that match valid PCodes
+        // Check if the input data is GeoJSON or TopoJSON
+        if (isValidGeoJson(jsonBoundaryData)) {
+            format = new GeoJSON();
+            features = format.readFeatures(jsonBoundaryData, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:3857",
+            });
+        } else if (isValidTopoJson(jsonBoundaryData)) {
+            format = new TopoJSON();
+            features = format.readFeatures(jsonBoundaryData, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:3857",
+            });
+        } else {
+            console.error("Input data is neither GeoJSON nor TopoJSON.");
+            return;
+        }
+
+        // Filter features AFTER reading them
+        features = features.filter((feature: any) => {
+            const featurePCode = feature.get(pcodeKey);
+            return validPCodes.includes(featurePCode);
         });
-
-        //console.log('features:', filteredFeatures)
 
         // Create a vector source with the filtered features
         this.choroplethVectorSource = new VectorSource({
-            format: new GeoJSON(),
-            features: new GeoJSON().readFeatures(
-                {
-                    type: "FeatureCollection",
-                    features: filteredFeatures, // Only use the filtered features
-                },
-                {
-                    dataProjection: "EPSG:4326",
-                    featureProjection: "EPSG:3857",
-                }
-            ),
+            features: features, // Use the filtered features directly
         });
 
         // Create a vector layer using the vector source
         this.choroplethVectorLayer = new VectorLayer({
             source: this.choroplethVectorSource,
-
             style: (feature) => {
-                //using arrow function to bind this
-
-                // Check if the feature's ADMx_PCODE (or equivalent) matches any valid PCode
                 const featurePCode = feature.get(pcodeKey);
 
                 if (validPCodes.includes(featurePCode)) {
@@ -990,19 +982,14 @@ export class OpenMapVisual implements IVisual {
                     }
 
                     return new Style({
-                        fill: new Fill({
-                            color: color,
-                        }),
+                        fill: new Fill({ color: color }),
                         stroke: new Stroke({
                             color: options.strokeColor,
                             width: options.strokeWidth,
                         }),
                     });
-
-                    //return this.choroplethStyle;
                 } else {
-                    // Return null to skip rendering this feature
-                    console.log(`feature ${featurePCode} not rendered. skipping...`)
+                    console.log(`Feature ${featurePCode} not rendered. Skipping...`);
                     return null;
                 }
             },
@@ -1010,9 +997,9 @@ export class OpenMapVisual implements IVisual {
         });
 
         this.fitMapToFeatures();
-
         this.map.addLayer(this.choroplethVectorLayer);
 
+        // Legend
         if (options.showLegend) {
             this.createChoroplethLegend(
                 colorValues,
@@ -1027,6 +1014,7 @@ export class OpenMapVisual implements IVisual {
                 legend.style.display = "none"; // Hide the legend
             }
         }
+
     }
 
     private createChoroplethLegend(
@@ -1034,7 +1022,7 @@ export class OpenMapVisual implements IVisual {
         classBreaks: number[],
         colorScale: any,
         options: ChoroplethOptions,
-        legendLabelPosition: "top" | "inside" | "bottom" = "inside",
+        legendLabelPosition: "top" | "inside" | "bottom" | "right"| "left" = "inside",
         formatTemplate: string = "{:.0f}",
         titleAlignment: "left" | "center" | "right" = "left",
         gapSize: number = 2.5
@@ -1243,74 +1231,17 @@ export class OpenMapVisual implements IVisual {
         this.map.setTarget(null);
     }
 
-    private showTooltip() {
+    private showTooltip(svgElement: any, tooltipdata: VisualTooltipDataItem) {
 
-        const mapContainer = this.container; // The OpenLayers map container
-        const svgOverlay = d3.select(mapContainer)
-            .append('svg')
-            .attr('class', 'map-overlay-svg')
-            .style('position', 'absolute')
-            .style('zIndex', '2000')
-            .style('top', '0')
-            .style('left', '0')
-            .style('width', '100%')
-            .style('height', '100%')
-            .style('pointer-events', 'none'); // Ensure no interaction with the SVG
 
-        let currentFeature: FeatureLike;
-
-        this.map.on('pointermove', (event) => {
-            const feature = this.map.forEachFeatureAtPixel(event.pixel, (feat) => feat);
-
-            if (feature && feature !== currentFeature) {
-                // Update the current feature
-                currentFeature = feature;
-
-                console.log('Displaying tooltip...');
-
-                // Convert pixel coordinates to SVG coordinates
-                const [x, y] = event.pixel;
-
-                // Get the radius of the point feature
-                const radius = feature.get('radius') || 4; // Default to 5 if radius is not set
-
-                // Ensure the SVG circle element is added to the overlay for positioning
-                let tooltipCircle = svgOverlay.select('.tooltip-circle');
-                if (tooltipCircle.empty()) {
-                    tooltipCircle = svgOverlay.append('circle')
-                        .attr('class', 'tooltip-circle')
-                        .style('fill', 'none') // Make the circle invisible
-                        .style('stroke', 'none') // Don't show a border
-                        .style('visibility', 'hidden') // Make it invisible
-                        .style('pointer-events', 'none'); // Avoid interactions
-                }
-
-                // Update the circle position and size based on the feature's radius and pixel coordinates
-                tooltipCircle
-                    .attr('cx', x) // X position
-                    .attr('cy', y) // Y position
-                    .attr('r', radius)
-                    .style('zIndex', '2000') // Set the radius to the feature's radius
-                    .style('visibility', 'visible'); // Make it visible temporarily for positioning the tooltip
-
-                this.tooltipServiceWrapper.addTooltip(
-                    tooltipCircle, // Pass the SVG overlay as the container for the tooltip
-                    () => [{
-                        displayName: 'Property Name', // Example of property name from feature
-                        value: feature.get('tooltip') || 'N/A', // Example of value from feature
-                    }],
-                    () => null // Identity can be passed here if needed (or null)
-                );
-
-            } else if (!feature && currentFeature) {
-                // Reset when no feature is hovered
-                console.log('Hiding tooltip...');
-                svgOverlay.select('.tooltip-circle').style('visibility', 'hidden');
-                this.tooltipServiceWrapper.hide();
-                currentFeature = null;
-            }
-        });
-
+        this.tooltipServiceWrapper.addTooltip(
+            svgElement, // Pass the SVG overlay as the container for the tooltip
+            () => [{
+                displayName: 'Property Name', // Example of property name from feature
+                value: 'sample text'
+            }],
+            () => null // Identity can be passed here if needed (or null)
+        );
 
     }
 
@@ -1333,7 +1264,7 @@ function createChoroplethLegendItem(
     labelText: string,
     boxColor: string,
     labelColor: string,
-    labelPosition: "top" | "inside" | "bottom"
+    labelPosition: "top" | "inside" | "bottom" | "right"| "left"
 ): HTMLElement {
     const legendItem = document.createElement("div");
     legendItem.style.display = "flex";
@@ -1462,13 +1393,13 @@ function openDatabase(): Promise<IDBDatabase> {
     });
 }
 
-async function cacheGeoJsonData(key: string, data: any): Promise<void> {
+async function cacheJsonData(key: string, data: any): Promise<void> {
     try {
         const db = await openDatabase();
 
         // Start a transaction and get the object store
-        const transaction = db.transaction("geoJsonData", "readwrite");
-        const store = transaction.objectStore("geoJsonData");
+        const transaction = db.transaction("jsonBoundaryData", "readwrite");
+        const store = transaction.objectStore("jsonBoundaryData");
 
         // Check for existing data
         const existingData = await new Promise<any | undefined>((resolve) => {
@@ -1518,12 +1449,12 @@ async function cacheGeoJsonData(key: string, data: any): Promise<void> {
         }
 
         memoryCache[key] = { data, timestamp: Date.now() };
-        console.log("GeoJSON data cached in memory.");
+        console.log("jsonBoundaryData data cached in memory.");
     }
 }
 
 // Retrieve GeoJSON data from cache
-async function getCachedGeoJsonData(key: string): Promise<any | null> {
+async function getCachedJsonData(key: string): Promise<any | null> {
     return memoryCache[key]?.data || null;
 }
 
@@ -1535,33 +1466,44 @@ async function isCacheExpired(key: string, maxAge: number): Promise<boolean> {
 }
 
 // Fetch GeoJSON data with caching
-async function fetchAndCacheGeoJsonAdminBoundary(
+async function fetchAndCacheJsonAdminBoundary(
     serviceUrl: string,
     cacheKey: string,
     maxAge: number = 3600000
 ): Promise<any> {
+
     if (await isCacheExpired(cacheKey, maxAge)) {
+
         console.log("Fetching data from service...");
+
         const response = await fetch(serviceUrl);
+
         if (!response.ok) {
-            console.log(`Failed to fetch GeoJSON data: ${response.statusText}`);
+            console.log(`Failed to fetch JSON boundary data: ${response.statusText}`);
             return;
             //throw new Error(`Failed to fetch GeoJSON data: ${response.statusText}`);
         }
-        const geojsonData = await response.json();
 
-        // Check if the fetched data is a valid GeoJSON object
-        if (!isValidGeoJson(geojsonData)) {
-            console.log("Fetched data is not a valid GeoJSON object.");
-            return;
+        const jsonData = await response.json();
+
+        if (await isValidJsonResponse(jsonData)) {
+            console.log("Valid JSON data fetched.");
+
+
+            await cacheJsonData(cacheKey, jsonData);
+
+            return jsonData;
+
+        } else {
+            console.error("Invalid JSON or response error.");
+            // TODO: communicated issue to user
         }
 
-        await cacheGeoJsonData(cacheKey, geojsonData);
-        return geojsonData;
+        return;
     }
 
     console.log("Using cached data.");
-    return getCachedGeoJsonData(cacheKey);
+    return getCachedJsonData(cacheKey);
 }
 
 // Helper function to validate GeoJSON data
@@ -1598,6 +1540,76 @@ function isValidGeoJson(data: any): boolean {
     }
 
     return true;
+}
+
+// Helper function to validate TopoJSON data
+function isValidTopoJson(data: any): boolean {
+    if (!data || typeof data !== "object") {
+        return false;
+    }
+
+    // TopoJSON must have a "type" property, which should be "Topology"
+    if (data.type !== "Topology") {
+        return false;
+    }
+
+    // TopoJSON must have an "objects" property, which should be an object
+    if (!data.objects || typeof data.objects !== "object") {
+        return false;
+    }
+
+    // Validate that "arcs" (if present) is an array
+    if (data.arcs && !Array.isArray(data.arcs)) {
+        return false;
+    }
+
+    // Validate that "transform" (if present) has scale and translate properties
+    if (data.transform) {
+        const { scale, translate } = data.transform;
+        if (
+            !Array.isArray(scale) ||
+            scale.length !== 2 ||
+            !Array.isArray(translate) ||
+            translate.length !== 2
+        ) {
+            return false;
+        }
+    }
+
+    // Validate each object in "objects"
+    for (const key in data.objects) {
+        const object = data.objects[key];
+        if (
+            !object ||
+            typeof object !== "object" ||
+            !["Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"].includes(object.type)
+        ) {
+            return false;
+        }
+
+        // Additional validation for GeometryCollection
+        if (object.type === "GeometryCollection" && !Array.isArray(object.geometries)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Helper function to validate if fetch response is valid json
+async function isValidJsonResponse(responseData: any): Promise<boolean> {
+    try {
+
+        // Validate the parsed data is an object or array
+        if (typeof responseData !== "object" || responseData === null) {
+            return false;
+        }
+
+        return true; // Valid JSON object or array
+    } catch (error) {
+        // If JSON parsing fails, the response is not valid JSON
+        return false;
+    }
 }
 
 // function to get proportional circle legend data i.e min, medium and max

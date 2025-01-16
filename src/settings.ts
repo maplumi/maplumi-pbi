@@ -306,14 +306,14 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
  
     selectedLocationFileSource: DropDown = new DropDown({
         name: "selectedLocationFileSource",
-        displayName: "Geojson File Source",
+        displayName: "TopoJSON/GeoJSON File Source",
         value: {
             value: "hdx",  // default
             displayName: "HDX COD-AB Geoservice"
         },
         items: [
             { value: "hdx", displayName: "HDX COD-AB Geoservice" },            
-            { value: "github", displayName: "Github Pages" },
+            { value: "customurl", displayName: "Custom URL" },
         ]
     });
 
