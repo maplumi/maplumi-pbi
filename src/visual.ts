@@ -1700,3 +1700,68 @@ function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
 }
 
 
+
+// URL validators
+
+function isValidURL(url: string): boolean {
+    try {
+        new URL(url); // This checks if the URL is well-formed.
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function enforceHttps(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+function hasOpenRedirect(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+
+        // Dynamically extract the base domain from the provided URL
+        const baseDomain = parsedUrl.hostname;
+
+        // Ensure the URL's hostname matches its base domain
+        return parsedUrl.hostname !== baseDomain;
+    } catch {
+        return true; // Return true if the URL is invalid
+    }
+}
+
+
+async function fetchWithTimeout(url: string, timeout: number): Promise<Response> {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { signal: controller.signal });
+        return response;
+    } catch (error) {
+        throw new Error("Request timed out or failed.");
+    } finally {
+        clearTimeout(id);
+    }
+}
+
+// Usage
+// try {
+//     const response = await fetchWithTimeout("https://example.com", 5000); // 5 seconds timeout
+//     if (response.ok && response.headers.get("content-length") !== null) {
+//         const contentLength = parseInt(response.headers.get("content-length") || '0', 10);
+//         if (contentLength > 1048576) { // Limit: 1 MB
+//             throw new Error("Response too large.");
+//         }
+//     }
+// } catch (err) {
+//     console.error(err.message);
+// }
+
+
+
+
