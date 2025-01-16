@@ -300,24 +300,9 @@
             "bool": true
           }
         },
-        "selectedLocationFileSource":{
-          "type": {
-            "enumeration": []
-          }
-        },
-        "boundaryPcodeNameId":{
+        "locationPcodeNameId":{
           "type": {
             "text": true
-          }
-        },
-        "selectedISO3Code": {
-          "type": {
-            "text": true
-          }
-        },
-        "selectedAdminLevel": {
-          "type": {
-            "enumeration": []
           }
         },
         "topoJSON_geoJSON_FileUrl":{

@@ -28,10 +28,8 @@ export interface CircleOptions {
 
 export interface ChoroplethOptions {
     layerControl: boolean; 
-    selectedLocationFileSource: string,
-    boundaryPcodeNameId: string,
-    countryISO3Code: string; 
-    adminLevel: string; 
+   
+    locationPcodeNameId: string,    
     topoJSON_geoJSON_FileUrl: string,
 
     classifyData: boolean;
@@ -46,6 +44,7 @@ export interface ChoroplethOptions {
     strokeColor: string; 
     strokeWidth: number; 
     layerOpacity: number; 
+    
     showLegend: boolean; 
     legendTitle: string;
     legendTitleColor: string;

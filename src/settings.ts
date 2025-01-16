@@ -304,47 +304,18 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
 class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
  
-    selectedLocationFileSource: DropDown = new DropDown({
-        name: "selectedLocationFileSource",
-        displayName: "TopoJSON/GeoJSON File Source",
-        value: {
-            value: "hdx",  // default
-            displayName: "HDX COD-AB Geoservice"
-        },
-        items: [
-            { value: "hdx", displayName: "HDX COD-AB Geoservice" },            
-            { value: "customurl", displayName: "Custom URL" },
-        ]
-    });
-
-    boundaryPcodeNameId: formattingSettings.TextInput = new TextInput({
-        name: "boundaryPcodeNameId",
-        displayName: "PCode/Name/Id Field Name",
-        value: "", 
-        placeholder: "Geojson Field Name"
-    });
-    
-    selectedISO3Code: formattingSettings.TextInput = new TextInput({
-        name: "selectedISO3Code",
-        displayName: "HDX iSO3 Country Code",
-        value: "", // Default country
-        placeholder: "Enter ISO3 code" // Placeholder text
-    });
-
-    selectedAdminLevel: DropDown = new DropDown({
-        name: "selectedAdminLevel",
-        displayName: "HDX Country Admin Level",
-        value: {
-            value: "",
-            displayName: ""
-        },
-        items: [
-            { value: "1", displayName: "ADM1" },
-            { value: "2", displayName: "ADM2" },
-            { value: "3", displayName: "ADM3" }
-
-        ]
-    });
+    // selectedLocationFileSource: DropDown = new DropDown({
+    //     name: "selectedLocationFileSource",
+    //     displayName: "TopoJSON/GeoJSON File Source",
+    //     value: {
+    //         value: "hdx",  // default
+    //         displayName: "HDX COD-AB Geoservice"
+    //     },
+    //     items: [
+    //         { value: "hdx", displayName: "HDX COD-AB Geoservice" },            
+    //         { value: "customurl", displayName: "Custom URL" },
+    //     ]
+    // });
 
     topoJSON_geoJSON_FileUrl: formattingSettings.TextInput = new TextInput({
         name: "topoJSON_geoJSON_FileUrl",
@@ -353,11 +324,41 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         placeholder: "" // Placeholder text
     });
 
+    locationPcodeNameId: formattingSettings.TextInput = new TextInput({
+        name: "locationPcodeNameId",
+        displayName: "PCode/Name/Id Field Name",
+        value: "", 
+        placeholder: "Field Name"
+    });
+    
+    // selectedISO3Code: formattingSettings.TextInput = new TextInput({
+    //     name: "selectedISO3Code",
+    //     displayName: "HDX iSO3 Country Code",
+    //     value: "", // Default country
+    //     placeholder: "Enter ISO3 code" // Placeholder text
+    // });
+
+    // selectedAdminLevel: DropDown = new DropDown({
+    //     name: "selectedAdminLevel",
+    //     displayName: "HDX Country Admin Level",
+    //     value: {
+    //         value: "",
+    //         displayName: ""
+    //     },
+    //     items: [
+    //         { value: "1", displayName: "ADM1" },
+    //         { value: "2", displayName: "ADM2" },
+    //         { value: "3", displayName: "ADM3" }
+
+    //     ]
+    // });
+
+    
+
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Location Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.selectedLocationFileSource, this.boundaryPcodeNameId, this.selectedISO3Code, this.selectedAdminLevel, 
-        this.topoJSON_geoJSON_FileUrl ];
+    slices: formattingSettings.Slice[] = [this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId ];
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {

@@ -407,11 +407,10 @@ export class OpenMapVisual implements IVisual {
 
         return {
             layerControl: choroplethSettings.topLevelSlice.value,
-            selectedLocationFileSource: choroplethLocationSettings.selectedLocationFileSource.value.value.toString(),
-            boundaryPcodeNameId: choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
-            countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
-            adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
+           
+            locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),            
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
+
             classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
@@ -861,22 +860,13 @@ export class OpenMapVisual implements IVisual {
             return;
         }
 
-        let serviceUrl: string = "";
+        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
 
-        if (choroplethOptions.selectedLocationFileSource == "hdx") {
-            serviceUrl = `${constants.HDX_ADMIN_BOUNDARY_GEOSERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/MapServer/${choroplethOptions.adminLevel}/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`;
-        } else if (choroplethOptions.selectedLocationFileSource == "customurl") {
-            //TO DO: Check this Url
-            serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl;
-        } else {
-            return; //handle other file sources
-        }
-
-        const cacheKey = `${choroplethOptions.countryISO3Code}_${choroplethOptions.adminLevel}`;
+        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
 
         const maxAge = 3600000; // Cache expiry time (1 hour)
 
-        fetchAndCacheJsonAdminBoundary(serviceUrl, cacheKey, maxAge)
+        fetchAndCacheJsonBoundaryData(serviceUrl, cacheKey, maxAge)
             .then((jsondata) => {
                 this.createChoroplethLayer(
                     jsondata,
@@ -924,7 +914,7 @@ export class OpenMapVisual implements IVisual {
         const colorValues: number[] = measure.values;
         const classBreaks = this.getClassBreaks(colorValues, options);
         const colorScale = this.getColorScale(classBreaks, options);
-        const pcodeKey = options.boundaryPcodeNameId;
+        const pcodeKey = options.locationPcodeNameId;
 
         let format: any;
         let features: any;
@@ -1466,7 +1456,7 @@ async function isCacheExpired(key: string, maxAge: number): Promise<boolean> {
 }
 
 // Fetch GeoJSON data with caching
-async function fetchAndCacheJsonAdminBoundary(
+async function fetchAndCacheJsonBoundaryData(
     serviceUrl: string,
     cacheKey: string,
     maxAge: number = 3600000
