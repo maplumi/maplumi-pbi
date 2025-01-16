@@ -97,8 +97,6 @@ interface TooltipDataItem {
     // ... other properties you might need (header, color, etc.)
 }
 
-
-
 export class OpenMapVisual implements IVisual {
 
     private host: IVisualHost;
@@ -215,13 +213,7 @@ export class OpenMapVisual implements IVisual {
         });
 
         // Initialize the vector source and layer
-        //this.circleVectorSource = new VectorSource();
         this.choroplethVectorSource = new VectorSource();
-
-        // this.circleVectorLayer = new VectorLayer({
-        //     source: this.circleVectorSource,
-        //     style: this.circleStyle,
-        // });
 
         this.choroplethVectorLayer = new VectorLayer({
             source: this.choroplethVectorSource,
@@ -236,6 +228,10 @@ export class OpenMapVisual implements IVisual {
                 projection: "EPSG:3857",
                 center: fromLonLat([0, 0]), // Center the map at the origin
                 zoom: 2,
+                extent: [-20037508.34, -20037508.34, 20037508.34, 20037508.34], // world bounds
+                constrainOnlyCenter: false, // Prevents panning out for both center and edges
+                //constrainResolution: true, // Optional: Ensures zoom levels align with tile resolutions
+
             }),
             controls: defaultControls({
                 attribution: true, // Ensure attribution control is enabled
@@ -256,6 +252,8 @@ export class OpenMapVisual implements IVisual {
             easing: easeOut,
         };
 
+
+        // svg overlay for circles
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -269,26 +267,24 @@ export class OpenMapVisual implements IVisual {
 
             const viewport = this.map.getViewport();
 
-            //viewport.appendChild(this.svgOverlay);
-
+            // render svg overlay on map but under ol contols and attribution
             const overlayContainer = viewport.querySelector('.ol-overlaycontainer-stopevent') as HTMLElement;
             if (overlayContainer) {
                 viewport.insertBefore(this.svgOverlay, overlayContainer); // Insert SVG before controls
             } else {
-                viewport.appendChild(this.svgOverlay); // Fallback in case attribution container is missing
+                viewport.appendChild(this.svgOverlay); // Fallback in case ol overlay container is missing
             }
 
             this.svgOverlay.style.pointerEvents = 'none';
         }
 
+        // set svg element
         this.svg = d3.select(this.svgOverlay);
 
         console.log("Visual initialized.");
     }
 
     update(options: VisualUpdateOptions) {
-
-        console.log('Data Views', options.dataViews);
 
         // Retrieve the model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
@@ -298,155 +294,28 @@ export class OpenMapVisual implements IVisual {
 
         this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
 
-        // Check data validity
         const dataView = options.dataViews[0];
 
+        // Check data validity
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
 
-            this.svg.selectAll('*').remove();
+            // clear layers
             this.clearMap(this.choroplethVectorSource);
+            this.svg.select('*').remove();
 
             return;
         }
 
-        // Update the basemap
-        this.updateBasemap(basemapOptions);
-
-        // Clear vector sources before rendering
-        this.svg.selectAll('*').remove();
-        this.choroplethVectorSource.clear();
-
-        // Ensure legends are hidden when updating
-        this.choroplethLegend.style.display = "none";
-        this.circleLegend.style.display = "none";
-
-        // Ensure legends are hidden when show legend toggle is off
-        if (!choroplethOptions.showLegend || !circleOptions.showLegend) {
-            this.choroplethLegend.style.display = "none"; // Hide choropleth legend
-            this.circleLegend.style.display = "none"; // Hide circle legend
-        }
-
-        // Extract tooltips
-        const tooltips = this.extractTooltips(dataView.categorical);
-
-        // Map each layer control to its respective rendering function
-        const layersToRender = [
-            {
-                condition: circleOptions.layerControl,
-                render: () => this.renderCircleLayer(dataView.categorical, circleOptions, tooltips),
-            },
-            {
-                condition: choroplethOptions.layerControl,
-                render: () => this.renderChoroplethLayer(dataView.categorical, choroplethOptions),
-            }
-        ];
-
-        // Filter and execute rendering for active layers
-        const activeLayers = layersToRender.filter((layer) => layer.condition);
-
-        if (activeLayers.length > 0) {
-            console.log(`Rendering ${activeLayers.length > 1 ? "both Circle & Choropleth" : activeLayers[0].condition ? "Circle" : "Choropleth"} Layers`);
-            activeLayers.forEach((layer) => layer.render());
-        } else {
-            console.log("No layers to render");
-        }
-
         // Force the map to update its size, for example when the visual window is resized
         this.map.updateSize();
-    }
 
-    // Helper functions
-    private getFormattingSettings(options: VisualUpdateOptions) {
-        return this.formattingSettingsService.populateFormattingSettingsModel(
-            HumanitarianMapVisualFormattingSettingsModel,
-            options.dataViews[0]
-        );
-    }
+        this.updateBasemap(basemapOptions);
 
-    private getBasemapOptions(): BasemapOptions {
-        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
-        return {
-            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
-            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-        };
-    }
+        this.renderCircleLayer(dataView.categorical, circleOptions);
 
-    private getCircleOptions(): CircleOptions {
-        const circleSettings =
-            this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
-        return {
-            layerControl: circleSettings.topLevelSlice.value,
-            color: circleSettings.proportionalCirclesColor.value.value,
-            minRadius: circleSettings.proportionalCirclesMinimumRadius.value,
-            maxRadius: circleSettings.proportionalCirclesMaximumRadius.value,
-            strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
-            strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
-            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
-            showLegend: circleSettings.showLegend.value,
-            legendTitle: circleSettings.legendTitle.value,
-            legendTitleColor: circleSettings.legendTitleColor.value.value,
-            legendItemsColor: circleSettings.legendItemsColor.value.value,
-            legendBackgroundColor: circleSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value,
-            legendBottomMargin: circleSettings.legendBottomMargin.value,
-        };
-    }
+        this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
 
-    private getChoroplethOptions(): ChoroplethOptions {
-        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
-        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
-        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
-        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
-
-        return {
-            layerControl: choroplethSettings.topLevelSlice.value,
-           
-            locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),            
-            topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
-
-            classifyData: choroplethClassificationSettings.classifyData.value,
-            usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
-            invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
-            colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
-            midColor: choroplethDisplaySettings.midColor.value.value,
-            classes: choroplethClassificationSettings.numClasses.value,
-            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString(),
-            minColor: choroplethDisplaySettings.minColor.value.value,
-            maxColor: choroplethDisplaySettings.maxColor.value.value,
-            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
-            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
-            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
-            showLegend: choroplethLegendSettings.showLegend.value,
-            legendTitle: choroplethLegendSettings.legendTitle.value,
-            legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
-            legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value,
-        };
-    }
-
-    private extractTooltips(categorical: any) {
-        if (categorical.values && categorical.values.length > 0) {
-            const tooltipMeasure = categorical?.values?.find(
-                (c) => c.source?.roles && c.source.roles["Tooltips"]
-            );
-            if (tooltipMeasure) {
-                //console.log("Tooltips Found:", tooltipMeasure.values);
-                return tooltipMeasure.values;
-            } else {
-                //console.log("Tooltips not found.");
-            }
-        } else {
-            //console.log("No values found.");
-        }
-        return undefined;
     }
 
     private updateBasemap(basemapOptions: BasemapOptions): void {
@@ -474,6 +343,8 @@ export class OpenMapVisual implements IVisual {
         } else if (basemapOptions.selectedBasemap === "openstreetmap") {
             this.basemapLayer = this.basemap.getBasemap(basemapOptions);
             newLayer = this.basemapLayer;
+        } else if (basemapOptions.selectedBasemap === "none") {
+            // remove basemap
         }
 
         // Update the layer and attribution if a valid layer was found
@@ -485,9 +356,10 @@ export class OpenMapVisual implements IVisual {
 
     private renderCircleLayer(
         categorical: any,
-        circleOptions: CircleOptions,
-        tooltips: any[]
+        circleOptions: CircleOptions
     ) {
+
+        this.circleLegend.style.display = "none";
 
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
@@ -496,45 +368,54 @@ export class OpenMapVisual implements IVisual {
         let maxCircleSizeValue: number | undefined;
         let circleScale: number | undefined;
 
-        const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
-        const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
+        if (circleOptions.layerControl) {
 
-        if (lonCategory && latCategory) {
-            longitudes = lonCategory.values as number[];
-            latitudes = latCategory.values as number[];
+            const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
+            const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
 
-            if (longitudes.length !== latitudes.length) {
-                console.warn("Longitude and Latitude have different lengths.");
-            } else {
-                // Handle Circle Size Measure or default size
-                const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+            if (lonCategory && latCategory) {
 
-                if (CircleSizeMeasure) {
+                // Extract tooltips
+                const tooltips = this.extractTooltips(categorical);
 
-                    circleSizeValues = CircleSizeMeasure.values as number[];
-                    minCircleSizeValue = Math.min(...circleSizeValues);
-                    maxCircleSizeValue = Math.max(...circleSizeValues);
-                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+                longitudes = lonCategory.values as number[];
+                latitudes = latCategory.values as number[];
 
-                    this.renderCircles(
-                        longitudes,
-                        latitudes,
-                        circleOptions,
-                        tooltips,
-                        circleSizeValues,
-                        minCircleSizeValue,
-                        circleScale
-                    );
-
+                if (longitudes.length !== latitudes.length) {
+                    console.warn("Longitude and Latitude have different lengths.");
                 } else {
-                    // default circle size
-                    this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
+                    // Handle Circle Size Measure or default size
+                    const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+
+                    if (CircleSizeMeasure) {
+
+                        circleSizeValues = CircleSizeMeasure.values as number[];
+                        minCircleSizeValue = Math.min(...circleSizeValues);
+                        maxCircleSizeValue = Math.max(...circleSizeValues);
+                        circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+
+                        this.renderCircles(
+                            longitudes,
+                            latitudes,
+                            circleOptions,
+                            tooltips,
+                            circleSizeValues,
+                            minCircleSizeValue,
+                            circleScale
+                        );
+
+                    } else {
+                        // default circle size
+                        this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
+                    }
                 }
+            } else {
+                console.warn("Both Longitude and Latitude roles must be assigned.");
+                this.svg.selectAll('*').remove();
             }
         } else {
-            console.warn("Both Longitude and Latitude roles must be assigned.");
-            //this.svg.selectAll('*').remove();
-            //this.clearMap(this.circleVectorSource);
+            // we are not rendering circles
+            this.svg.selectAll('*').remove();
         }
     }
 
@@ -548,10 +429,19 @@ export class OpenMapVisual implements IVisual {
         circleScale?: number
     ) {
 
-        // Clear existing SVG content
-        //this.svg.selectAll('*').remove();
+        //const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles
 
-        const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles
+        // Select the <g> element or create it if it doesn't exist
+        let g = this.svg.select('#circle-group');
+
+        if (g.empty()) {
+            g = this.svg.append('g')
+                .attr('id', 'circle-group')
+                .style('pointer-events', 'none');
+        }
+
+        // Clear existing contents inside the <g> element
+        g.selectAll('*').remove();
 
         const project = (lon: number, lat: number): [number, number] => {
             const coord = fromLonLat([lon, lat]);
@@ -671,19 +561,305 @@ export class OpenMapVisual implements IVisual {
         this.map.getView().fit(extent, this.fitMapOptions);
     }
 
+    private renderChoroplethLayer(
+        categorical: any,
+        choroplethOptions: ChoroplethOptions
+    ) {
 
-    // Debounce function
-    private debounce(func: Function, delay: number) {
-        let timeoutId: number | undefined;
-        return function (this: any, ...args: any[]) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
-        };
+        // Ensure legends are hidden when updating
+        this.choroplethLegend.style.display = "none";
+
+        if (choroplethOptions.layerControl) {
+
+            if (!categorical.values || categorical.values.length === 0) {
+                console.warn("Measures not found.");
+                this.choroplethVectorSource.clear();
+                return;
+            }
+
+            const AdminPCodeNameIDCategory = categorical.categories.find((c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]);
+
+            if (!AdminPCodeNameIDCategory) {
+                console.warn("Admin PCode/Name/ID not found.");
+                this.choroplethVectorSource.clear();
+                return;
+            }
+
+            const colorMeasure = categorical.values.find(
+                (c) => c.source?.roles && c.source.roles["Color"]
+            );
+
+            if (!colorMeasure) {
+                console.warn("Color Measure not found.");
+                this.choroplethVectorSource.clear();
+                return;
+            }
+
+            const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
+
+            const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
+
+            const maxAge = 3600000; // Cache expiry time (1 hour)
+
+            fetchAndCacheJsonBoundaryData(serviceUrl, cacheKey, maxAge)
+                .then((jsondata) => {
+                    this.renderChoropleth(
+                        jsondata,
+                        AdminPCodeNameIDCategory,
+                        colorMeasure,
+                        choroplethOptions
+                    );
+                })
+                .catch((error) => {
+                    console.error("Error fetching GeoJSON data:", error);
+                });
+        } else {
+            // remove choropleth layer
+            this.choroplethVectorSource.clear();
+        }
+
     }
 
-    // Create proportional circle legend
+    // Function to process the GeoJSON/TopoJSON data and create a choropleth
+    private renderChoropleth(
+        jsonBoundaryData: any,
+        category: any,
+        measure: any,
+        options: ChoroplethOptions
+    ): void {
+
+        this.choroplethVectorSource.clear(); // Clear existing features
+
+        // Get PCodes
+        const pCodes = category.values as string[];
+
+        if (!pCodes) {
+            console.warn("No PCodes found. Exiting...");
+            return;
+        }
+
+        const validPCodes = pCodes.filter((pcode) => {
+            if (!pcode) {
+                console.warn(`Skipping invalid PCode: ${pcode}`);
+                return false;
+            }
+            return true;
+        });
+
+        if (validPCodes.length === 0) {
+            console.warn("No valid PCodes found. Exiting...");
+            return;
+        }
+
+        const colorValues: number[] = measure.values;
+        const classBreaks = this.getClassBreaks(colorValues, options);
+        const colorScale = this.getColorScale(classBreaks, options);
+        const pcodeKey = options.locationPcodeNameId;
+
+        let format: any;
+        let features: any;
+
+        // Check if the input data is GeoJSON or TopoJSON
+        if (isValidGeoJson(jsonBoundaryData)) {
+            format = new GeoJSON();
+            features = format.readFeatures(jsonBoundaryData, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:3857",
+            });
+        } else if (isValidTopoJson(jsonBoundaryData)) {
+            format = new TopoJSON();
+            features = format.readFeatures(jsonBoundaryData, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:3857",
+            });
+        } else {
+            console.error("Input data is neither GeoJSON nor TopoJSON.");
+            return;
+        }
+
+        // Filter features AFTER reading them
+        features = features.filter((feature: any) => {
+            const featurePCode = feature.get(pcodeKey);
+            return validPCodes.includes(featurePCode);
+        });
+
+        // Create a vector source with the filtered features
+        this.choroplethVectorSource = new VectorSource({
+            features: features, // Use the filtered features directly
+        });
+
+        // Create a vector layer using the vector source
+        this.choroplethVectorLayer = new VectorLayer({
+            source: this.choroplethVectorSource,
+            style: (feature) => {
+                const featurePCode = feature.get(pcodeKey);
+
+                if (validPCodes.includes(featurePCode)) {
+                    const value = colorValues[validPCodes.indexOf(featurePCode)];
+                    let color = "#009edb"; // Default color
+
+                    if (value < classBreaks[0]) {
+                        color = colorScale[0];
+                    } else if (value > classBreaks[classBreaks.length - 1]) {
+                        color = colorScale[colorScale.length - 1];
+                    } else {
+                        for (let i = 0; i < classBreaks.length - 1; i++) {
+                            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
+                                color = colorScale[i];
+                                break;
+                            }
+                        }
+                    }
+
+                    return new Style({
+                        fill: new Fill({ color: color }),
+                        stroke: new Stroke({
+                            color: options.strokeColor,
+                            width: options.strokeWidth,
+                        }),
+                    });
+                } else {
+                    console.log(`Feature ${featurePCode} not rendered. Skipping...`);
+                    return null;
+                }
+            },
+            opacity: options.layerOpacity,
+        });
+
+
+        this.map.addLayer(this.choroplethVectorLayer);
+        this.fitMapToFeatures();
+
+        // Legend
+        if (options.showLegend) {
+            this.createChoroplethLegend(
+                colorValues,
+                classBreaks,
+                colorScale,
+                options,
+                "inside"
+            );
+        } else {
+            const legend = document.getElementById("legend");
+            if (legend) {
+                legend.style.display = "none"; // Hide the legend
+            }
+        }
+
+    }
+
+    private createChoroplethLegend(
+        colorValues: number[],
+        classBreaks: number[],
+        colorScale: any,
+        options: ChoroplethOptions,
+        legendLabelPosition: "top" | "inside" | "bottom" | "right" | "left" = "inside",
+        formatTemplate: string = "{:.0f}",
+        titleAlignment: "left" | "center" | "right" = "left",
+        gapSize: number = 2.5
+    ): void {
+        const uniqueColorValues: number[] = [...new Set(colorValues)].sort(
+            (a, b) => a - b
+        );
+
+        const legendContainer = this.choroplethLegend;
+        if (!legendContainer) return;
+
+        // Clear existing legend
+        while (legendContainer.firstChild) {
+            legendContainer.removeChild(legendContainer.firstChild);
+        }
+
+        // compute legend background color and opacity
+        const opacity = options.legendBackgroundOpacity / 100;
+        const bgColor = hexToRgba(options.legendBackgroundColor, opacity);
+
+        // Style the legend container
+        legendContainer.style.display = "flex";
+        legendContainer.style.flexDirection = "column";
+        legendContainer.style.alignItems = "flex-start";
+        legendContainer.style.gap = "5px";
+        (legendContainer.style.backgroundColor = bgColor), //"rgba(255, 255, 255, 0.5)";
+            (legendContainer.style.border = "none");
+        legendContainer.style.padding = "5px";
+
+        // Add title to the legend with customizable alignment
+        const title = document.createElement("div");
+        title.textContent = options.legendTitle;
+        title.style.color = options.legendTitleColor;
+        title.style.fontSize = "12px";
+        title.style.fontWeight = "bold";
+        title.style.marginBottom = "5px";
+
+        // Align the title based on user selection
+        title.style.textAlign = titleAlignment;
+
+        // Align the title itself depending on the alignment choice
+        if (titleAlignment === "left") {
+            title.style.marginLeft = "0";
+        } else if (titleAlignment === "center") {
+            title.style.marginLeft = "auto";
+            title.style.marginRight = "auto";
+        } else if (titleAlignment === "right") {
+            title.style.marginLeft = "auto";
+        }
+
+        // Append the title to the legend
+        legendContainer.appendChild(title);
+
+        // Create horizontal layout for legend items
+        const itemsContainer = document.createElement("div");
+        itemsContainer.style.display = "flex";
+        itemsContainer.style.flexDirection = "row";
+        itemsContainer.style.alignItems = "flex-start";
+        itemsContainer.style.gap = `${gapSize}px`;
+
+        if (options.classifyData) {
+            // Classified Mode
+            for (let i = 0; i < classBreaks.length - 1; i++) {
+                const color = colorScale[i];
+                let labelText = "";
+
+                // Determine label text based on index
+                labelText = `${formatValue(
+                    classBreaks[i],
+                    formatTemplate
+                )} - ${formatValue(classBreaks[i + 1], formatTemplate)}`;
+
+                // Create legend item
+                const legendItem = createChoroplethLegendItem(
+                    labelText,
+                    color,
+                    options.legendLabelsColor,
+                    legendLabelPosition
+                );
+                itemsContainer.appendChild(legendItem);
+            }
+        } else {
+            // Unique Value Mode
+            for (let i = 0; i < uniqueColorValues.length; i++) {
+                const uniqueValue = uniqueColorValues[i];
+                const color = colorScale[i]; // Get color from colorScale
+                const labelText = formatValue(uniqueValue, formatTemplate); // Format the unique value
+
+                // Create legend item
+                const legendItem = createChoroplethLegendItem(
+                    labelText,
+                    color,
+                    options.legendLabelsColor,
+                    legendLabelPosition
+                );
+                itemsContainer.appendChild(legendItem);
+            }
+        }
+
+        // Append the items container to the legend
+        legendContainer.appendChild(itemsContainer);
+
+        // Ensure the legend is visible
+        legendContainer.style.display = "flex";
+    }
+
     private createProportionalCircleLegend(
         sizeValues: number[],
         radii: number[],
@@ -832,291 +1008,15 @@ export class OpenMapVisual implements IVisual {
         container.appendChild(svg);
     }
 
-    private renderChoroplethLayer(
-        categorical: any,
-        choroplethOptions: ChoroplethOptions
-    ) {
-        if (!categorical.values || categorical.values.length === 0) {
-            console.warn("Measures not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const AdminPCodeNameIDCategory = categorical.categories.find((c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]);
-
-        if (!AdminPCodeNameIDCategory) {
-            console.warn("Admin PCode/Name/ID not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const colorMeasure = categorical.values.find(
-            (c) => c.source?.roles && c.source.roles["Color"]
-        );
-
-        if (!colorMeasure) {
-            console.warn("Color Measure not found.");
-            this.choroplethVectorSource.clear();
-            return;
-        }
-
-        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
-
-        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
-
-        const maxAge = 3600000; // Cache expiry time (1 hour)
-
-        fetchAndCacheJsonBoundaryData(serviceUrl, cacheKey, maxAge)
-            .then((jsondata) => {
-                this.createChoroplethLayer(
-                    jsondata,
-                    AdminPCodeNameIDCategory,
-                    colorMeasure,
-                    choroplethOptions
-                );
-            })
-            .catch((error) => {
-                console.error("Error fetching GeoJSON data:", error);
-            });
-    }
-
-    // Function to process the GeoJSON/TopoJSON data and create a choropleth
-    private createChoroplethLayer(
-        jsonBoundaryData: any,
-        category: any,
-        measure: any,
-        options: ChoroplethOptions
-    ): void {
-
-        this.choroplethVectorSource.clear(); // Clear existing features
-
-        // Get PCodes
-        const pCodes = category.values as string[];
-
-        if (!pCodes) {
-            console.warn("No PCodes found. Exiting...");
-            return;
-        }
-
-        const validPCodes = pCodes.filter((pcode) => {
-            if (!pcode) {
-                console.warn(`Skipping invalid PCode: ${pcode}`);
-                return false;
-            }
-            return true;
-        });
-
-        if (validPCodes.length === 0) {
-            console.warn("No valid PCodes found. Exiting...");
-            return;
-        }
-
-        const colorValues: number[] = measure.values;
-        const classBreaks = this.getClassBreaks(colorValues, options);
-        const colorScale = this.getColorScale(classBreaks, options);
-        const pcodeKey = options.locationPcodeNameId;
-
-        let format: any;
-        let features: any;
-
-        // Check if the input data is GeoJSON or TopoJSON
-        if (isValidGeoJson(jsonBoundaryData)) {
-            format = new GeoJSON();
-            features = format.readFeatures(jsonBoundaryData, {
-                dataProjection: "EPSG:4326",
-                featureProjection: "EPSG:3857",
-            });
-        } else if (isValidTopoJson(jsonBoundaryData)) {
-            format = new TopoJSON();
-            features = format.readFeatures(jsonBoundaryData, {
-                dataProjection: "EPSG:4326",
-                featureProjection: "EPSG:3857",
-            });
-        } else {
-            console.error("Input data is neither GeoJSON nor TopoJSON.");
-            return;
-        }
-
-        // Filter features AFTER reading them
-        features = features.filter((feature: any) => {
-            const featurePCode = feature.get(pcodeKey);
-            return validPCodes.includes(featurePCode);
-        });
-
-        // Create a vector source with the filtered features
-        this.choroplethVectorSource = new VectorSource({
-            features: features, // Use the filtered features directly
-        });
-
-        // Create a vector layer using the vector source
-        this.choroplethVectorLayer = new VectorLayer({
-            source: this.choroplethVectorSource,
-            style: (feature) => {
-                const featurePCode = feature.get(pcodeKey);
-
-                if (validPCodes.includes(featurePCode)) {
-                    const value = colorValues[validPCodes.indexOf(featurePCode)];
-                    let color = "#009edb"; // Default color
-
-                    if (value < classBreaks[0]) {
-                        color = colorScale[0];
-                    } else if (value > classBreaks[classBreaks.length - 1]) {
-                        color = colorScale[colorScale.length - 1];
-                    } else {
-                        for (let i = 0; i < classBreaks.length - 1; i++) {
-                            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
-                                color = colorScale[i];
-                                break;
-                            }
-                        }
-                    }
-
-                    return new Style({
-                        fill: new Fill({ color: color }),
-                        stroke: new Stroke({
-                            color: options.strokeColor,
-                            width: options.strokeWidth,
-                        }),
-                    });
-                } else {
-                    console.log(`Feature ${featurePCode} not rendered. Skipping...`);
-                    return null;
-                }
-            },
-            opacity: options.layerOpacity,
-        });
-
-        this.fitMapToFeatures();
-        this.map.addLayer(this.choroplethVectorLayer);
-
-        // Legend
-        if (options.showLegend) {
-            this.createChoroplethLegend(
-                colorValues,
-                classBreaks,
-                colorScale,
-                options,
-                "inside"
-            );
-        } else {
-            const legend = document.getElementById("legend");
-            if (legend) {
-                legend.style.display = "none"; // Hide the legend
-            }
-        }
-
-    }
-
-    private createChoroplethLegend(
-        colorValues: number[],
-        classBreaks: number[],
-        colorScale: any,
-        options: ChoroplethOptions,
-        legendLabelPosition: "top" | "inside" | "bottom" | "right"| "left" = "inside",
-        formatTemplate: string = "{:.0f}",
-        titleAlignment: "left" | "center" | "right" = "left",
-        gapSize: number = 2.5
-    ): void {
-        const uniqueColorValues: number[] = [...new Set(colorValues)].sort(
-            (a, b) => a - b
-        );
-
-        const legendContainer = this.choroplethLegend;
-        if (!legendContainer) return;
-
-        // Clear existing legend
-        while (legendContainer.firstChild) {
-            legendContainer.removeChild(legendContainer.firstChild);
-        }
-
-        // compute legend background color and opacity
-        const opacity = options.legendBackgroundOpacity / 100;
-        const bgColor = hexToRgba(options.legendBackgroundColor, opacity);
-
-        // Style the legend container
-        legendContainer.style.display = "flex";
-        legendContainer.style.flexDirection = "column";
-        legendContainer.style.alignItems = "flex-start";
-        legendContainer.style.gap = "5px";
-        (legendContainer.style.backgroundColor = bgColor), //"rgba(255, 255, 255, 0.5)";
-            (legendContainer.style.border = "none");
-        legendContainer.style.padding = "5px";
-
-        // Add title to the legend with customizable alignment
-        const title = document.createElement("div");
-        title.textContent = options.legendTitle;
-        title.style.color = options.legendTitleColor;
-        title.style.fontSize = "12px";
-        title.style.fontWeight = "bold";
-        title.style.marginBottom = "5px";
-
-        // Align the title based on user selection
-        title.style.textAlign = titleAlignment;
-
-        // Align the title itself depending on the alignment choice
-        if (titleAlignment === "left") {
-            title.style.marginLeft = "0";
-        } else if (titleAlignment === "center") {
-            title.style.marginLeft = "auto";
-            title.style.marginRight = "auto";
-        } else if (titleAlignment === "right") {
-            title.style.marginLeft = "auto";
-        }
-
-        // Append the title to the legend
-        legendContainer.appendChild(title);
-
-        // Create horizontal layout for legend items
-        const itemsContainer = document.createElement("div");
-        itemsContainer.style.display = "flex";
-        itemsContainer.style.flexDirection = "row";
-        itemsContainer.style.alignItems = "flex-start";
-        itemsContainer.style.gap = `${gapSize}px`;
-
-        if (options.classifyData) {
-            // Classified Mode
-            for (let i = 0; i < classBreaks.length - 1; i++) {
-                const color = colorScale[i];
-                let labelText = "";
-
-                // Determine label text based on index
-                labelText = `${formatValue(
-                    classBreaks[i],
-                    formatTemplate
-                )} - ${formatValue(classBreaks[i + 1], formatTemplate)}`;
-
-                // Create legend item
-                const legendItem = createChoroplethLegendItem(
-                    labelText,
-                    color,
-                    options.legendLabelsColor,
-                    legendLabelPosition
-                );
-                itemsContainer.appendChild(legendItem);
-            }
-        } else {
-            // Unique Value Mode
-            for (let i = 0; i < uniqueColorValues.length; i++) {
-                const uniqueValue = uniqueColorValues[i];
-                const color = colorScale[i]; // Get color from colorScale
-                const labelText = formatValue(uniqueValue, formatTemplate); // Format the unique value
-
-                // Create legend item
-                const legendItem = createChoroplethLegendItem(
-                    labelText,
-                    color,
-                    options.legendLabelsColor,
-                    legendLabelPosition
-                );
-                itemsContainer.appendChild(legendItem);
-            }
-        }
-
-        // Append the items container to the legend
-        legendContainer.appendChild(itemsContainer);
-
-        // Ensure the legend is visible
-        legendContainer.style.display = "flex";
+    // Debounce function
+    private debounce(func: Function, delay: number) {
+        let timeoutId: number | undefined;
+        return function (this: any, ...args: any[]) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
     }
 
     private getClassBreaks(
@@ -1205,6 +1105,99 @@ export class OpenMapVisual implements IVisual {
         this.map.updateSize();
     }
 
+    private getFormattingSettings(options: VisualUpdateOptions) {
+        return this.formattingSettingsService.populateFormattingSettingsModel(
+            HumanitarianMapVisualFormattingSettingsModel,
+            options.dataViews[0]
+        );
+    }
+
+    private getBasemapOptions(): BasemapOptions {
+        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
+        return {
+            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
+            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
+            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
+            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
+            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
+            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+        };
+    }
+
+    private getCircleOptions(): CircleOptions {
+        const circleSettings =
+            this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
+        return {
+            layerControl: circleSettings.topLevelSlice.value,
+            color: circleSettings.proportionalCirclesColor.value.value,
+            minRadius: circleSettings.proportionalCirclesMinimumRadius.value,
+            maxRadius: circleSettings.proportionalCirclesMaximumRadius.value,
+            strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
+            strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
+            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
+            showLegend: circleSettings.showLegend.value,
+            legendTitle: circleSettings.legendTitle.value,
+            legendTitleColor: circleSettings.legendTitleColor.value.value,
+            legendItemsColor: circleSettings.legendItemsColor.value.value,
+            legendBackgroundColor: circleSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value,
+            legendBottomMargin: circleSettings.legendBottomMargin.value,
+        };
+    }
+
+    private getChoroplethOptions(): ChoroplethOptions {
+        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
+        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
+        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
+        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
+        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
+
+        return {
+            layerControl: choroplethSettings.topLevelSlice.value,
+
+            locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),
+            topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
+
+            classifyData: choroplethClassificationSettings.classifyData.value,
+            usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
+            invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
+            colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
+            midColor: choroplethDisplaySettings.midColor.value.value,
+            classes: choroplethClassificationSettings.numClasses.value,
+            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString(),
+            minColor: choroplethDisplaySettings.minColor.value.value,
+            maxColor: choroplethDisplaySettings.maxColor.value.value,
+            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
+            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
+            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
+            showLegend: choroplethLegendSettings.showLegend.value,
+            legendTitle: choroplethLegendSettings.legendTitle.value,
+            legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
+            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
+            legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value,
+        };
+    }
+
+    private extractTooltips(categorical: any) {
+
+        if (categorical.values && categorical.values.length > 0) {
+            const tooltipMeasure = categorical?.values?.find(
+                (c) => c.source?.roles && c.source.roles["Tooltips"]
+            );
+            if (tooltipMeasure) {
+                //console.log("Tooltips Found:", tooltipMeasure.values);
+                return tooltipMeasure.values;
+            } else {
+                //console.log("Tooltips not found.");
+            }
+        } else {
+            //console.log("No values found.");
+        }
+        return undefined;
+    }
+
     public getFormattingModel(): powerbi.visuals.FormattingModel {
         return this.formattingSettingsService.buildFormattingModel(
             this.visualFormattingSettingsModel
@@ -1219,6 +1212,7 @@ export class OpenMapVisual implements IVisual {
     public destroy(): void {
         //this.basemap.destroy();
         this.map.setTarget(null);
+        this.svg.selectAll('*').remove();
     }
 
     private showTooltip(svgElement: any, tooltipdata: VisualTooltipDataItem) {
@@ -1254,7 +1248,7 @@ function createChoroplethLegendItem(
     labelText: string,
     boxColor: string,
     labelColor: string,
-    labelPosition: "top" | "inside" | "bottom" | "right"| "left"
+    labelPosition: "top" | "inside" | "bottom" | "right" | "left"
 ): HTMLElement {
     const legendItem = document.createElement("div");
     legendItem.style.display = "flex";
