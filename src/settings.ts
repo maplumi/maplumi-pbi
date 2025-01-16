@@ -346,18 +346,18 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         ]
     });
 
-    githubPagesFileUrl: formattingSettings.TextInput = new TextInput({
-        name: "githubPagesFileUrl",
-        displayName: "Github Pages File Url",
+    topoJSON_geoJSON_FileUrl: formattingSettings.TextInput = new TextInput({
+        name: "topoJSON_geoJSON_FileUrl",
+        displayName: "TopoJSON/GeoJSON Url",
         value: "", // Default country
-        placeholder: "https://{username}.github.io/{repo}/{file.geojson}" // Placeholder text
+        placeholder: "" // Placeholder text
     });
 
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Location Boundary";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [this.selectedLocationFileSource, this.boundaryPcodeNameId, this.selectedISO3Code, this.selectedAdminLevel, 
-        this.githubPagesFileUrl ];
+        this.topoJSON_geoJSON_FileUrl ];
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {

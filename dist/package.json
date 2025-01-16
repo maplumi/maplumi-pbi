@@ -1,0 +1,17 @@
+{
+		"version": "1.0.0.0",
+		"author": {"name":"Elvis Ayiemba","email":"ayiembaelvis@gmail.com"},
+		"resources": [
+			{
+				"resourceId": "rId0",
+				"sourceType": 5,
+				"file": "resources/openmapvisual5F98ECA4D79E4FE1AC2FBF871216584B.pbiviz.json"
+			}
+		],
+		"visual": {"name":"open-map-visual","displayName":"Open Map Visual","guid":"openmapvisual5F98ECA4D79E4FE1AC2FBF871216584B","visualClassName":"OpenMapVisual","version":"1.0.0.0","description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs as well as geojson data hosted in select locations","supportUrl":"https://github.com/ayiemba/open-map-visual/issues","gitHubUrl":"https://github.com/ayiemba/open-map-visual"},
+		"metadata": {
+			"pbivizjson": {
+				"resourceId": "rId0"
+			}
+		}
+	}

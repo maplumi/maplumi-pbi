@@ -32,7 +32,7 @@ export interface ChoroplethOptions {
     boundaryPcodeNameId: string,
     countryISO3Code: string; 
     adminLevel: string; 
-    githubPagesFileUrl: string,
+    topoJSON_geoJSON_FileUrl: string,
 
     classifyData: boolean;
     usePredefinedColorRamp: boolean;

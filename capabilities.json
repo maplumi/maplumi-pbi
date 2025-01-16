@@ -320,7 +320,7 @@
             "enumeration": []
           }
         },
-        "githubPagesFileUrl":{
+        "topoJSON_geoJSON_FileUrl":{
           "type": {
             "text": true
           }
@@ -466,6 +466,7 @@
       "parameters": [
         "https://*.openstreetmap.org",
         "https://*.arcgisonline.com",
+        "https://*.arcgis.com",
         "https://*.mapbox.com",
         "https://*.humdata.org",
         "https://*.itos.uga.edu",

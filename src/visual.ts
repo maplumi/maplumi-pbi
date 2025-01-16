@@ -407,7 +407,7 @@ export class OpenMapVisual implements IVisual {
             boundaryPcodeNameId: choroplethLocationSettings.boundaryPcodeNameId.value.toString(),
             countryISO3Code: choroplethLocationSettings.selectedISO3Code.value,
             adminLevel: choroplethLocationSettings.selectedAdminLevel.value.value.toString(),
-            githubPagesFileUrl: choroplethLocationSettings.githubPagesFileUrl.value,
+            topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
             classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
@@ -863,7 +863,7 @@ export class OpenMapVisual implements IVisual {
             serviceUrl = `${constants.HDX_ADMIN_BOUNDARY_GEOSERVICE_BASEURL}/${choroplethOptions.countryISO3Code}_pcode/MapServer/${choroplethOptions.adminLevel}/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson`;
         } else if (choroplethOptions.selectedLocationFileSource == "github") {
             //TO DO: Check this Url
-            serviceUrl = choroplethOptions.githubPagesFileUrl;
+            serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl;
         } else {
             return; //handle other file sources
         }
