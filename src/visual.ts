@@ -286,6 +286,8 @@ export class OpenMapVisual implements IVisual {
 
     update(options: VisualUpdateOptions) {
 
+        console.log("Update invoked.");
+
         // Retrieve the model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
         const basemapOptions = this.getBasemapOptions();
@@ -359,6 +361,8 @@ export class OpenMapVisual implements IVisual {
         circleOptions: CircleOptions
     ) {
 
+
+
         this.circleLegend.style.display = "none";
 
         let longitudes: number[] | undefined;
@@ -369,6 +373,8 @@ export class OpenMapVisual implements IVisual {
         let circleScale: number | undefined;
 
         if (circleOptions.layerControl) {
+
+            console.log('Rendering circles...')
 
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
             const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
@@ -429,131 +435,155 @@ export class OpenMapVisual implements IVisual {
         circleScale?: number
     ) {
 
-        //const g = this.svg.append('g').style('pointer-events', 'none'); // Group for circles
+        // Debugging: Log data arrays
+        console.log('longitudes:', longitudes);
+        console.log('latitudes:', latitudes);
+
+        // Handle empty data
+        if (!longitudes || longitudes.length === 0) {
+            console.warn('No data to render circles');
+            return;
+        }
 
         // Select the <g> element or create it if it doesn't exist
         let g = this.svg.select('#circle-group');
 
-        if (g.empty()) {
-            g = this.svg.append('g')
-                .attr('id', 'circle-group')
-                .style('pointer-events', 'none');
-        }
-
         // Clear existing contents inside the <g> element
         g.selectAll('*').remove();
 
-        const project = (lon: number, lat: number): [number, number] => {
+        g = this.svg.append('g')
+            .attr('id', 'circle-group')
+            .style('pointer-events', 'none');
+
+        console.log('Adding circles to g element...');
+
+        const projectcoordinate = (lon: number, lat: number): [number, number] => {
             const coord = fromLonLat([lon, lat]);
             const pixel = this.map.getPixelFromCoordinate(coord);
             return [pixel[0], pixel[1]];
         };
 
+        console.log('projection:', projectcoordinate)
+
         const radii: number[] = [];
 
+        console.log('Number of points: ', longitudes.length)
+
         // Render circles
-        longitudes.forEach((lon, i) => {
-            const lat = latitudes[i];
-            if (isNaN(lon) || isNaN(lat)) {
-                console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                return;
+
+        requestAnimationFrame(() => {
+
+            longitudes.forEach((lon, i) => {
+                const lat = latitudes[i];
+                if (isNaN(lon) || isNaN(lat)) {
+                    console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                    return;
+                }
+
+                // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
+                const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
+                    ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
+                    : circleOptions.minRadius;
+
+                console.log('Radius:', radius);
+
+                const [x, y] = projectcoordinate(lon, lat);
+
+                g.append('circle')
+                    .attr('cx', x)
+                    .attr('cy', y)
+                    .attr('r', radius)
+                    .attr('fill', circleOptions.color)
+                    .attr('stroke', circleOptions.strokeColor)
+                    .attr('stroke-width', circleOptions.strokeWidth)
+                    .style('pointer-events', 'none'); // Disbale pointer events          
+                // .append('title')
+                // .text(tooltips ? tooltips[i] : '');
+
+                console.log('g-size', g.size.length)
+
+                radii.push(radius);
+
+            });
+
+
+            // Debounce the update function
+            const debouncedUpdate = this.debounce(() => {
+                g.selectAll('circle').each(function (_, i) {
+                    const lon = longitudes[i];
+                    const lat = latitudes[i];
+                    if (isNaN(lon) || isNaN(lat)) return;
+
+                    const [x, y] = projectcoordinate(lon, lat);
+
+                    d3.select(this)
+                        .attr('cx', x)
+                        .attr('cy', y);
+                });
+            }, 1);
+
+
+            this.map.on('singleclick', function (event) {
+                const mousePosition = event.pixel; // Get mouse coordinates in pixels
+                const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
+
+                g.selectAll('circle').each(function () {
+                    const circle = d3.select(this);
+                    const circleX = parseFloat(circle.attr('cx'));
+                    const circleY = parseFloat(circle.attr('cy'));
+                    const radius = parseFloat(circle.attr('r'));
+
+                    if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                        // Circle clicked! Perform your action here
+                        circle.attr('fill', 'blue');
+                    }
+                });
+            });
+
+            // Use the map's 'pointermove' event for mouseover/mouseout
+            this.map.on('pointermove', function (event) {
+                const mousePosition = event.pixel;
+                const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
+
+                g.selectAll('circle').each(function () {
+                    const circle = d3.select(this);
+                    const circleX = parseFloat(circle.attr('cx'));
+                    const circleY = parseFloat(circle.attr('cy'));
+                    const radius = parseFloat(circle.attr('r'));
+
+                    if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                        // Mouse is over the circle
+                        circle.attr('fill', 'red');
+                    } else {
+                        // Mouse is outside the circle
+                        circle.attr('fill', circleOptions.color); // Revert to original color
+                    }
+                });
+            });
+
+            this.map.on('movestart', debouncedUpdate);
+            this.map.on('pointerdrag', debouncedUpdate);
+            this.map.on('moveend', debouncedUpdate);
+
+            // Render legend if proportional circles are used
+            if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
+                const opacity = circleOptions.legendBackgroundOpacity / 100;
+                const bgColor = circleOptions.legendBackgroundColor;
+                const bottomMargin = `${circleOptions.legendBottomMargin}px`;
+
+                this.createProportionalCircleLegend(
+                    circleSizeValues,
+                    radii,
+                    opacity,
+                    bgColor,
+                    bottomMargin,
+                    circleOptions.legendTitle,
+                    circleOptions
+                );
             }
 
-            // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
-            const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
-                ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
-                : circleOptions.minRadius;
-
-            radii.push(radius);
-
-            const [x, y] = project(lon, lat);
-
-            g.append('circle')
-                .attr('cx', x)
-                .attr('cy', y)
-                .attr('r', radius)
-                .attr('fill', circleOptions.color)
-                .attr('stroke', circleOptions.strokeColor)
-                .attr('stroke-width', circleOptions.strokeWidth)
-                .style('pointer-events', 'none') // Disbale pointer events          
-            // .append('title')
-            // .text(tooltips ? tooltips[i] : '');
         });
 
-        // Debounce the update function
-        const debouncedUpdate = this.debounce(() => {
-            g.selectAll('circle').each(function (_, i) {
-                const lon = longitudes[i];
-                const lat = latitudes[i];
-                if (isNaN(lon) || isNaN(lat)) return;
-
-                const [x, y] = project(lon, lat);
-
-                d3.select(this)
-                    .attr('cx', x)
-                    .attr('cy', y);
-            });
-        }, 1);
-
-
-        this.map.on('singleclick', function (event) {
-            const mousePosition = event.pixel; // Get mouse coordinates in pixels
-            const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
-
-            g.selectAll('circle').each(function () {
-                const circle = d3.select(this);
-                const circleX = parseFloat(circle.attr('cx'));
-                const circleY = parseFloat(circle.attr('cy'));
-                const radius = parseFloat(circle.attr('r'));
-
-                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                    // Circle clicked! Perform your action here
-                    circle.attr('fill', 'blue');
-                }
-            });
-        });
-
-        // Use the map's 'pointermove' event for mouseover/mouseout
-        this.map.on('pointermove', function (event) {
-            const mousePosition = event.pixel;
-            const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
-
-            g.selectAll('circle').each(function () {
-                const circle = d3.select(this);
-                const circleX = parseFloat(circle.attr('cx'));
-                const circleY = parseFloat(circle.attr('cy'));
-                const radius = parseFloat(circle.attr('r'));
-
-                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                    // Mouse is over the circle
-                    circle.attr('fill', 'red');
-                } else {
-                    // Mouse is outside the circle
-                    circle.attr('fill', circleOptions.color); // Revert to original color
-                }
-            });
-        });
-
-        this.map.on('movestart', debouncedUpdate);
-        this.map.on('pointerdrag', debouncedUpdate);
-        this.map.on('moveend', debouncedUpdate);
-
-        // Render legend if proportional circles are used
-        if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
-            const opacity = circleOptions.legendBackgroundOpacity / 100;
-            const bgColor = circleOptions.legendBackgroundColor;
-            const bottomMargin = `${circleOptions.legendBottomMargin}px`;
-
-            this.createProportionalCircleLegend(
-                circleSizeValues,
-                radii,
-                opacity,
-                bgColor,
-                bottomMargin,
-                circleOptions.legendTitle,
-                circleOptions
-            );
-        }
 
         // Calculate extent of features
         const extent = calculateExtent(longitudes, latitudes);
@@ -570,6 +600,8 @@ export class OpenMapVisual implements IVisual {
         this.choroplethLegend.style.display = "none";
 
         if (choroplethOptions.layerControl) {
+
+            console.log('Rendering choropleth...')
 
             if (!categorical.values || categorical.values.length === 0) {
                 console.warn("Measures not found.");
