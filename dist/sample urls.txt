@@ -2,6 +2,7 @@
 
 https://storage.googleapis.com/sample-geodata/countries.geojson
 https://sample-geodata.s3.us-east-1.amazonaws.com/countries.geojson
+https://account-name.blob.core.windows.net/container-name/file.geojson
 
 https://raw.githubusercontent.com/ayiemba/sample-data/main/countries.geojson
 https://raw.githubusercontent.com/ayiemba/sample-data/main/countries.json
