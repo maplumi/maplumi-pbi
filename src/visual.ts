@@ -80,8 +80,10 @@ import { MapboxVectorLayer } from "ol-mapbox-style";
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
-import { BasemapOptions, ChoroplethOptions, CircleOptions } from "./types";
+import { BasemapOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
+
+import { CanvasLayer } from "./canvasLayer";
 
 import * as d3 from "d3";
 
@@ -119,11 +121,10 @@ export class OpenMapVisual implements IVisual {
     private mapboxVectorLayer: MapboxVectorLayer;
 
     private fitMapOptions: any;
-    //private circleVectorSource: VectorSource;
     private choroplethVectorSource: VectorSource;
-
-    //private circleVectorLayer: VectorLayer;
     private choroplethVectorLayer: VectorLayer;
+    private circleLayer: CanvasLayer;
+
     private circleStyle: Style;
     private circleHighlightStyle: Style;
     private choroplethStyle: Style;
@@ -212,7 +213,7 @@ export class OpenMapVisual implements IVisual {
             }),
         });
 
-        // Initialize the vector source and layer
+        // Initialize the vector source and layers
         this.choroplethVectorSource = new VectorSource();
 
         this.choroplethVectorLayer = new VectorLayer({
@@ -279,7 +280,11 @@ export class OpenMapVisual implements IVisual {
         }
 
         // set svg element
-        this.svg = d3.select(this.svgOverlay);
+        //this.svg = d3.select(this.svgOverlay);
+
+        this.svg = select(document.createElement('div'))
+                    .append('svg')
+                    .style('position', 'absolute');
 
         console.log("Visual initialized.");
     }
@@ -361,8 +366,6 @@ export class OpenMapVisual implements IVisual {
         circleOptions: CircleOptions
     ) {
 
-
-
         this.circleLegend.style.display = "none";
 
         let longitudes: number[] | undefined;
@@ -398,30 +401,54 @@ export class OpenMapVisual implements IVisual {
                         circleSizeValues = CircleSizeMeasure.values as number[];
                         minCircleSizeValue = Math.min(...circleSizeValues);
                         maxCircleSizeValue = Math.max(...circleSizeValues);
-                        circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+                        circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);                        
 
-                        this.renderCircles(
-                            longitudes,
-                            latitudes,
-                            circleOptions,
-                            tooltips,
-                            circleSizeValues,
-                            minCircleSizeValue,
-                            circleScale
-                        );
+                        const circleLayerOptions: CircleLayerOptions = {
+                            // Required properties for the CircleLayer
+                            longitudes: longitudes,
+                            latitudes: latitudes,
+
+                            // Circle customization options
+                            circleOptions: circleOptions,
+
+                            // Optional properties for proportional circles
+                            circleSizeValues: circleSizeValues,
+                            minCircleSizeValue: minCircleSizeValue,
+                            circleScale: circleScale,   
+                            svg: this.svg                        
+
+                            // OpenLayers-specific options
+                            // opacity: 1,                                // Layer opacity
+                            // visible: true,                             // Visibility of the layer
+                            // zIndex: 1,                                 // Z-index for layering
+                        };
+
+                        this.circleLayer = new CanvasLayer(circleLayerOptions);
+
+                        this.map.addLayer(this.circleLayer);
+
+                        // this.renderCircles(
+                        //     longitudes,
+                        //     latitudes,
+                        //     circleOptions,
+                        //     tooltips,
+                        //     circleSizeValues,
+                        //     minCircleSizeValue,
+                        //     circleScale
+                        // );
 
                     } else {
                         // default circle size
-                        this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
+                        // this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
                     }
                 }
             } else {
-                console.warn("Both Longitude and Latitude roles must be assigned.");
-                this.svg.selectAll('*').remove();
+                //console.warn("Both Longitude and Latitude roles must be assigned.");
+                //this.svg.selectAll('*').remove();
             }
         } else {
             // we are not rendering circles
-            this.svg.selectAll('*').remove();
+            //this.svg.selectAll('*').remove();
         }
     }
 
@@ -434,10 +461,6 @@ export class OpenMapVisual implements IVisual {
         minCircleSizeValue?: number,
         circleScale?: number
     ) {
-
-        // Debugging: Log data arrays
-        console.log('longitudes:', longitudes);
-        console.log('latitudes:', latitudes);
 
         // Handle empty data
         if (!longitudes || longitudes.length === 0) {
@@ -463,11 +486,7 @@ export class OpenMapVisual implements IVisual {
             return [pixel[0], pixel[1]];
         };
 
-        console.log('projection:', projectcoordinate)
-
         const radii: number[] = [];
-
-        console.log('Number of points: ', longitudes.length)
 
         // Render circles
 
@@ -476,7 +495,7 @@ export class OpenMapVisual implements IVisual {
             longitudes.forEach((lon, i) => {
                 const lat = latitudes[i];
                 if (isNaN(lon) || isNaN(lat)) {
-                    console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
+                    //console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
                     return;
                 }
 
@@ -485,7 +504,7 @@ export class OpenMapVisual implements IVisual {
                     ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
                     : circleOptions.minRadius;
 
-                console.log('Radius:', radius);
+                //console.log('Radius:', radius);
 
                 const [x, y] = projectcoordinate(lon, lat);
 
@@ -499,8 +518,6 @@ export class OpenMapVisual implements IVisual {
                     .style('pointer-events', 'none'); // Disbale pointer events          
                 // .append('title')
                 // .text(tooltips ? tooltips[i] : '');
-
-                console.log('g-size', g.size.length)
 
                 radii.push(radius);
 
@@ -1788,6 +1805,28 @@ async function fetchWithTimeout(url: string, timeout: number): Promise<Response>
 //     console.error(err.message);
 // }
 
+
+function createFeatures(longitudes: number[], latitudes: number[]): Feature[] {
+    const features: Feature[] = [];
+
+    for (let i = 0; i < longitudes.length; i++) {
+        const lon = longitudes[i];
+        const lat = latitudes[i];
+
+        // Create an OpenLayers Point geometry
+        const point = new Point(fromLonLat([lon, lat]));
+
+        // Create an OpenLayers Feature with the Point geometry
+        const feature = new Feature({
+            geometry: point,
+            // Add any other properties you need here
+        });
+
+        features.push(feature);
+    }
+
+    return features;
+}
 
 
 

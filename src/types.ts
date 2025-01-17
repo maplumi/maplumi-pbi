@@ -1,3 +1,5 @@
+import { Options as LayerOptions } from 'ol/layer/Base.js';
+import { Feature } from 'ol';
 
 export interface BasemapOptions {
     selectedBasemap: string;
@@ -25,6 +27,18 @@ export interface CircleOptions {
     legendBackgroundColor: string;
     legendBottomMargin: number;
 }
+
+export interface CircleLayerOptions  extends LayerOptions{
+    longitudes: number[];
+    latitudes: number[];
+    circleOptions: CircleOptions;
+    circleSizeValues?: number[];
+    minCircleSizeValue?: number;
+    circleScale?: number;
+    svg: any;
+    //features: Feature[];
+  }
+  
 
 export interface ChoroplethOptions {
     layerControl: boolean; 

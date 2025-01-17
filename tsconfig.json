@@ -19,6 +19,7 @@
         "./src/types.ts",
         "./src/basemap.ts",
         "./src/colors.ts",
-        "./src/constants.ts"
+        "./src/constants.ts",
+        "./src/canvasLayer.ts"
     ]
 }
