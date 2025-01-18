@@ -254,37 +254,22 @@ export class OpenMapVisual implements IVisual {
         };
 
 
-        // svg overlay for circles
+        // svg overlay
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             this.svgOverlay.id = 'svgOverlay'
             this.svgOverlay.style.position = 'absolute';
-            this.svgOverlay.style.zIndex = '0';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
 
-            const viewport = this.map.getViewport();
-
-            // render svg overlay on map but under ol contols and attribution
-            const overlayContainer = viewport.querySelector('.ol-overlaycontainer-stopevent') as HTMLElement;
-            if (overlayContainer) {
-                viewport.insertBefore(this.svgOverlay, overlayContainer); // Insert SVG before controls
-            } else {
-                viewport.appendChild(this.svgOverlay); // Fallback in case ol overlay container is missing
-            }
-
             this.svgOverlay.style.pointerEvents = 'none';
         }
 
         // set svg element
-        //this.svg = d3.select(this.svgOverlay);
-
-        this.svg = select(document.createElement('div'))
-                    .append('svg')
-                    .style('position', 'absolute');
+        this.svg = d3.select(this.svgOverlay);
 
         console.log("Visual initialized.");
     }
@@ -292,6 +277,9 @@ export class OpenMapVisual implements IVisual {
     update(options: VisualUpdateOptions) {
 
         console.log("Update invoked.");
+
+        this.svg.selectAll('*').remove();
+        this.svgOverlay.style.display = 'none';
 
         // Retrieve the model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
@@ -377,6 +365,10 @@ export class OpenMapVisual implements IVisual {
 
         if (circleOptions.layerControl) {
 
+            // Clear the previous SVG content before appending new paths
+            this.svg.selectAll('*').remove(); // Clear all existing elements
+            this.svgOverlay.style.display = 'block';
+
             console.log('Rendering circles...')
 
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
@@ -391,65 +383,146 @@ export class OpenMapVisual implements IVisual {
                 latitudes = latCategory.values as number[];
 
                 if (longitudes.length !== latitudes.length) {
+
                     console.warn("Longitude and Latitude have different lengths.");
+
                 } else {
+
                     // Handle Circle Size Measure or default size
                     const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
-                    if (CircleSizeMeasure) {
+                    circleSizeValues = CircleSizeMeasure.values as number[];
+                    minCircleSizeValue = Math.min(...circleSizeValues);
+                    maxCircleSizeValue = Math.max(...circleSizeValues);
+                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
 
-                        circleSizeValues = CircleSizeMeasure.values as number[];
-                        minCircleSizeValue = Math.min(...circleSizeValues);
-                        maxCircleSizeValue = Math.max(...circleSizeValues);
-                        circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);                        
+                    const circleLayerOptions: CircleLayerOptions = {
+                        // Required properties for the CircleLayer
+                        longitudes: longitudes,
+                        latitudes: latitudes,
 
-                        const circleLayerOptions: CircleLayerOptions = {
-                            // Required properties for the CircleLayer
-                            longitudes: longitudes,
-                            latitudes: latitudes,
+                        // Circle customization options
+                        circleOptions: circleOptions,
 
-                            // Circle customization options
-                            circleOptions: circleOptions,
+                        // Optional properties for proportional circles
+                        circleSizeValues: circleSizeValues,
+                        minCircleSizeValue: minCircleSizeValue,
+                        circleScale: circleScale,
+                        svg: this.svg,
+                        zIndex: 10
 
-                            // Optional properties for proportional circles
-                            circleSizeValues: circleSizeValues,
-                            minCircleSizeValue: minCircleSizeValue,
-                            circleScale: circleScale,   
-                            svg: this.svg                        
+                        // OpenLayers-specific options
+                        // opacity: 1,                                // Layer opacity
+                        // visible: true,                             // Visibility of the layer
 
-                            // OpenLayers-specific options
-                            // opacity: 1,                                // Layer opacity
-                            // visible: true,                             // Visibility of the layer
-                            // zIndex: 1,                                 // Z-index for layering
-                        };
+                    };
 
-                        this.circleLayer = new CanvasLayer(circleLayerOptions);
+                    this.circleLayer = new CanvasLayer(circleLayerOptions);
 
-                        this.map.addLayer(this.circleLayer);
+                    this.map.addLayer(this.circleLayer);
 
-                        // this.renderCircles(
-                        //     longitudes,
-                        //     latitudes,
-                        //     circleOptions,
-                        //     tooltips,
-                        //     circleSizeValues,
-                        //     minCircleSizeValue,
-                        //     circleScale
-                        // );
+                    this.addCanvasLayerEvents(this.map, this.circleLayer);
 
-                    } else {
-                        // default circle size
-                        // this.renderCircles(longitudes, latitudes, circleOptions, tooltips);
+                    // Calculate extent of features
+                    const extent = this.circleLayer.getCirclesExtent();
+                    console.log('Extent:', extent);
+
+                    this.map.getView().fit(extent, this.fitMapOptions);
+
+
+                    // Render legend if proportional circles are used
+                    if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
+
+                        let radii: number[] | undefined;
+
+                        longitudes.forEach((i) => {
+
+                            // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
+                            const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
+                                ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
+                                : circleOptions.minRadius;
+
+                            radii.push(radius);
+
+                        });
+
+                        console.log('radii',radii);
+
+                        this.createProportionalCircleLegend(
+                            this.circleLegend,
+                            circleSizeValues,
+                            radii,
+                            circleOptions.legendTitle,
+                            circleOptions
+                        );
                     }
+
                 }
             } else {
-                //console.warn("Both Longitude and Latitude roles must be assigned.");
-                //this.svg.selectAll('*').remove();
+                console.warn("Both Longitude and Latitude roles must be assigned.");
+                this.svg.selectAll('*').remove();
             }
         } else {
             // we are not rendering circles
-            //this.svg.selectAll('*').remove();
+            this.svg.selectAll('*').remove();
         }
+    }
+
+
+
+    private addCanvasLayerEvents(map: Map, canvasLayer: CanvasLayer) {
+        const svg = canvasLayer.getSvg();
+
+        // Helper function to check if a point is inside a circle
+        const isPointInCircle = (mouseX: number, mouseY: number, circleX: number, circleY: number, radius: number) => {
+            const dx = mouseX - circleX;
+            const dy = mouseY - circleY;
+            return dx * dx + dy * dy <= radius * radius;
+        };
+
+        // Handle single click on map
+        map.on('singleclick', (event) => {
+            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+
+            svg.selectAll('circle').each(function () {
+                const circle = d3.select(this);
+                const circleX = parseFloat(circle.attr('cx'));
+                const circleY = parseFloat(circle.attr('cy'));
+                const radius = parseFloat(circle.attr('r'));
+
+                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                    // Circle clicked! Perform your action here
+                    const id = circle.attr('data-id');
+                    const sizeValue = circle.attr('data-size-value');
+                    const index = circle.attr('data-index');
+
+                    console.log(`Clicked circle: ID = ${id}, SizeValue = ${sizeValue}, Index = ${index}`);
+
+                    // Change the circle's fill color on click
+                    circle.attr('fill', 'blue');
+                }
+            });
+        });
+
+        // Handle pointer movement over the map
+        map.on('pointermove', (event) => {
+            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+
+            svg.selectAll('circle').each(function () {
+                const circle = d3.select(this);
+                const circleX = parseFloat(circle.attr('cx'));
+                const circleY = parseFloat(circle.attr('cy'));
+                const radius = parseFloat(circle.attr('r'));
+
+                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+                    // Mouse is over the circle
+                    circle.attr('fill', 'red');
+                } else {
+                    // Mouse is outside the circle
+                    circle.attr('fill', canvasLayer.options.circleOptions.color); // Revert to original color
+                }
+            });
+        });
     }
 
     private renderCircles(
@@ -582,22 +655,7 @@ export class OpenMapVisual implements IVisual {
             this.map.on('pointerdrag', debouncedUpdate);
             this.map.on('moveend', debouncedUpdate);
 
-            // Render legend if proportional circles are used
-            if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
-                const opacity = circleOptions.legendBackgroundOpacity / 100;
-                const bgColor = circleOptions.legendBackgroundColor;
-                const bottomMargin = `${circleOptions.legendBottomMargin}px`;
 
-                this.createProportionalCircleLegend(
-                    circleSizeValues,
-                    radii,
-                    opacity,
-                    bgColor,
-                    bottomMargin,
-                    circleOptions.legendTitle,
-                    circleOptions
-                );
-            }
 
         });
 
@@ -910,43 +968,46 @@ export class OpenMapVisual implements IVisual {
     }
 
     private createProportionalCircleLegend(
+        legendContainer: HTMLElement,
         sizeValues: number[],
         radii: number[],
-        opacity: number,
-        backgroundColor: string,
-        bottomMargin: string,
         legendTitle: string,
         circleOptions: CircleOptions,
         formatTemplate: string = "{:.0f}"
     ) {
-        const container = this.circleLegend;
+        //const container = legendContainer;
 
-        if (!container) {
+        if (!legendContainer) {
             console.error("Container not found");
             return;
         }
 
+        const opacity = circleOptions.legendBackgroundOpacity / 100;
+        const bgColor = circleOptions.legendBackgroundColor;
+        const bottomMargin = `${circleOptions.legendBottomMargin}px`;
+
+
         // compute container background color and opacity
-        const bgColor = hexToRgba(backgroundColor, opacity);
+        const legendBbgColor = hexToRgba(bgColor, opacity);
 
         // Set background for container and SVG
-        container.style.backgroundColor = bgColor;
-        container.style.bottom = bottomMargin;
+        legendContainer.style.backgroundColor = legendBbgColor;
+        legendContainer.style.bottom = bottomMargin;
 
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.style.display = "block"; // Ensure SVG takes up the full container width/height
 
         // Clear previous content
-        while (container.firstChild) {
-            container.removeChild(container.firstChild);
+        while (legendContainer.firstChild) {
+            legendContainer.removeChild(legendContainer.firstChild);
         }
 
         // Set container styles for centering
-        container.style.display = "flex";
-        container.style.flexDirection = "column"; // Stack the title and legend items vertically
-        container.style.alignItems = "flex-start"; // Align the items to the left by default
-        container.style.height = "auto"; // Let container height adjust dynamically
-        container.style.padding = "5px"; // Uniform padding around container
+        legendContainer.style.display = "flex";
+        legendContainer.style.flexDirection = "column"; // Stack the title and legend items vertically
+        legendContainer.style.alignItems = "flex-start"; // Align the items to the left by default
+        legendContainer.style.height = "auto"; // Let container height adjust dynamically
+        legendContainer.style.padding = "5px"; // Uniform padding around container
 
         // Add title to the legend with customizable alignment
         const title = document.createElement("div");
@@ -957,10 +1018,12 @@ export class OpenMapVisual implements IVisual {
         title.style.marginBottom = "5px";
 
         // Append the title to the legend
-        container.appendChild(title);
+        legendContainer.appendChild(title);
 
         // Get legend data using the provided function
         const legendData = getProportionalCircleLegendData(sizeValues, radii);
+
+        console.log(legendData);
 
         if (!legendData || legendData.length === 0) {
             console.error("Invalid legend data");
@@ -1054,7 +1117,7 @@ export class OpenMapVisual implements IVisual {
         svg.setAttribute("preserveAspectRatio", "xMinYMin meet"); // Preserve scaling
 
         // Append the SVG to the container
-        container.appendChild(svg);
+        legendContainer.appendChild(svg);
     }
 
     // Debounce function

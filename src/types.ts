@@ -36,6 +36,7 @@ export interface CircleLayerOptions  extends LayerOptions{
     minCircleSizeValue?: number;
     circleScale?: number;
     svg: any;
+    zIndex: number;
     //features: Feature[];
   }
   

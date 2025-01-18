@@ -5,17 +5,20 @@ import { select } from 'd3-selection';
 import { State } from 'ol/source/Source';
 import { CircleLayerOptions } from './types';
 import { geoBounds, geoMercator, geoPath } from 'd3-geo';
-import { getCenter, getWidth } from 'ol/extent.js';
+import { Extent, getCenter, getWidth } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
+import { transformExtent } from 'ol/proj.js';
 
 
 export class CanvasLayer extends Layer {
 
     private svg: any;
     private features: any;
+    public options: CircleLayerOptions;
 
     constructor(options: CircleLayerOptions) {
-        super(options);
+
+        super({ ...options, zIndex: options.zIndex || 10 });
 
         // Create GeoJSON features from longitudes and latitudes
         this.features = options.longitudes.map((lon, index) => ({
@@ -27,7 +30,8 @@ export class CanvasLayer extends Layer {
             properties: {} // add additional properties here e.g Id for tracking selections
         }));
 
-        this.svg = options.svg; 
+        this.svg = options.svg;
+        this.options = options;
 
     }
 
@@ -83,26 +87,116 @@ export class CanvasLayer extends Layer {
 
         d3Path = d3Path.projection(d3Projection);
 
-        // Clear the previous SVG content before appending new paths
-        this.svg.selectAll('*').remove(); // Clear all existing elements
+        this.svg.selectAll('*').remove();
 
         // Dynamically append paths for each feature
         this.svg.attr('width', width);
         this.svg.attr('height', height);
 
-        // Select all paths (or append if they don't exist)
-        this.svg.selectAll('path')
-            .data(this.features) // Bind data to path elements
-            .join('path') // Use .join() to append or update paths
-            .attr('d', function (d) {
-                console.log('Feature Geometry:', d.geometry); // Log geometry to check it
-                const pathData = d3Path(d); // Generate the 'd' attribute for each feature
-                console.log('Generated Path Data:', pathData); // Log the generated path data
-                return pathData; // Return the 'd' attribute value
-            })
-            .attr('fill', 'none') // Example styling, modify as needed
-            .attr('stroke', 'black'); // Example styling, modify as needed
+        // Check if sizeValues are provided and valid for rendering circles
+        const sizeValues = this.options.circleSizeValues || [];
+        const hasSizeValues = sizeValues.length > 0;
+
+        if (hasSizeValues) {
+
+            // Render circles for point features
+            const { minRadius, color, strokeColor, strokeWidth } = this.options.circleOptions;
+
+            // Calculate scale for circle sizes
+            const minSize = Math.min(...sizeValues);
+            const maxSize = Math.max(...sizeValues);
+            const circleScale = (value: number) => minRadius + ((value - minSize) / (maxSize - minSize)) * (this.options.circleOptions.maxRadius - minRadius);
+
+            this.features.forEach((feature, i) => {
+
+                if (feature.geometry.type === "Point") {
+
+                    const [lon, lat] = feature.geometry.coordinates;
+                    const projected = d3Projection([lon, lat]);
+
+                    if (projected) {
+                        const [x, y] = projected;
+                        const radius = circleScale(sizeValues[i]);
+
+                        this.svg.append('circle')
+                            .attr('cx', x)
+                            .attr('cy', y)
+                            .attr('r', radius)
+                            .attr('fill', color)
+                            .attr('stroke', strokeColor)
+                            .attr('stroke-width', strokeWidth)
+                            .attr('data-id', feature.properties.id) // Attach unique ID
+                            .attr('data-size-value', sizeValues[i]) // Attach size value
+                            .attr('data-index', i); // Attach index;
+                        //.style('pointer-events', 'none')
+                        // Disable pointer events for circles
+                    }
+                }
+            });
+
+        } else {
+
+            // Render other features (lines, polygons, etc.) using path elements
+            // this.svg.selectAll('path')
+            //     .data(this.features)
+            //     .join('path')
+            //     .attr('d', (d) => d3Path(d)) // Generate the path using d3.geoPath
+            //     .attr('fill', this.options.circleOptions.color) // Set fill color from circleOptions
+            //     .attr('stroke', this.options.circleOptions.strokeColor) // Set stroke color from circleOptions
+            //     .attr('stroke-width', this.options.circleOptions.strokeWidth)
+            //     .style('pointer-events', 'none'); // Set stroke width
+
+            // Select all paths (or append if they don't exist)
+            this.svg.selectAll('path')
+                .data(this.features) // Bind data to path elements
+                .join('path') // Use .join() to append or update paths
+                .attr('d', function (d) {
+                    console.log('Feature Geometry:', d.geometry); // Log geometry to check it
+                    const pathData = d3Path(d); // Generate the 'd' attribute for each feature
+                    console.log('Generated Path Data:', pathData); // Log the generated path data
+                    return pathData; // Return the 'd' attribute value
+                })
+                .attr('fill', 'none') // Example styling, modify as needed
+                .attr('stroke', 'black')
+                .attr('fill', this.options.circleOptions.color)
+                .attr('stroke', this.options.circleOptions.strokeColor)
+                .attr('stroke-width', this.options.circleOptions.strokeWidth)
+
+                .style('pointer-events', 'none'); // Disbale pointer events  ; // Example styling, modify as needed
+        }
 
         return this.svg.node();
     }
+
+
+    // Expose SVG for external handlers
+    getSvg() {
+        return this.svg;
+    }
+
+    getCirclesExtent() {
+        return this.calculateCirclesExtent(this.options.longitudes, this.options.latitudes);
+    }
+
+    private calculateCirclesExtent(longitudes: number[], latitudes: number[]): Extent {
+        if (longitudes.length === 0 || latitudes.length === 0) {
+            throw new Error("Longitude and latitude arrays must not be empty.");
+        }
+    
+        if (longitudes.length !== latitudes.length) {
+            throw new Error("Longitude and latitude arrays must have the same length.");
+        }
+    
+        const minX = Math.min(...longitudes);
+        const maxX = Math.max(...longitudes);
+        const minY = Math.min(...latitudes);
+        const maxY = Math.max(...latitudes);
+    
+        const extent = [minX, minY, maxX, maxY];
+    
+        const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+    
+        return transformedExtent;
+    }
+
 }
