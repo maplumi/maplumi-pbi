@@ -288,7 +288,7 @@ export class OpenMapVisual implements IVisual {
         }
 
         // Force the map to update its size, for example when the visual window is resized
-        this.map.updateSize();
+        //this.map.updateSize();
 
     }
 
