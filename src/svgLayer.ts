@@ -61,7 +61,7 @@ export class SvgLayer {
     // Rendering Functions
     renderPoints(features) {
 
-        const group = this.d3Svg.append("g").attr("class", "points")
+        const group = this.d3Svg.append("g").attr("id", "points")
         features.forEach(feature => {
             const { coordinates } = feature.geometry;
             const pixel = this.getPixelFromCoordinate(
@@ -81,7 +81,7 @@ export class SvgLayer {
     }
 
     renderMultiPoints(features) {
-        const group = this.d3Svg.append("g").attr("class", "multipoints")
+        const group = this.d3Svg.append("g").attr("id", "multipoints")
         features.forEach(feature => {
             const { coordinates } = feature.geometry;
             coordinates.forEach(point => {
@@ -103,7 +103,7 @@ export class SvgLayer {
     }
 
     renderLines(features) {
-        const group = this.d3Svg.append("g").attr("class", "lines")
+        const group = this.d3Svg.append("g").attr("id", "lines")
         features.forEach(feature => {
             const { coordinates } = feature.geometry;
             const lineData = this.transformCoordinates(coordinates);
@@ -121,7 +121,7 @@ export class SvgLayer {
     }
 
     renderMultiLineStrings(features) {
-        const group = this.d3Svg.append("g").attr("class", "multilinestrings")
+        const group = this.d3Svg.append("g").attr("id", "multilinestrings")
         features.forEach(feature => {
             const { coordinates } = feature.geometry;
             coordinates.forEach(lineString => {
@@ -141,7 +141,7 @@ export class SvgLayer {
     }
 
     renderPolygons(features) {
-        const group = this.d3Svg.append("g").attr("class", "polygons")
+        const group = this.d3Svg.append("g").attr("id", "polygons")
         features.forEach(feature => {
             const { type, coordinates } = feature.geometry;
             const polygons = type === "Polygon" ? [coordinates] : coordinates;
@@ -182,5 +182,7 @@ export class SvgLayer {
 
 
         this.loader.classList.add('hidden'); // Hide the loader after rendering
+
+        console.log('Render completed!');
     }
 }
