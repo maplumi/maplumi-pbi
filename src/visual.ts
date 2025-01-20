@@ -48,49 +48,34 @@ import { Basemap } from "./basemap";
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
-import { Layer } from "ol/layer";
-import VectorLayer from "ol/layer/Vector";
-import VectorSource from "ol/source/Vector";
 
-import { Feature } from "ol";
-import Point from "ol/geom/Point";
-import { fromLonLat, toLonLat, transformExtent } from "ol/proj";
+import { fromLonLat } from "ol/proj";
 
-import Style from "ol/style/Style";
-import Circle from "ol/style/Circle";
-import Fill from "ol/style/Fill";
-import Stroke from "ol/style/Stroke";
-import FeatureLike from "ol/Feature";
-
-import Overlay from "ol/Overlay"; // Import Overlay class
 import GeoJSON from "ol/format/GeoJSON";
 import TopoJSON from "ol/format/TopoJSON"
 
 import TileLayer from "ol/layer/Tile";
-import Attribution from "ol/control/Attribution";
 
 import { easeOut } from "ol/easing";
-import { Pixel } from "ol/pixel";
+
 import { defaults as defaultControls } from "ol/control";
-import { Extent } from "ol/extent.js";
-import { getCenter, getWidth } from 'ol/extent.js';
 
 import { MapboxVectorLayer } from "ol-mapbox-style";
 
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
-import { BasemapOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions } from "./types";
+import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
 
-import { CanvasLayer } from "./canvasLayer";
+import { CircleLayer } from "./circleLayer";
+import { SvgLayer } from "./svgLayer";
 
 import * as d3 from "d3";
 
-import { geoBounds, geoMercator, geoPath } from 'd3-geo';
+import * as util from "./utils"
+import { Legend } from "./legend";
 
-import { json } from 'd3-fetch';
-import { select } from 'd3-selection';
 
 interface TooltipDataItem {
     displayName: string;
@@ -110,35 +95,38 @@ export class OpenMapVisual implements IVisual {
 
     private container: HTMLElement;
 
-    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
     private svgOverlay: SVGSVGElement;
-    private d3Container: any;
+
+    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
+
+    private svgContainer: HTMLElement;
+    private loader: HTMLElement;
+
     private map: Map;
-    private features: Feature[] = [];
+    private legend: Legend;
 
     private basemap: Basemap;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
 
-    private fitMapOptions: any;
-    private choroplethVectorSource: VectorSource;
-    private choroplethVectorLayer: VectorLayer;
-    private circleLayer: CanvasLayer;
+    private circleLayer: CircleLayer;
+    private choroplethLayer: SvgLayer;
 
-    private circleStyle: Style;
-    private circleHighlightStyle: Style;
-    private choroplethStyle: Style;
-    private choroplethHighlightStyle: Style;
-    private tooltip: Overlay;
     private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
     private choroplethLegend: HTMLElement;
     private circleLegend: HTMLElement;
 
+    private fitMapOptions: any;
+
+    private memoryCache: Record<string, { data: any; timestamp: number }>;
+
     constructor(options: VisualConstructorOptions) {
 
         this.host = options.host;
+
+        this.memoryCache = {};
 
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new HumanitarianMapVisualFormattingSettingsModel();
@@ -153,6 +141,25 @@ export class OpenMapVisual implements IVisual {
         // Ensure the container has proper dimensions
         this.container.style.width = "100%";
         this.container.style.height = "100%";
+
+        // create loader/spinner element
+        this.loader = document.createElement('div');
+        this.loader.id = 'loader';
+        this.loader.classList.add('loader');
+        this.loader.style.border = '8px solid #f3f3f3';
+        this.loader.style.borderRadius = '50%';
+        this.loader.style.borderTop = '8px solid #3498db';
+        this.loader.style.width = '40px';
+        this.loader.style.height = '40px';
+        this.loader.style.animation = 'spin 2s linear infinite';
+        this.loader.style.position = 'absolute';
+        this.loader.style.top = '50%';
+        this.loader.style.left = '50%';
+        this.loader.style.transform = 'translate(-50%, -50%)';
+        this.loader.style.zIndex = '1000';
+        this.loader.style.display = 'none'; // Initially hidden
+
+        this.container.appendChild(this.loader);
 
         // Ensure the choropleth legend container is also appended to the same parent
         const choroplethLegendContainer = document.createElement("div");
@@ -190,37 +197,6 @@ export class OpenMapVisual implements IVisual {
 
         this.container.appendChild(circleLegendContainer);
 
-        this.circleStyle = new Style({
-            image: new Circle({
-                radius: 6, // Set the size of the circle
-                fill: new Fill({
-                    color: "#009edb", // Set the color of the circle
-                }),
-                stroke: new Stroke({
-                    color: "ffffff",
-                    width: 1,
-                }),
-            }),
-        });
-
-        this.choroplethStyle = new Style({
-            stroke: new Stroke({
-                color: "#ffffff",
-                width: 1,
-            }),
-            fill: new Fill({
-                color: "#009edb",
-            }),
-        });
-
-        // Initialize the vector source and layers
-        this.choroplethVectorSource = new VectorSource();
-
-        this.choroplethVectorLayer = new VectorLayer({
-            source: this.choroplethVectorSource,
-            style: this.choroplethStyle,
-        });
-
         // Initialize the map
         this.map = new Map({
             target: this.container,
@@ -246,6 +222,8 @@ export class OpenMapVisual implements IVisual {
         this.choroplethLegend = document.getElementById("legend");
         this.circleLegend = document.getElementById("legend2");
 
+        this.legend = new Legend();
+
         // Fit map options
         this.fitMapOptions = {
             padding: [50, 50, 50, 50],
@@ -253,8 +231,7 @@ export class OpenMapVisual implements IVisual {
             easing: easeOut,
         };
 
-
-        // svg overlay
+        // circle svg overlay
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -264,12 +241,14 @@ export class OpenMapVisual implements IVisual {
             this.svgOverlay.style.left = '0';
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
-
-            this.svgOverlay.style.pointerEvents = 'none';
+            this.svgOverlay.style.pointerEvents = 'none'; // Let the map handle pointer events by default
         }
 
-        // set svg element
-        this.svg = d3.select(this.svgOverlay);
+        this.container.appendChild(this.svgOverlay);
+
+        //this.svg = d3.select(this.svgOverlay);
+
+        //this.svgContainer = document.createElement("div");
 
         console.log("Visual initialized.");
     }
@@ -279,6 +258,7 @@ export class OpenMapVisual implements IVisual {
         console.log("Update invoked.");
 
         this.svg.selectAll('*').remove();
+
         this.svgOverlay.style.display = 'none';
 
         // Retrieve the model and settings
@@ -295,21 +275,24 @@ export class OpenMapVisual implements IVisual {
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
 
-            // clear layers
-            this.clearMap(this.choroplethVectorSource);
-            this.svg.select('*').remove();
+            this.svg.selectAll('*').remove();
+
 
             return;
         }
 
-        // Force the map to update its size, for example when the visual window is resized
-        this.map.updateSize();
-
         this.updateBasemap(basemapOptions);
 
-        this.renderCircleLayer(dataView.categorical, circleOptions);
+        if (circleOptions.layerControl) {
+            this.renderCircleLayer(dataView.categorical, circleOptions);
+        }
 
-        this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+        if (choroplethOptions.layerControl) {
+            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+        }
+
+        // Force the map to update its size, for example when the visual window is resized
+        this.map.updateSize();
 
     }
 
@@ -365,8 +348,7 @@ export class OpenMapVisual implements IVisual {
 
         if (circleOptions.layerControl) {
 
-            // Clear the previous SVG content before appending new paths
-            this.svg.selectAll('*').remove(); // Clear all existing elements
+            this.svg.select('#circles-group').remove();
             this.svgOverlay.style.display = 'block';
 
             console.log('Rendering circles...')
@@ -409,7 +391,8 @@ export class OpenMapVisual implements IVisual {
                         minCircleSizeValue: minCircleSizeValue,
                         circleScale: circleScale,
                         svg: this.svg,
-                        zIndex: 10
+                        svgContainer: this.svgContainer,
+                        zIndex: 5
 
                         // OpenLayers-specific options
                         // opacity: 1,                                // Layer opacity
@@ -417,15 +400,14 @@ export class OpenMapVisual implements IVisual {
 
                     };
 
-                    this.circleLayer = new CanvasLayer(circleLayerOptions);
+                    this.circleLayer = new CircleLayer(circleLayerOptions);
 
                     this.map.addLayer(this.circleLayer);
 
-                    this.addCanvasLayerEvents(this.map, this.circleLayer);
+                    this.addCircleLayerEvents(this.map, this.circleLayer);
 
                     // Calculate extent of features
-                    const extent = this.circleLayer.getCirclesExtent();
-                    console.log('Extent:', extent);
+                    const extent = this.circleLayer.getFeaturesExtent();
 
                     this.map.getView().fit(extent, this.fitMapOptions);
 
@@ -446,9 +428,7 @@ export class OpenMapVisual implements IVisual {
 
                         });
 
-                        console.log('radii',radii);
-
-                        this.createProportionalCircleLegend(
+                        this.legend.createProportionalCircleLegend(
                             this.circleLegend,
                             circleSizeValues,
                             radii,
@@ -460,17 +440,276 @@ export class OpenMapVisual implements IVisual {
                 }
             } else {
                 console.warn("Both Longitude and Latitude roles must be assigned.");
-                this.svg.selectAll('*').remove();
+                this.svg.select('#circles-group').remove();
             }
         } else {
             // we are not rendering circles
-            this.svg.selectAll('*').remove();
+            this.svg.select('#circles-group').remove();
         }
+    }
+
+    private renderChoroplethLayer(
+        categorical: any,
+        choroplethOptions: ChoroplethOptions
+    ) {
+        // Ensure legends are hidden when updating
+        this.choroplethLegend.style.display = "none";
+
+        this.svg.select('#paths-group').remove();
+
+
+        console.log('Rendering choropleth...');
+
+        // Validate input data
+        if (!categorical.values || categorical.values.length === 0) {
+            console.warn("Measures not found.");
+            //this.svg.selectAll('g').remove(); // set group selection
+            return;
+        }
+
+        const AdminPCodeNameIDCategory = categorical.categories.find(
+            (c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]
+        );
+
+        if (!AdminPCodeNameIDCategory) {
+            console.warn("Admin PCode/Name/ID not found.");
+            //this.svg.selectAll('g').remove(); // set group selection
+            return;
+        }
+
+        const colorMeasure = categorical.values.find(
+            (c) => c.source?.roles && c.source.roles["Color"]
+        );
+
+        if (!colorMeasure) {
+            console.warn("Color Measure not found.");
+            //this.svg.selectAll('g').remove(); // set group selection
+            return;
+        }
+
+        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
+        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
+        const CACHE_EXPIRY_MS = 3600000; // 1 hour
+
+        try {
+
+            util.fetchAndCacheJsonBoundaryData(
+
+                serviceUrl,
+                this.memoryCache,
+                cacheKey,
+                CACHE_EXPIRY_MS
+
+            ).then(data => {
+
+                this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
+            });
+
+            // util.fetchJsonBoundaryData(serviceUrl).then(data => {
+
+            //     this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
+
+            // });
+
+        } catch (error) {
+            console.error("Error fetching GeoJSON data:", error);
+        }
+
+
+    }
+
+    private renderChoropleth(geodata: any, category: any, measure: any, options: ChoroplethOptions, map: Map) {
+
+        // Get PCodes (this is the category/feature identifier)
+        const pCodes = category.values as string[];
+        if (!pCodes || pCodes.length === 0) {
+            console.warn("No PCodes found. Exiting...");
+            return;
+        }
+
+        // Filter valid PCodes
+        const validPCodes = pCodes.filter((pcode) => pcode);
+        if (validPCodes.length === 0) {
+            console.warn("No valid PCodes found. Exiting...");
+            return;
+        }
+
+        const colorValues: number[] = measure.values;
+        const classBreaks = this.getClassBreaks(colorValues, options);
+        const colorScale = this.getColorScale(classBreaks, options);
+        const pcodeKey = options.locationPcodeNameId;
+
+        let features: any;
+
+        // Parse GeoJSON or TopoJSON
+        if (util.isValidGeoJson(geodata)) {
+            const format = new GeoJSON();
+            features = format.readFeatures(geodata, {
+                dataProjection: "EPSG:4326",
+                //featureProjection: "EPSG:3857",
+            });
+        } else if (util.isValidTopoJson(geodata)) {
+            const format = new TopoJSON();
+            features = format.readFeatures(geodata, {
+                dataProjection: "EPSG:4326",
+                //featureProjection: "EPSG:3857",
+            });
+        } else {
+            console.error("Input data is neither GeoJSON nor TopoJSON.");
+            return;
+        }
+
+        //console.log('Features:', features);
+
+        // Filter features based on PCodes
+        const filteredFeatures = features.filter((feature: any) => {
+            const featurePCode = feature.get(pcodeKey);
+            return validPCodes.includes(featurePCode);
+        });
+
+
+        // Prepare GeoJSON FeatureCollection for rendering
+        const geojson = {
+            type: "FeatureCollection",
+            features: filteredFeatures.map((feature: any) => {
+                const geometry = feature.getGeometry(); // Access geometry using getGeometry()
+                return {
+                    type: "Feature",
+                    geometry: {
+                        type: geometry.getType(), // Get geometry type (e.g., 'Polygon')
+                        coordinates: geometry.getCoordinates()
+                    },
+                    properties: {
+                        pCode: feature.get(pcodeKey), // Access property using feature.get()
+                    },
+                };
+            }),
+        };
+
+
+        // Attach colors to features based on measure values
+        geojson.features.forEach((feature: any) => {
+            const pCode = feature.properties.pCode;
+            const value = colorValues[validPCodes.indexOf(pCode)];
+            feature.properties.color = this.getColorForValue(value, classBreaks, colorScale);
+        });
+
+
+        // Create and add the svgLayer for rendering choropleth
+        this.choroplethLayer = new SvgLayer({
+            map: this.map,
+            d3Svg: this.svgOverlay,
+            loader: this.loader,
+            geojsonData: geojson, // Pass geojson with color data
+            colorScale: colorScale, // Pass the color scale for choropleth
+            dataKey: pcodeKey, // The key for accessing data values in geojson
+            zIndex: 5,
+        });
+
+
+
+        this.choroplethLayer.render();
+
+        const extent = this.choroplethLayer.getFeaturesExtent();
+
+        map.getView().fit(extent, this.fitMapOptions);
+
+        this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
+
+
+        // Update the legend
+        if (options.showLegend) {
+            this.legend.createChoroplethLegend(
+                this.container,
+                colorValues,
+                classBreaks,
+                colorScale,
+                options,
+                "top"
+            );
+        } else {
+            const legend = document.getElementById("legend");
+            if (legend) {
+                legend.style.display = "none"; // Hide the legend
+            }
+        }
+
+
+
     }
 
 
 
-    private addCanvasLayerEvents(map: Map, canvasLayer: CanvasLayer) {
+    private addChoroplethLayerEvents(map: Map, svgLayer: SvgLayer) {
+
+        const svg = svgLayer.getSvg();
+
+        // Handle single click on map
+        map.on('singleclick', (event) => {
+            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+
+            // Handle choropleth click event
+            svg.selectAll('path').each(function () {
+                const path = d3.select(this);
+                const bounds = path.node().getBoundingClientRect();
+                const pathX = bounds.left;
+                const pathY = bounds.top;
+                const pathWidth = bounds.width;
+                const pathHeight = bounds.height;
+
+                // Check if the mouse click is within the bounds of the path
+                if (
+                    mouseX >= pathX && mouseX <= pathX + pathWidth &&
+                    mouseY >= pathY && mouseY <= pathY + pathHeight
+                ) {
+                    // Choropleth feature clicked! Perform your action here
+                    const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
+                    //const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
+                    //const value = feature.properties[dataKey];
+
+                    //console.log(`Clicked choropleth: Value = ${value}`);
+
+                    // Change the fill color for clicked choropleth feature
+                    path.attr('fill', 'blue');
+                }
+            });
+
+        });
+
+        // Handle pointer movement over the map
+        map.on('pointermove', (event) => {
+            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+
+            // Handle pointer movement over choropleth features
+            svg.selectAll('path').each(function () {
+                const path = d3.select(this);
+                const bounds = path.node().getBoundingClientRect();
+                const pathX = bounds.left;
+                const pathY = bounds.top;
+                const pathWidth = bounds.width;
+                const pathHeight = bounds.height;
+
+                if (
+                    mouseX >= pathX && mouseX <= pathX + pathWidth &&
+                    mouseY >= pathY && mouseY <= pathY + pathHeight
+                ) {
+                    // Mouse is over the choropleth feature
+                    path.attr('fill', 'red');
+                } else {
+                    // Mouse is outside the choropleth feature
+                    const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
+                    //const colorScale = (canvasLayer.options as ChoroplethLayerOptions).colorScale;
+                    //const dataKey = (canvasLayer.options as ChoroplethLayerOptions).dataKey;
+                    //const color = colorScale(feature.properties[dataKey]);
+                    //path.attr('fill', color); // Revert to original color
+                }
+            });
+
+        });
+    }
+
+    private addCircleLayerEvents(map: Map, canvasLayer: CircleLayer) {
+
         const svg = canvasLayer.getSvg();
 
         // Helper function to check if a point is inside a circle
@@ -484,6 +723,7 @@ export class OpenMapVisual implements IVisual {
         map.on('singleclick', (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
 
+            // Handle circle click event
             svg.selectAll('circle').each(function () {
                 const circle = d3.select(this);
                 const circleX = parseFloat(circle.attr('cx'));
@@ -502,12 +742,14 @@ export class OpenMapVisual implements IVisual {
                     circle.attr('fill', 'blue');
                 }
             });
+
         });
 
         // Handle pointer movement over the map
         map.on('pointermove', (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
 
+            // Handle pointer movement over circles
             svg.selectAll('circle').each(function () {
                 const circle = d3.select(this);
                 const circleX = parseFloat(circle.attr('cx'));
@@ -519,616 +761,95 @@ export class OpenMapVisual implements IVisual {
                     circle.attr('fill', 'red');
                 } else {
                     // Mouse is outside the circle
-                    circle.attr('fill', canvasLayer.options.circleOptions.color); // Revert to original color
+
+                    const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || 'defaultColor';
+                    circle.attr('fill', circleColor);
                 }
             });
+
         });
     }
 
-    private renderCircles(
-        longitudes: number[],
-        latitudes: number[],
-        circleOptions: CircleOptions,
-        tooltips: any[],
-        circleSizeValues?: number[], // Optional for proportional circles
-        minCircleSizeValue?: number,
-        circleScale?: number
-    ) {
 
-        // Handle empty data
-        if (!longitudes || longitudes.length === 0) {
-            console.warn('No data to render circles');
-            return;
-        }
-
-        // Select the <g> element or create it if it doesn't exist
-        let g = this.svg.select('#circle-group');
-
-        // Clear existing contents inside the <g> element
-        g.selectAll('*').remove();
-
-        g = this.svg.append('g')
-            .attr('id', 'circle-group')
-            .style('pointer-events', 'none');
-
-        console.log('Adding circles to g element...');
-
-        const projectcoordinate = (lon: number, lat: number): [number, number] => {
-            const coord = fromLonLat([lon, lat]);
-            const pixel = this.map.getPixelFromCoordinate(coord);
-            return [pixel[0], pixel[1]];
-        };
-
-        const radii: number[] = [];
-
-        // Render circles
-
-        requestAnimationFrame(() => {
-
-            longitudes.forEach((lon, i) => {
-                const lat = latitudes[i];
-                if (isNaN(lon) || isNaN(lat)) {
-                    //console.warn(`Skipping invalid point: lon = ${lon}, lat = ${lat}`);
-                    return;
-                }
-
-                // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
-                const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
-                    ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
-                    : circleOptions.minRadius;
-
-                //console.log('Radius:', radius);
-
-                const [x, y] = projectcoordinate(lon, lat);
-
-                g.append('circle')
-                    .attr('cx', x)
-                    .attr('cy', y)
-                    .attr('r', radius)
-                    .attr('fill', circleOptions.color)
-                    .attr('stroke', circleOptions.strokeColor)
-                    .attr('stroke-width', circleOptions.strokeWidth)
-                    .style('pointer-events', 'none'); // Disbale pointer events          
-                // .append('title')
-                // .text(tooltips ? tooltips[i] : '');
-
-                radii.push(radius);
-
-            });
-
-
-            // Debounce the update function
-            const debouncedUpdate = this.debounce(() => {
-                g.selectAll('circle').each(function (_, i) {
-                    const lon = longitudes[i];
-                    const lat = latitudes[i];
-                    if (isNaN(lon) || isNaN(lat)) return;
-
-                    const [x, y] = projectcoordinate(lon, lat);
-
-                    d3.select(this)
-                        .attr('cx', x)
-                        .attr('cy', y);
-                });
-            }, 1);
-
-
-            this.map.on('singleclick', function (event) {
-                const mousePosition = event.pixel; // Get mouse coordinates in pixels
-                const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
-
-                g.selectAll('circle').each(function () {
-                    const circle = d3.select(this);
-                    const circleX = parseFloat(circle.attr('cx'));
-                    const circleY = parseFloat(circle.attr('cy'));
-                    const radius = parseFloat(circle.attr('r'));
-
-                    if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                        // Circle clicked! Perform your action here
-                        circle.attr('fill', 'blue');
-                    }
-                });
-            });
-
-            // Use the map's 'pointermove' event for mouseover/mouseout
-            this.map.on('pointermove', function (event) {
-                const mousePosition = event.pixel;
-                const [mouseX, mouseY] = [mousePosition[0], mousePosition[1]];
-
-                g.selectAll('circle').each(function () {
-                    const circle = d3.select(this);
-                    const circleX = parseFloat(circle.attr('cx'));
-                    const circleY = parseFloat(circle.attr('cy'));
-                    const radius = parseFloat(circle.attr('r'));
-
-                    if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                        // Mouse is over the circle
-                        circle.attr('fill', 'red');
-                    } else {
-                        // Mouse is outside the circle
-                        circle.attr('fill', circleOptions.color); // Revert to original color
-                    }
-                });
-            });
-
-            this.map.on('movestart', debouncedUpdate);
-            this.map.on('pointerdrag', debouncedUpdate);
-            this.map.on('moveend', debouncedUpdate);
-
-
-
-        });
-
-
-        // Calculate extent of features
-        const extent = calculateExtent(longitudes, latitudes);
-
-        this.map.getView().fit(extent, this.fitMapOptions);
-    }
-
-    private renderChoroplethLayer(
-        categorical: any,
-        choroplethOptions: ChoroplethOptions
-    ) {
-
-        // Ensure legends are hidden when updating
-        this.choroplethLegend.style.display = "none";
-
-        if (choroplethOptions.layerControl) {
-
-            console.log('Rendering choropleth...')
-
-            if (!categorical.values || categorical.values.length === 0) {
-                console.warn("Measures not found.");
-                this.choroplethVectorSource.clear();
-                return;
-            }
-
-            const AdminPCodeNameIDCategory = categorical.categories.find((c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]);
-
-            if (!AdminPCodeNameIDCategory) {
-                console.warn("Admin PCode/Name/ID not found.");
-                this.choroplethVectorSource.clear();
-                return;
-            }
-
-            const colorMeasure = categorical.values.find(
-                (c) => c.source?.roles && c.source.roles["Color"]
-            );
-
-            if (!colorMeasure) {
-                console.warn("Color Measure not found.");
-                this.choroplethVectorSource.clear();
-                return;
-            }
-
-            const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
-
-            const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
-
-            const maxAge = 3600000; // Cache expiry time (1 hour)
-
-            fetchAndCacheJsonBoundaryData(serviceUrl, cacheKey, maxAge)
-                .then((jsondata) => {
-                    this.renderChoropleth(
-                        jsondata,
-                        AdminPCodeNameIDCategory,
-                        colorMeasure,
-                        choroplethOptions
-                    );
-                })
-                .catch((error) => {
-                    console.error("Error fetching GeoJSON data:", error);
-                });
+    // Helper to get color for a value based on class breaks
+    private getColorForValue(value: number, classBreaks: number[], colorScale: string[]): string {
+        if (value < classBreaks[0]) {
+            return colorScale[0];
+        } else if (value > classBreaks[classBreaks.length - 1]) {
+            return colorScale[colorScale.length - 1];
         } else {
-            // remove choropleth layer
-            this.choroplethVectorSource.clear();
+            for (let i = 0; i < classBreaks.length - 1; i++) {
+                if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
+                    return colorScale[i];
+                }
+            }
         }
-
+        return "#009edb"; // Default color
     }
 
-    // Function to process the GeoJSON/TopoJSON data and create a choropleth
-    private renderChoropleth(
-        jsonBoundaryData: any,
-        category: any,
-        measure: any,
-        options: ChoroplethOptions
-    ): void {
 
-        this.choroplethVectorSource.clear(); // Clear existing features
-
-        // Get PCodes
-        const pCodes = category.values as string[];
-
-        if (!pCodes) {
-            console.warn("No PCodes found. Exiting...");
-            return;
-        }
-
-        const validPCodes = pCodes.filter((pcode) => {
+    /**
+     * Extract and validate PCodes.
+     */
+    private getValidPCodes(pCodes: string[]): string[] {
+        return pCodes.filter((pcode) => {
             if (!pcode) {
                 console.warn(`Skipping invalid PCode: ${pcode}`);
                 return false;
             }
             return true;
         });
+    }
 
-        if (validPCodes.length === 0) {
-            console.warn("No valid PCodes found. Exiting...");
-            return;
-        }
+    /**
+     * Parse GeoJSON or TopoJSON boundary data.
+     */
+    private parseBoundaryData(
+        data: any,
+        validPCodes: string[],
+        pcodeKey: string
+    ): any[] | null {
+        let format;
+        let features;
 
-        const colorValues: number[] = measure.values;
-        const classBreaks = this.getClassBreaks(colorValues, options);
-        const colorScale = this.getColorScale(classBreaks, options);
-        const pcodeKey = options.locationPcodeNameId;
-
-        let format: any;
-        let features: any;
-
-        // Check if the input data is GeoJSON or TopoJSON
-        if (isValidGeoJson(jsonBoundaryData)) {
+        if (util.isValidGeoJson(data)) {
             format = new GeoJSON();
-            features = format.readFeatures(jsonBoundaryData, {
-                dataProjection: "EPSG:4326",
-                featureProjection: "EPSG:3857",
-            });
-        } else if (isValidTopoJson(jsonBoundaryData)) {
+        } else if (util.isValidTopoJson(data)) {
             format = new TopoJSON();
-            features = format.readFeatures(jsonBoundaryData, {
-                dataProjection: "EPSG:4326",
-                featureProjection: "EPSG:3857",
-            });
         } else {
             console.error("Input data is neither GeoJSON nor TopoJSON.");
-            return;
+            return null;
         }
 
-        // Filter features AFTER reading them
-        features = features.filter((feature: any) => {
-            const featurePCode = feature.get(pcodeKey);
-            return validPCodes.includes(featurePCode);
+        features = format.readFeatures(data, {
+            dataProjection: "EPSG:4326",
+            featureProjection: "EPSG:3857",
         });
 
-        // Create a vector source with the filtered features
-        this.choroplethVectorSource = new VectorSource({
-            features: features, // Use the filtered features directly
-        });
-
-        // Create a vector layer using the vector source
-        this.choroplethVectorLayer = new VectorLayer({
-            source: this.choroplethVectorSource,
-            style: (feature) => {
-                const featurePCode = feature.get(pcodeKey);
-
-                if (validPCodes.includes(featurePCode)) {
-                    const value = colorValues[validPCodes.indexOf(featurePCode)];
-                    let color = "#009edb"; // Default color
-
-                    if (value < classBreaks[0]) {
-                        color = colorScale[0];
-                    } else if (value > classBreaks[classBreaks.length - 1]) {
-                        color = colorScale[colorScale.length - 1];
-                    } else {
-                        for (let i = 0; i < classBreaks.length - 1; i++) {
-                            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
-                                color = colorScale[i];
-                                break;
-                            }
-                        }
-                    }
-
-                    return new Style({
-                        fill: new Fill({ color: color }),
-                        stroke: new Stroke({
-                            color: options.strokeColor,
-                            width: options.strokeWidth,
-                        }),
-                    });
-                } else {
-                    console.log(`Feature ${featurePCode} not rendered. Skipping...`);
-                    return null;
-                }
-            },
-            opacity: options.layerOpacity,
-        });
-
-
-        this.map.addLayer(this.choroplethVectorLayer);
-        this.fitMapToFeatures();
-
-        // Legend
-        if (options.showLegend) {
-            this.createChoroplethLegend(
-                colorValues,
-                classBreaks,
-                colorScale,
-                options,
-                "inside"
-            );
-        } else {
-            const legend = document.getElementById("legend");
-            if (legend) {
-                legend.style.display = "none"; // Hide the legend
-            }
-        }
-
-    }
-
-    private createChoroplethLegend(
-        colorValues: number[],
-        classBreaks: number[],
-        colorScale: any,
-        options: ChoroplethOptions,
-        legendLabelPosition: "top" | "inside" | "bottom" | "right" | "left" = "inside",
-        formatTemplate: string = "{:.0f}",
-        titleAlignment: "left" | "center" | "right" = "left",
-        gapSize: number = 2.5
-    ): void {
-        const uniqueColorValues: number[] = [...new Set(colorValues)].sort(
-            (a, b) => a - b
+        // Filter features by valid PCodes
+        return features.filter((feature: any) =>
+            validPCodes.includes(feature.get(pcodeKey))
         );
+    }
 
-        const legendContainer = this.choroplethLegend;
-        if (!legendContainer) return;
+    /**
+     * Get color based on class breaks.
+     */
+    private getColorFromClassBreaks(
+        value: number,
+        classBreaks: number[],
+        colorScale: string[]
+    ): string {
+        if (value < classBreaks[0]) return colorScale[0];
+        if (value > classBreaks[classBreaks.length - 1]) return colorScale[colorScale.length - 1];
 
-        // Clear existing legend
-        while (legendContainer.firstChild) {
-            legendContainer.removeChild(legendContainer.firstChild);
-        }
-
-        // compute legend background color and opacity
-        const opacity = options.legendBackgroundOpacity / 100;
-        const bgColor = hexToRgba(options.legendBackgroundColor, opacity);
-
-        // Style the legend container
-        legendContainer.style.display = "flex";
-        legendContainer.style.flexDirection = "column";
-        legendContainer.style.alignItems = "flex-start";
-        legendContainer.style.gap = "5px";
-        (legendContainer.style.backgroundColor = bgColor), //"rgba(255, 255, 255, 0.5)";
-            (legendContainer.style.border = "none");
-        legendContainer.style.padding = "5px";
-
-        // Add title to the legend with customizable alignment
-        const title = document.createElement("div");
-        title.textContent = options.legendTitle;
-        title.style.color = options.legendTitleColor;
-        title.style.fontSize = "12px";
-        title.style.fontWeight = "bold";
-        title.style.marginBottom = "5px";
-
-        // Align the title based on user selection
-        title.style.textAlign = titleAlignment;
-
-        // Align the title itself depending on the alignment choice
-        if (titleAlignment === "left") {
-            title.style.marginLeft = "0";
-        } else if (titleAlignment === "center") {
-            title.style.marginLeft = "auto";
-            title.style.marginRight = "auto";
-        } else if (titleAlignment === "right") {
-            title.style.marginLeft = "auto";
-        }
-
-        // Append the title to the legend
-        legendContainer.appendChild(title);
-
-        // Create horizontal layout for legend items
-        const itemsContainer = document.createElement("div");
-        itemsContainer.style.display = "flex";
-        itemsContainer.style.flexDirection = "row";
-        itemsContainer.style.alignItems = "flex-start";
-        itemsContainer.style.gap = `${gapSize}px`;
-
-        if (options.classifyData) {
-            // Classified Mode
-            for (let i = 0; i < classBreaks.length - 1; i++) {
-                const color = colorScale[i];
-                let labelText = "";
-
-                // Determine label text based on index
-                labelText = `${formatValue(
-                    classBreaks[i],
-                    formatTemplate
-                )} - ${formatValue(classBreaks[i + 1], formatTemplate)}`;
-
-                // Create legend item
-                const legendItem = createChoroplethLegendItem(
-                    labelText,
-                    color,
-                    options.legendLabelsColor,
-                    legendLabelPosition
-                );
-                itemsContainer.appendChild(legendItem);
-            }
-        } else {
-            // Unique Value Mode
-            for (let i = 0; i < uniqueColorValues.length; i++) {
-                const uniqueValue = uniqueColorValues[i];
-                const color = colorScale[i]; // Get color from colorScale
-                const labelText = formatValue(uniqueValue, formatTemplate); // Format the unique value
-
-                // Create legend item
-                const legendItem = createChoroplethLegendItem(
-                    labelText,
-                    color,
-                    options.legendLabelsColor,
-                    legendLabelPosition
-                );
-                itemsContainer.appendChild(legendItem);
+        for (let i = 0; i < classBreaks.length - 1; i++) {
+            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
+                return colorScale[i];
             }
         }
 
-        // Append the items container to the legend
-        legendContainer.appendChild(itemsContainer);
-
-        // Ensure the legend is visible
-        legendContainer.style.display = "flex";
-    }
-
-    private createProportionalCircleLegend(
-        legendContainer: HTMLElement,
-        sizeValues: number[],
-        radii: number[],
-        legendTitle: string,
-        circleOptions: CircleOptions,
-        formatTemplate: string = "{:.0f}"
-    ) {
-        //const container = legendContainer;
-
-        if (!legendContainer) {
-            console.error("Container not found");
-            return;
-        }
-
-        const opacity = circleOptions.legendBackgroundOpacity / 100;
-        const bgColor = circleOptions.legendBackgroundColor;
-        const bottomMargin = `${circleOptions.legendBottomMargin}px`;
-
-
-        // compute container background color and opacity
-        const legendBbgColor = hexToRgba(bgColor, opacity);
-
-        // Set background for container and SVG
-        legendContainer.style.backgroundColor = legendBbgColor;
-        legendContainer.style.bottom = bottomMargin;
-
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.style.display = "block"; // Ensure SVG takes up the full container width/height
-
-        // Clear previous content
-        while (legendContainer.firstChild) {
-            legendContainer.removeChild(legendContainer.firstChild);
-        }
-
-        // Set container styles for centering
-        legendContainer.style.display = "flex";
-        legendContainer.style.flexDirection = "column"; // Stack the title and legend items vertically
-        legendContainer.style.alignItems = "flex-start"; // Align the items to the left by default
-        legendContainer.style.height = "auto"; // Let container height adjust dynamically
-        legendContainer.style.padding = "5px"; // Uniform padding around container
-
-        // Add title to the legend with customizable alignment
-        const title = document.createElement("div");
-        title.textContent = legendTitle;
-        title.style.color = circleOptions.legendTitleColor;
-        title.style.fontSize = "12px";
-        title.style.fontWeight = "bold";
-        title.style.marginBottom = "5px";
-
-        // Append the title to the legend
-        legendContainer.appendChild(title);
-
-        // Get legend data using the provided function
-        const legendData = getProportionalCircleLegendData(sizeValues, radii);
-
-        console.log(legendData);
-
-        if (!legendData || legendData.length === 0) {
-            console.error("Invalid legend data");
-            return;
-        }
-
-        // Define padding around circles
-        const padding = 10;
-
-        // Determine the maximum radius for alignment
-        const maxRadius = Math.max(...legendData.map((item) => item.radius));
-
-        // Positioning variables
-        const centerX = maxRadius + padding; // X position for all circles
-        const bottomY = 2 * maxRadius + padding; // Y position of the largest circle's bottom
-        let maxLabelWidth = 0; // Track the maximum label width
-
-        // Add circles, labels, and leader lines to the legend
-        legendData.forEach((item) => {
-            // Calculate the Y position so all circles are aligned at the bottom
-            const currentY = bottomY - item.radius;
-
-            // Draw the circle
-            const circle = document.createElementNS(
-                "http://www.w3.org/2000/svg",
-                "circle"
-            );
-            circle.setAttribute("cx", centerX.toString());
-            circle.setAttribute("cy", currentY.toString());
-            circle.setAttribute("r", item.radius.toString());
-            circle.setAttribute("stroke", circleOptions.legendItemsColor);
-            circle.setAttribute("fill", "none");
-
-            svg.appendChild(circle);
-
-            // Calculate label position
-            const labelX = centerX + maxRadius + 20;
-            const labelY = currentY - item.radius;
-
-            // Add the leader line
-            const line = document.createElementNS(
-                "http://www.w3.org/2000/svg",
-                "line"
-            );
-            line.setAttribute("x1", centerX.toString());
-            line.setAttribute("y1", (currentY - item.radius).toString());
-            line.setAttribute("x2", (labelX - 3).toString());
-            line.setAttribute("y2", labelY.toString());
-            line.setAttribute("stroke", circleOptions.legendItemsColor);
-            line.setAttribute("stroke-width", "1");
-
-            svg.appendChild(line);
-
-            const formattedLabel = formatValue(item.size, formatTemplate);
-
-            // Add the corresponding label (aligned to the top of the circle)
-            const text = document.createElementNS(
-                "http://www.w3.org/2000/svg",
-                "text"
-            );
-            text.setAttribute("x", labelX.toString());
-            text.setAttribute("y", labelY.toString());
-            text.setAttribute("alignment-baseline", "middle");
-            text.setAttribute("fill", circleOptions.legendItemsColor);
-            text.textContent = `${formattedLabel}`;
-
-            svg.appendChild(text);
-
-            // Measure the label width
-            const tempLabel = document.createElement("div");
-            tempLabel.style.position = "absolute";
-            tempLabel.style.visibility = "hidden";
-            tempLabel.style.whiteSpace = "nowrap";
-            tempLabel.textContent = `${item.size}`;
-            document.body.appendChild(tempLabel);
-
-            const labelWidth = tempLabel.offsetWidth;
-            maxLabelWidth = Math.max(maxLabelWidth, labelWidth);
-
-            document.body.removeChild(tempLabel);
-        });
-
-        // Calculate the viewBox dimensions based on the legend size and labels
-        const svgWidth = centerX + maxRadius + maxLabelWidth + padding * 2 + 20; // 20px for spacing between circles and labels
-        const svgHeight = bottomY + padding;
-
-        // Apply viewBox and dimensions
-        svg.setAttribute("width", `${svgWidth}px`);
-        svg.setAttribute("height", `${svgHeight}px`);
-        svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
-        svg.setAttribute("preserveAspectRatio", "xMinYMin meet"); // Preserve scaling
-
-        // Append the SVG to the container
-        legendContainer.appendChild(svg);
-    }
-
-    // Debounce function
-    private debounce(func: Function, delay: number) {
-        let timeoutId: number | undefined;
-        return function (this: any, ...args: any[]) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
-        };
+        return "#009edb"; // Default color
     }
 
     private getClassBreaks(
@@ -1203,18 +924,6 @@ export class OpenMapVisual implements IVisual {
                 .domain(classBreaks)
                 .colors(choroplethOptions.classes);
         }
-    }
-
-    private fitMapToFeatures() {
-
-        if (this.choroplethVectorSource.getFeatures().length > 0) {
-            // Prioritize fitting to choroplethVectorSource if it has features
-            this.map
-                .getView()
-                .fit(this.choroplethVectorSource.getExtent(), this.fitMapOptions);
-        }
-
-        this.map.updateSize();
     }
 
     private getFormattingSettings(options: VisualUpdateOptions) {
@@ -1316,579 +1025,13 @@ export class OpenMapVisual implements IVisual {
         );
     }
 
-    private clearMap(vectorSource: VectorSource): void {
-        vectorSource.clear();
-        this.map.updateSize();
-    }
-
     public destroy(): void {
-        //this.basemap.destroy();
+
         this.map.setTarget(null);
         this.svg.selectAll('*').remove();
-    }
-
-    private showTooltip(svgElement: any, tooltipdata: VisualTooltipDataItem) {
-
-
-        this.tooltipServiceWrapper.addTooltip(
-            svgElement, // Pass the SVG overlay as the container for the tooltip
-            () => [{
-                displayName: 'Property Name', // Example of property name from feature
-                value: 'sample text'
-            }],
-            () => null // Identity can be passed here if needed (or null)
-        );
 
     }
 
-
-    private static getTooltipData(value: any): VisualTooltipDataItem[] {
-        return [
-            {
-                displayName: value.category,
-                value: value.value.toString(),
-                color: value.color,
-                header: value.header,
-                opacity: value.opacity
-            },
-        ];
-    }
-}
-
-// Helper function to create a legend item (extracted for reuse)
-function createChoroplethLegendItem(
-    labelText: string,
-    boxColor: string,
-    labelColor: string,
-    labelPosition: "top" | "inside" | "bottom" | "right" | "left"
-): HTMLElement {
-    const legendItem = document.createElement("div");
-    legendItem.style.display = "flex";
-    legendItem.style.flexDirection = "column";
-    legendItem.style.alignItems = "center";
-
-    // Calculate the dynamic width of the color box
-    const boxWidth = `${labelText.length * 5 + 10}px`;
-
-    // Create color box
-    const colorBox = document.createElement("div");
-    colorBox.style.position = "relative";
-    colorBox.style.width = boxWidth;
-    colorBox.style.height = "20px";
-    colorBox.style.backgroundColor = boxColor;
-    colorBox.style.textAlign = "center";
-    colorBox.style.display = "flex";
-    colorBox.style.justifyContent = "center";
-    colorBox.style.alignItems =
-        labelPosition === "inside" ? "center" : "flex-start";
-
-    // Add label
-    const label = document.createElement("span");
-    label.textContent = labelText;
-    label.style.color = labelColor; //labelPosition === "inside" ? "#fff" : "#000";
-    label.style.fontSize = "10px";
-
-    // Append label based on position
-    if (labelPosition === "top") {
-        label.style.marginBottom = "5px";
-        legendItem.appendChild(label);
-        legendItem.appendChild(colorBox);
-    } else if (labelPosition === "bottom") {
-        label.style.marginTop = "5px";
-        legendItem.appendChild(colorBox);
-        legendItem.appendChild(label);
-    } else {
-        colorBox.appendChild(label);
-        legendItem.appendChild(colorBox);
-    }
-
-    return legendItem;
-}
-
-function formatValue(value: number, formatTemplate: string): string {
-    let formattedValue: number;
-    let suffix: string = "";
-
-    // Step 1: Check the magnitude of the value and adjust accordingly
-    if (value >= 1_000_000_000_000) {
-        // Trillions
-        formattedValue = value / 1_000_000_000_000;
-        suffix = "T";
-    } else if (value >= 1_000_000_000) {
-        // Billions
-        formattedValue = value / 1_000_000_000;
-        suffix = "B";
-    } else if (value >= 1_000_000) {
-        // Millions
-        formattedValue = value / 1_000_000;
-        suffix = "M";
-    } else if (value >= 1_000) {
-        // Thousands
-        formattedValue = value / 1_000;
-        suffix = "k";
-    } else {
-        formattedValue = value; // If less than 1,000, no adjustment needed
-    }
-
-
-    // Step 2: Handle dynamic formatting based on the template
-    // Extract the decimal precision (e.g., ".1f" or ".2f")
-    const match = formatTemplate.match(/{:(\.\d+f)}/);
-
-    if (match) {
-        // Extract the precision (e.g., '.1f', '.2f', etc.)
-        const precision = match[1];
-
-        // Apply the precision using toFixed or toPrecision
-        if (precision === ".0f") {
-            formattedValue = Math.round(formattedValue); // No decimal places
-        } else {
-            const decimals = parseInt(precision.replace(".", "").replace("f", ""));
-            formattedValue = parseFloat(formattedValue.toFixed(decimals)); // Format with decimal places
-        }
-    }
-
-    // Step 3: Return the formatted value with the suffix
-    return `${formattedValue}${suffix}`;
-}
-
-function hexToRgba(hex, opacity) {
-    // Remove the '#' character if it exists
-    hex = hex.replace("#", "");
-
-    // Ensure the hex code is the correct length
-    if (hex.length === 3) {
-        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-    }
-
-    // Convert the hex code to RGB values
-    const r = parseInt(hex.substring(0, 2), 16);
-    const g = parseInt(hex.substring(2, 4), 16);
-    const b = parseInt(hex.substring(4, 6), 16);
-
-    // Return the RGBA value
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-}
-
-const memoryCache: Record<string, { data: any; timestamp: number }> = {};
-
-// Initialize IndexedDB
-function openDatabase(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open("GeoJsonCacheDB", 1);
-
-        request.onupgradeneeded = (event) => {
-            const db = request.result;
-            if (!db.objectStoreNames.contains("geoJsonData")) {
-                db.createObjectStore("geoJsonData", { keyPath: "key" });
-            }
-        };
-
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function cacheJsonData(key: string, data: any): Promise<void> {
-    try {
-        const db = await openDatabase();
-
-        // Start a transaction and get the object store
-        const transaction = db.transaction("jsonBoundaryData", "readwrite");
-        const store = transaction.objectStore("jsonBoundaryData");
-
-        // Check for existing data
-        const existingData = await new Promise<any | undefined>((resolve) => {
-            const getRequest = store.get(key);
-            getRequest.onsuccess = () => resolve(getRequest.result);
-            getRequest.onerror = () => resolve(undefined);
-        });
-
-        if (existingData && existingData.data === data) {
-            //console.log("Duplicate cache entry in IndexedDB. Skipping cache update.");
-            return;
-        }
-
-        // Add or update the data
-        const cacheEntry = { key, data, timestamp: Date.now() };
-        const putRequest = store.put(cacheEntry);
-
-        putRequest.onsuccess = () => {
-            //console.log("GeoJSON data cached in IndexedDB.");
-        };
-
-        putRequest.onerror = (e) => {
-            // console.error(
-            //     "Error caching data in IndexedDB. Falling back to memory cache.",
-            //     e
-            // );
-            memoryCache[key] = { data, timestamp: Date.now() };
-            //console.log("GeoJSON data cached in memory.");
-        };
-
-        // Close the transaction
-        transaction.oncomplete = () => db.close();
-    } catch (error) {
-        if (error.name === "SecurityError") {
-            console.warn(
-                "IndexedDB is restricted in this context (e.g., file:// or incognito). Using memory cache."
-            );
-        } else {
-            console.error("IndexedDB error. Falling back to memory cache.", error);
-        }
-
-        // Memory cache fallback
-        const existingCache = memoryCache[key];
-        if (existingCache && existingCache.data === data) {
-            console.log("Duplicate cache entry in memory. Skipping cache update.");
-            return;
-        }
-
-        memoryCache[key] = { data, timestamp: Date.now() };
-        console.log("jsonBoundaryData data cached in memory.");
-    }
-}
-
-// Retrieve GeoJSON data from cache
-async function getCachedJsonData(key: string): Promise<any | null> {
-    return memoryCache[key]?.data || null;
-}
-
-// Check if cached data is expired
-async function isCacheExpired(key: string, maxAge: number): Promise<boolean> {
-    const cacheEntry = memoryCache[key];
-    if (!cacheEntry) return true;
-    return Date.now() - cacheEntry.timestamp > maxAge;
-}
-
-// Fetch GeoJSON data with caching
-async function fetchAndCacheJsonBoundaryData(
-    serviceUrl: string,
-    cacheKey: string,
-    maxAge: number = 3600000
-): Promise<any> {
-
-    if (await isCacheExpired(cacheKey, maxAge)) {
-
-        console.log("Fetching data from service...");
-
-        const response = await fetch(serviceUrl);
-
-        if (!response.ok) {
-            console.log(`Failed to fetch JSON boundary data: ${response.statusText}`);
-            return;
-            //throw new Error(`Failed to fetch GeoJSON data: ${response.statusText}`);
-        }
-
-        const jsonData = await response.json();
-
-        if (await isValidJsonResponse(jsonData)) {
-            console.log("Valid JSON data fetched.");
-
-
-            await cacheJsonData(cacheKey, jsonData);
-
-            return jsonData;
-
-        } else {
-            console.error("Invalid JSON or response error.");
-            // TODO: communicated issue to user
-        }
-
-        return;
-    }
-
-    console.log("Using cached data.");
-    return getCachedJsonData(cacheKey);
-}
-
-// Helper function to validate GeoJSON data
-function isValidGeoJson(data: any): boolean {
-    if (!data || typeof data !== "object" || !data.type) {
-        return false;
-    }
-
-    const validGeoJsonTypes = [
-        "Feature",
-        "FeatureCollection",
-        "Point",
-        "LineString",
-        "Polygon",
-        "MultiPoint",
-        "MultiLineString",
-        "MultiPolygon",
-    ];
-
-    if (!validGeoJsonTypes.includes(data.type)) {
-        return false;
-    }
-
-    // Additional checks for "Feature" and "FeatureCollection"
-    if (
-        data.type === "Feature" &&
-        (!data.geometry || typeof data.geometry !== "object")
-    ) {
-        return false;
-    }
-
-    if (data.type === "FeatureCollection" && !Array.isArray(data.features)) {
-        return false;
-    }
-
-    return true;
-}
-
-// Helper function to validate TopoJSON data
-function isValidTopoJson(data: any): boolean {
-    if (!data || typeof data !== "object") {
-        return false;
-    }
-
-    // TopoJSON must have a "type" property, which should be "Topology"
-    if (data.type !== "Topology") {
-        return false;
-    }
-
-    // TopoJSON must have an "objects" property, which should be an object
-    if (!data.objects || typeof data.objects !== "object") {
-        return false;
-    }
-
-    // Validate that "arcs" (if present) is an array
-    if (data.arcs && !Array.isArray(data.arcs)) {
-        return false;
-    }
-
-    // Validate that "transform" (if present) has scale and translate properties
-    if (data.transform) {
-        const { scale, translate } = data.transform;
-        if (
-            !Array.isArray(scale) ||
-            scale.length !== 2 ||
-            !Array.isArray(translate) ||
-            translate.length !== 2
-        ) {
-            return false;
-        }
-    }
-
-    // Validate each object in "objects"
-    for (const key in data.objects) {
-        const object = data.objects[key];
-        if (
-            !object ||
-            typeof object !== "object" ||
-            !["Point", "LineString", "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon", "GeometryCollection"].includes(object.type)
-        ) {
-            return false;
-        }
-
-        // Additional validation for GeometryCollection
-        if (object.type === "GeometryCollection" && !Array.isArray(object.geometries)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// Helper function to validate if fetch response is valid json
-async function isValidJsonResponse(responseData: any): Promise<boolean> {
-    try {
-
-        // Validate the parsed data is an object or array
-        if (typeof responseData !== "object" || responseData === null) {
-            return false;
-        }
-
-        return true; // Valid JSON object or array
-    } catch (error) {
-        // If JSON parsing fails, the response is not valid JSON
-        return false;
-    }
-}
-
-// function to get proportional circle legend data i.e min, medium and max
-function getProportionalCircleLegendData(
-    sizeValues: number[],
-    radii: number[]
-) {
-    if (sizeValues.length !== radii.length) {
-        console.log("sizeValues and radii arrays must have the same length");
-        return [];
-    }
-
-    // Sort by sizeValues
-    const sortedData = sizeValues
-        .map((size, index) => ({ size, radius: radii[index] }))
-        .sort((a, b) => a.size - b.size);
-
-    // Extract min and max
-    const min = sortedData[0];
-    const max = sortedData[sortedData.length - 1];
-
-    // Compute medium as half of max size, rounded to the nearest thousand
-    const mediumSize = Math.round(max.size / 2 / 1000) * 1000;
-    const mediumRadius = (max.radius / max.size) * mediumSize; // Scale radius proportionally
-
-    const medium = { size: mediumSize, radius: mediumRadius };
-
-    return [min, medium, max];
-}
-
-function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
-    if (longitudes.length === 0 || latitudes.length === 0) {
-        throw new Error("Longitude and latitude arrays must not be empty.");
-    }
-
-    if (longitudes.length !== latitudes.length) {
-        throw new Error("Longitude and latitude arrays must have the same length.");
-    }
-
-    const minX = Math.min(...longitudes);
-    const maxX = Math.max(...longitudes);
-    const minY = Math.min(...latitudes);
-    const maxY = Math.max(...latitudes);
-
-    const extent = [minX, minY, maxX, maxY];
-
-    const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
-
-    return transformedExtent;
-}
-
-function getElementUnderSvg(x: number, y: number): Element | null {
-    let resultingElement: Element | null;
-    const firstElement = document.elementFromPoint(x, y);
-
-    if (firstElement && firstElement.nodeName === "circle") {
-        const display = (firstElement as HTMLElement).style.display; // Save the display property of the SVG element
-        (firstElement as HTMLElement).style.display = "none";       // Make the SVG element invisible
-        resultingElement = document.elementFromPoint(x, y);         // Get the underlying element
-        (firstElement as HTMLElement).style.display = display;      // Restore the display property
-    } else {
-        resultingElement = firstElement;                            // Use the first element if it's not an SVG element
-    }
-
-    return resultingElement;
-}
-
-function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void {
-    const { clientX: x, clientY: y } = event;
-
-    // Get the topmost element under the cursor
-    const firstElement = document.elementFromPoint(x, y);
-
-    if (firstElement && firstElement.nodeName === 'circle') {
-        // Temporarily hide the SVG circle
-        const display = (firstElement as HTMLElement).style.display;
-        (firstElement as HTMLElement).style.display = 'none';
-
-        // Get the underlying element
-        const underlyingElement = document.elementFromPoint(x, y);
-        (firstElement as HTMLElement).style.display = display;
-
-        // If the underlying element is the map, pass the event to it
-        if (underlyingElement === mapElement) {
-            mapElement.dispatchEvent(new WheelEvent(event.type, event));
-        }
-    } else if (firstElement === mapElement) {
-        // If the event is already on the map, let it proceed
-        mapElement.dispatchEvent(new WheelEvent(event.type, event));
-    }
-}
-
-
-// Helper function to check if a point is inside a circle
-function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
-    const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
-    return distanceSquared <= radius ** 2;
-}
-
-
-
-// URL validators
-
-function isValidURL(url: string): boolean {
-    try {
-        new URL(url); // This checks if the URL is well-formed.
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function enforceHttps(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.protocol === 'https:';
-    } catch {
-        return false;
-    }
-}
-
-function hasOpenRedirect(url: string): boolean {
-    try {
-        const parsedUrl = new URL(url);
-
-        // Dynamically extract the base domain from the provided URL
-        const baseDomain = parsedUrl.hostname;
-
-        // Ensure the URL's hostname matches its base domain
-        return parsedUrl.hostname !== baseDomain;
-    } catch {
-        return true; // Return true if the URL is invalid
-    }
-}
-
-
-async function fetchWithTimeout(url: string, timeout: number): Promise<Response> {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-        const response = await fetch(url, { signal: controller.signal });
-        return response;
-    } catch (error) {
-        throw new Error("Request timed out or failed.");
-    } finally {
-        clearTimeout(id);
-    }
-}
-
-// Usage
-// try {
-//     const response = await fetchWithTimeout("https://example.com", 5000); // 5 seconds timeout
-//     if (response.ok && response.headers.get("content-length") !== null) {
-//         const contentLength = parseInt(response.headers.get("content-length") || '0', 10);
-//         if (contentLength > 1048576) { // Limit: 1 MB
-//             throw new Error("Response too large.");
-//         }
-//     }
-// } catch (err) {
-//     console.error(err.message);
-// }
-
-
-function createFeatures(longitudes: number[], latitudes: number[]): Feature[] {
-    const features: Feature[] = [];
-
-    for (let i = 0; i < longitudes.length; i++) {
-        const lon = longitudes[i];
-        const lat = latitudes[i];
-
-        // Create an OpenLayers Point geometry
-        const point = new Point(fromLonLat([lon, lat]));
-
-        // Create an OpenLayers Feature with the Point geometry
-        const feature = new Feature({
-            geometry: point,
-            // Add any other properties you need here
-        });
-
-        features.push(feature);
-    }
-
-    return features;
 }
 
 

@@ -20,6 +20,10 @@
         "./src/basemap.ts",
         "./src/colors.ts",
         "./src/constants.ts",
-        "./src/canvasLayer.ts"
+        "src/circleLayer.ts",
+        "src/svgLayer.ts",
+        "./src/legend.ts",
+        "./src/utils.ts",
+        "./src/tooltips.ts"
     ]
 }

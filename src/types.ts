@@ -36,8 +36,17 @@ export interface CircleLayerOptions  extends LayerOptions{
     minCircleSizeValue?: number;
     circleScale?: number;
     svg: any;
+    svgContainer: HTMLElement;
     zIndex: number;
-    //features: Feature[];
+  }
+
+  export interface ChoroplethLayerOptions extends LayerOptions {
+    geojson: any; // GeoJSON data for the choropleth
+    colorScale: (value: any) => string; // Function to map a data value to a color
+    dataKey: string; // Key in GeoJSON properties used for coloring
+    svg: any; // D3 SVG element
+    svgContainer: HTMLElement;
+    zIndex?: number;
   }
   
 
@@ -67,6 +76,9 @@ export interface ChoroplethOptions {
     legendBackgroundOpacity:number;
     legendBackgroundColor: string
 }
+
+
+
 
 export interface HeatmapOptions {
     layerControl: boolean; 
