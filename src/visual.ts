@@ -93,14 +93,12 @@ export class OpenMapVisual implements IVisual {
     private tooltipServiceWrapper: ITooltipServiceWrapper;
     private tooltipService: powerbi.extensibility.ITooltipService;
 
-    private container: HTMLElement;
+    private container: HTMLElement;   
+    private loader: HTMLElement;
+    private svgContainer: HTMLElement;
 
     private svgOverlay: SVGSVGElement;
-
-    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
-
-    private svgContainer: HTMLElement;
-    private loader: HTMLElement;
+    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;   
 
     private map: Map;
     private legend: Legend;
@@ -137,10 +135,9 @@ export class OpenMapVisual implements IVisual {
         this.basemapLayer = this.basemap.getDefaultBasemap();
 
         this.container = options.element;
-
-        // Ensure the container has proper dimensions
         this.container.style.width = "100%";
         this.container.style.height = "100%";
+        
 
         // create loader/spinner element
         this.loader = document.createElement('div');
@@ -156,7 +153,7 @@ export class OpenMapVisual implements IVisual {
         this.loader.style.top = '50%';
         this.loader.style.left = '50%';
         this.loader.style.transform = 'translate(-50%, -50%)';
-        this.loader.style.zIndex = '1000';
+        this.loader.style.zIndex = '10000';
         this.loader.style.display = 'none'; // Initially hidden
 
         this.container.appendChild(this.loader);
@@ -244,11 +241,11 @@ export class OpenMapVisual implements IVisual {
             this.svgOverlay.style.pointerEvents = 'none'; // Let the map handle pointer events by default
         }
 
-        this.container.appendChild(this.svgOverlay);
+        this.svgContainer = document.createElement('div');
 
-        //this.svg = d3.select(this.svgOverlay);
+        this.container.appendChild(this.svgContainer);
 
-        //this.svgContainer = document.createElement("div");
+        this.svg = d3.select(this.svgOverlay);
 
         console.log("Visual initialized.");
     }
@@ -276,7 +273,6 @@ export class OpenMapVisual implements IVisual {
             console.log("No categorical data found.");
 
             this.svg.selectAll('*').remove();
-
 
             return;
         }
@@ -391,7 +387,7 @@ export class OpenMapVisual implements IVisual {
                         minCircleSizeValue: minCircleSizeValue,
                         circleScale: circleScale,
                         svg: this.svg,
-                        svgContainer: this.svgContainer,
+                        svgContainer:  this.svgContainer,
                         zIndex: 5
 
                         // OpenLayers-specific options
@@ -455,7 +451,7 @@ export class OpenMapVisual implements IVisual {
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
 
-        this.svg.select('#paths-group').remove();
+       this.svg.select('polygons').remove();
 
 
         console.log('Rendering choropleth...');
@@ -493,23 +489,31 @@ export class OpenMapVisual implements IVisual {
 
         try {
 
-            util.fetchAndCacheJsonBoundaryData(
+            // util.fetchAndCacheJsonBoundaryData(
 
-                serviceUrl,
-                this.memoryCache,
-                cacheKey,
-                CACHE_EXPIRY_MS
+            //     serviceUrl,
+            //     this.memoryCache,
+            //     cacheKey,
+            //     CACHE_EXPIRY_MS
 
-            ).then(data => {
+            // ).then(data => {
 
-                this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
-            });
+            //     this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
+            // });
 
             // util.fetchJsonBoundaryData(serviceUrl).then(data => {
 
             //     this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
 
             // });
+
+            d3.json(serviceUrl).then(data=>{
+
+                console.log('geojson',data);
+
+                this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
+
+            })
 
         } catch (error) {
             console.error("Error fetching GeoJSON data:", error);
@@ -518,7 +522,7 @@ export class OpenMapVisual implements IVisual {
 
     }
 
-    private renderChoropleth(geodata: any, category: any, measure: any, options: ChoroplethOptions, map: Map) {
+    private renderChoropleth(geodata: any, category: any, measure: any, options: ChoroplethOptions) {
 
         // Get PCodes (this is the category/feature identifier)
         const pCodes = category.values as string[];
@@ -539,68 +543,68 @@ export class OpenMapVisual implements IVisual {
         const colorScale = this.getColorScale(classBreaks, options);
         const pcodeKey = options.locationPcodeNameId;
 
-        let features: any;
+        // let features: any;
 
-        // Parse GeoJSON or TopoJSON
-        if (util.isValidGeoJson(geodata)) {
-            const format = new GeoJSON();
-            features = format.readFeatures(geodata, {
-                dataProjection: "EPSG:4326",
-                //featureProjection: "EPSG:3857",
-            });
-        } else if (util.isValidTopoJson(geodata)) {
-            const format = new TopoJSON();
-            features = format.readFeatures(geodata, {
-                dataProjection: "EPSG:4326",
-                //featureProjection: "EPSG:3857",
-            });
-        } else {
-            console.error("Input data is neither GeoJSON nor TopoJSON.");
-            return;
-        }
+        // // Parse GeoJSON or TopoJSON
+        // if (util.isValidGeoJson(geodata)) {
+        //     const format = new GeoJSON();
+        //     features = format.readFeatures(geodata, {
+        //         dataProjection: "EPSG:4326",
+        //         //featureProjection: "EPSG:3857",
+        //     });
+        // } else if (util.isValidTopoJson(geodata)) {
+        //     const format = new TopoJSON();
+        //     features = format.readFeatures(geodata, {
+        //         dataProjection: "EPSG:4326",
+        //         //featureProjection: "EPSG:3857",
+        //     });
+        // } else {
+        //     console.error("Input data is neither GeoJSON nor TopoJSON.");
+        //     return;
+        // }
 
         //console.log('Features:', features);
 
         // Filter features based on PCodes
-        const filteredFeatures = features.filter((feature: any) => {
-            const featurePCode = feature.get(pcodeKey);
-            return validPCodes.includes(featurePCode);
-        });
+        // const filteredFeatures = geodata.features.filter((feature: any) => {
+        //     const featurePCode = feature.get(pcodeKey);
+        //     return validPCodes.includes(featurePCode);
+        // });
 
 
-        // Prepare GeoJSON FeatureCollection for rendering
-        const geojson = {
-            type: "FeatureCollection",
-            features: filteredFeatures.map((feature: any) => {
-                const geometry = feature.getGeometry(); // Access geometry using getGeometry()
-                return {
-                    type: "Feature",
-                    geometry: {
-                        type: geometry.getType(), // Get geometry type (e.g., 'Polygon')
-                        coordinates: geometry.getCoordinates()
-                    },
-                    properties: {
-                        pCode: feature.get(pcodeKey), // Access property using feature.get()
-                    },
-                };
-            }),
-        };
+        // // Prepare GeoJSON FeatureCollection for rendering
+        // const geojson = {
+        //     type: "FeatureCollection",
+        //     features: filteredFeatures.map((feature: any) => {
+        //         const geometry = feature.getGeometry(); // Access geometry using getGeometry()
+        //         return {
+        //             type: "Feature",
+        //             geometry: {
+        //                 type: geometry.getType(), // Get geometry type (e.g., 'Polygon')
+        //                 coordinates: geometry.getCoordinates()
+        //             },
+        //             properties: {
+        //                 pCode: feature.get(pcodeKey), // Access property using feature.get()
+        //             },
+        //         };
+        //     }),
+        // };
 
 
-        // Attach colors to features based on measure values
-        geojson.features.forEach((feature: any) => {
-            const pCode = feature.properties.pCode;
-            const value = colorValues[validPCodes.indexOf(pCode)];
-            feature.properties.color = this.getColorForValue(value, classBreaks, colorScale);
-        });
+        // // Attach colors to features based on measure values
+        // geojson.features.forEach((feature: any) => {
+        //     const pCode = feature.properties.pCode;
+        //     const value = colorValues[validPCodes.indexOf(pCode)];
+        //     feature.properties.color = this.getColorForValue(value, classBreaks, colorScale);
+        // });
 
 
         // Create and add the svgLayer for rendering choropleth
         this.choroplethLayer = new SvgLayer({
             map: this.map,
-            d3Svg: this.svgOverlay,
+            d3Svg: this.svg,
             loader: this.loader,
-            geojsonData: geojson, // Pass geojson with color data
+            geojsonData: geodata, // Pass geojson with color data
             colorScale: colorScale, // Pass the color scale for choropleth
             dataKey: pcodeKey, // The key for accessing data values in geojson
             zIndex: 5,
@@ -612,7 +616,7 @@ export class OpenMapVisual implements IVisual {
 
         const extent = this.choroplethLayer.getFeaturesExtent();
 
-        map.getView().fit(extent, this.fitMapOptions);
+        this.map.getView().fit(extent, this.fitMapOptions);
 
         this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
 

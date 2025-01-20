@@ -59,8 +59,10 @@ export class SvgLayer {
     }
 
     // Rendering Functions
-    renderPoints(group = this.d3Svg.append("g").attr("class", "points")) {
-        this.geojsonData.features.forEach(feature => {
+    renderPoints(features) {
+
+        const group = this.d3Svg.append("g").attr("class", "points")
+        features.forEach(feature => {
             const { coordinates } = feature.geometry;
             const pixel = this.getPixelFromCoordinate(
                 transform(coordinates, 'EPSG:4326', this.projection)
@@ -78,8 +80,9 @@ export class SvgLayer {
         return group;
     }
 
-    renderMultiPoints(group = this.d3Svg.append("g").attr("class", "multipoints")) {
-        this.geojsonData.features.forEach(feature => {
+    renderMultiPoints(features) {
+        const group = this.d3Svg.append("g").attr("class", "multipoints")
+        features.forEach(feature => {
             const { coordinates } = feature.geometry;
             coordinates.forEach(point => {
                 const pixel = this.getPixelFromCoordinate(
@@ -99,8 +102,9 @@ export class SvgLayer {
         return group;
     }
 
-    renderLines(group = this.d3Svg.append("g").attr("class", "lines")) {
-        this.geojsonData.features.forEach(feature => {
+    renderLines(features) {
+        const group = this.d3Svg.append("g").attr("class", "lines")
+        features.forEach(feature => {
             const { coordinates } = feature.geometry;
             const lineData = this.transformCoordinates(coordinates);
             const linePath = line()
@@ -116,8 +120,9 @@ export class SvgLayer {
         return group;
     }
 
-    renderMultiLineStrings(group = this.d3Svg.append("g").attr("class", "multilinestrings")) {
-        this.geojsonData.features.forEach(feature => {
+    renderMultiLineStrings(features) {
+        const group = this.d3Svg.append("g").attr("class", "multilinestrings")
+        features.forEach(feature => {
             const { coordinates } = feature.geometry;
             coordinates.forEach(lineString => {
                 const lineData = this.transformCoordinates(lineString);
@@ -135,8 +140,9 @@ export class SvgLayer {
         return group;
     }
 
-    renderPolygons(group = this.d3Svg.append("g").attr("class", "polygons")) {
-        this.geojsonData.features.forEach(feature => {
+    renderPolygons(features) {
+        const group = this.d3Svg.append("g").attr("class", "polygons")
+        features.forEach(feature => {
             const { type, coordinates } = feature.geometry;
             const polygons = type === "Polygon" ? [coordinates] : coordinates;
             polygons.forEach(polygon => {
