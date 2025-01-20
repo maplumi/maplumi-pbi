@@ -451,7 +451,10 @@ export class OpenMapVisual implements IVisual {
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
 
-       this.svg.select('polygons').remove();
+       this.svg.select('#polygons').remove();
+       this.svg.select('#points').remove();
+
+        this.svgOverlay.style.display = 'block';
 
 
         console.log('Rendering choropleth...');
@@ -610,15 +613,22 @@ export class OpenMapVisual implements IVisual {
             zIndex: 5,
         });
 
+        try {
+            this.choroplethLayer.render();
+            
+        } catch (error) {
+            console.log(error);
+        }
 
-
-        this.choroplethLayer.render();
+        
 
         const extent = this.choroplethLayer.getFeaturesExtent();
 
+        console.log('Extent:', extent)
+
         this.map.getView().fit(extent, this.fitMapOptions);
 
-        this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
+        //this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
 
 
         // Update the legend
