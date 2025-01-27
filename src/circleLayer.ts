@@ -3,7 +3,7 @@ import { Layer } from 'ol/layer.js';
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 import { select } from 'd3-selection';
 import { State } from 'ol/source/Source';
-import { CircleLayerOptions, ChoroplethLayerOptions } from './types';
+import { CircleLayerOptions } from './types';
 import { geoBounds, geoMercator, geoPath, GeoPermissibleObjects } from 'd3-geo';
 import { Extent, getCenter, getWidth } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
@@ -14,6 +14,7 @@ import { simplify } from '@turf/turf';
 export class CircleLayer extends Layer {
 
     private svg: any;
+    private loader: any;
     private features: any;
     public options: CircleLayerOptions;
 
@@ -21,6 +22,7 @@ export class CircleLayer extends Layer {
         super({ ...options, zIndex: options.zIndex || 10 });
 
         this.svg = options.svg;
+        this.loader=options.loader;
         this.options = options;
 
         this.features = options.longitudes.map((lon, index) => ({
@@ -33,6 +35,7 @@ export class CircleLayer extends Layer {
         }));
 
         //console.log('Circle Features:', this.features);
+        this.loader.classList.remove('hidden'); // Show the loader
 
     }
 
@@ -59,11 +62,15 @@ export class CircleLayer extends Layer {
             features: this.features,
         });
 
+        console.log('geobounds')
+
         // Calculate scale and resolution based on bounds and pixel size
         const pixelBounds = d3Path.bounds({
             type: 'FeatureCollection',
             features: this.features,
         });
+
+        console.log('pixelbounds', pixelBounds);
 
         const pixelBoundsWidth = pixelBounds[1][0] - pixelBounds[0][0];
         const pixelBoundsHeight = pixelBounds[1][1] - pixelBounds[0][1];
@@ -137,6 +144,8 @@ export class CircleLayer extends Layer {
 
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
+
+        this.loader.classList.add('hidden');
 
         // Return the div element
         return this.options.svgContainer;

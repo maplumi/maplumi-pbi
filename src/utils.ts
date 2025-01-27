@@ -1,5 +1,7 @@
 import { fromLonLat, toLonLat, transformExtent } from "ol/proj";
 import { Extent, getCenter, getWidth } from 'ol/extent.js';
+import * as topojson from 'topojson-client';
+
 
 
 // Helper function to validate GeoJSON data
@@ -447,4 +449,36 @@ export function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void
 export function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
     const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
     return distanceSquared <= radius ** 2;
+}
+
+
+
+
+export function isTopoJSON(json) {
+    // Check if the JSON has the unique characteristics of TopoJSON
+    return json.type === "Topology" &&
+        typeof json.objects === "object" &&
+        Array.isArray(json.arcs);
+}
+
+export function convertSingleLayerTopoJSONToGeoJSON(topojsondata) {
+    
+    if (!topojsondata || typeof topojsondata !== "object") {
+        throw new Error("Invalid TopoJSON object provided.");
+    }
+
+    if (!topojsondata.objects || typeof topojsondata.objects !== "object") {
+        throw new Error("Invalid or missing 'objects' property in TopoJSON.");
+    }
+
+    const layerNames = Object.keys(topojsondata.objects);
+
+    if (layerNames.length !== 1) {
+        throw new Error(
+            `Expected a single layer in TopoJSON, but found ${layerNames.length}.`
+        );
+    }
+
+    const layerName = layerNames[0]; // Extract the name of the single layer
+    return topojson.feature(topojsondata, topojsondata.objects[layerName]);
 }

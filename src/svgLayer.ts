@@ -183,6 +183,8 @@ export class SvgLayer {
 
         this.loader.classList.add('hidden'); // Hide the loader after rendering
 
+        this.map.render();
+
         console.log('Render completed!');
     }
 }
