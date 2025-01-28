@@ -13,8 +13,8 @@ import { simplify } from '@turf/turf';
 
 export class ChoroplethLayer extends Layer {
 
-    private svgContainer: any;
-    private svgLayer: any;
+    
+    private svg: any;
     private loader: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
@@ -23,9 +23,7 @@ export class ChoroplethLayer extends Layer {
 
         super({ ...options, zIndex: options.zIndex || 10 });
 
-        this.svgContainer = options.svgContainer;
-
-        this.svgLayer = options.svgLayer;
+        this.svg = options.svg;
         this.loader=options.loader;
         this.options = options;
 
@@ -49,10 +47,10 @@ export class ChoroplethLayer extends Layer {
         const center  = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number]; // Map center in [lon, lat]
 
         // Clear existing paths
-        this.svgLayer.selectAll('path').remove();
+        this.svg.selectAll('*').remove();
 
         // Set SVG dimensions to match the map viewport
-        this.svgContainer
+        this.svg
             .attr('width', width)
             .attr('height', height);
 
@@ -67,9 +65,13 @@ export class ChoroplethLayer extends Layer {
 
         const d3Path = geoPath().projection(d3Projection);
 
+        // Create a group element for circles
+        const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
+
         // Render features directly from GeoJSON (EPSG:4326)
         this.geojson.features.forEach((feature) => {
-            this.svgLayer.append('path')
+
+            choroplethGroup.append('path')
                 .datum(feature)
                 .attr('d', d3Path)
                 .attr('stroke', 'blue')
@@ -77,18 +79,19 @@ export class ChoroplethLayer extends Layer {
                 .attr('fill', 'none');
         });
 
+        // Append the SVG element to the div
+        this.options.svgContainer.appendChild(this.svg.node());
+
         this.loader.classList.add('hidden'); // Hide loader
 
-        console.log('svg container', this.svgContainer)
-
-        return this.svgContainer.node();
+        return this.options.svgContainer;
     }
 
     
 
     // Expose SVG for external handlers
     getSvg() {
-        return this.svgContainer;
+        return this.svg;
     }
 
     // Get the spatial extent of the features (circle or choropleth)

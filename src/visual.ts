@@ -71,14 +71,14 @@ import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerO
 import { ColorRampGenerator } from "./colors";
 
 import { CircleLayer } from "./circleLayer";
-import { SvgLayer } from "./svgLayer";
+import { ChoroplethLayer } from "./choroplethLayer";
 
 import * as d3 from "d3";
 import { simplify } from "@turf/turf";
 
 import * as util from "./utils"
 import { Legend } from "./legend";
-import { ChoroplethLayer } from "./choroplethLayer";
+
 
 
 interface TooltipDataItem {
@@ -101,8 +101,6 @@ export class OpenMapVisual implements IVisual {
     private mapContainer: HTMLElement;
     private loader: HTMLElement;
     private svgContainer: HTMLElement;
-    private svgContainer2: any;
-    private svgLayer: any;
 
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -146,10 +144,9 @@ export class OpenMapVisual implements IVisual {
         this.container.style.height = "100%";
 
         this.mapContainer = document.createElement('div');
-        this.mapContainer.setAttribute('id', 'map');
+        this.mapContainer.id = 'map';
         this.mapContainer.style.width = "100%";
         this.mapContainer.style.height = "100%";
-
         this.container.appendChild(this.mapContainer);
 
 
@@ -214,10 +211,7 @@ export class OpenMapVisual implements IVisual {
             layers: [this.basemapLayer],
             view: new View({
                 center: fromLonLat([0, 0]), // Center the map at the origin
-                zoom: 2,
-                //extent: [-20037508.34, -20037508.34, 20037508.34, 20037508.34], // world bounds
-                //constrainOnlyCenter: false, // Prevents panning out for both center and edges
-                //constrainResolution: true, // Optional: Ensures zoom levels align with tile resolutions
+                zoom: 2
             }),
             controls: defaultControls({
                 attribution: true, // Ensure attribution control is enabled
@@ -255,38 +249,7 @@ export class OpenMapVisual implements IVisual {
 
         this.svgContainer = document.createElement('div');
 
-        //this.mapContainer.appendChild(this.svgContainer);
-
         this.svg = d3.select(this.svgOverlay);
-
-
-        // Create the SVG container for choropleth
-        this.svgContainer2 = d3.select(document.createElement('div'))
-            .style('position', 'absolute') // Absolute positioning for overlay
-            .style('top', '0')
-            .style('left', '0')
-            .style('width', '100%')
-            .style('height', '100%') // Full size of parent
-            .append('svg') // Append an SVG element
-            .attr('width', '100%') // Set SVG attributes instead of styles
-            .attr('height', '100%')
-            .style('position', 'absolute'); // Keep absolute positioning for the SVG
-
-
-        // Define a clipping path
-        this.svgContainer2.append('defs').append('clipPath')
-            .attr('id', 'clip-path')
-            .append('rect')
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', '100%')
-            .attr('height', '100%');
-
-        //this.mapContainer.appendChild(this.svgContainer2);
-
-        // Add the group for features and apply the clipping path
-        this.svgLayer = this.svgContainer2.append('g')
-            .attr('clip-path', 'url(#clip-path)');
 
         console.log("Visual initialized.");
     }
@@ -493,6 +456,9 @@ export class OpenMapVisual implements IVisual {
         // Ensure legends are hidden when updating
         this.choroplethLegend.style.display = "none";
 
+        this.svg.select('#choropleth-group').remove();
+        this.svgOverlay.style.display = 'block';
+
         console.log('Rendering choropleth...');
 
         // Validate input data
@@ -527,24 +493,6 @@ export class OpenMapVisual implements IVisual {
         const CACHE_EXPIRY_MS = 3600000; // 1 hour
 
         try {
-
-            // util.fetchAndCacheJsonBoundaryData(
-
-            //     serviceUrl,
-            //     this.memoryCache,
-            //     cacheKey,
-            //     CACHE_EXPIRY_MS
-
-            // ).then(data => {
-
-            //     this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
-            // });
-
-            // util.fetchJsonBoundaryData(serviceUrl).then(data => {
-
-            //     this.renderChoropleth(data, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions, this.map);
-
-            // });
 
             d3.json(serviceUrl).then(data => {
 
@@ -601,67 +549,19 @@ export class OpenMapVisual implements IVisual {
         const colorScale = this.getColorScale(classBreaks, options);
         const pcodeKey = options.locationPcodeNameId;
 
-        // let features: any;
-
-        // // Parse GeoJSON or TopoJSON
-        // if (util.isValidGeoJson(geodata)) {
-        //     const format = new GeoJSON();
-        //     features = format.readFeatures(geodata, {
-        //         dataProjection: "EPSG:4326",
-        //         //featureProjection: "EPSG:3857",
-        //     });
-        // } else if (util.isValidTopoJson(geodata)) {
-        //     const format = new TopoJSON();
-        //     features = format.readFeatures(geodata, {
-        //         dataProjection: "EPSG:4326",
-        //         //featureProjection: "EPSG:3857",
-        //     });
-        // } else {
-        //     console.error("Input data is neither GeoJSON nor TopoJSON.");
-        //     return;
-        // }
-
-        //console.log('Features:', features);
-
-        // Filter features based on PCodes
-        // const filteredFeatures = geodata.features.filter((feature: any) => {
-        //     const featurePCode = feature.get(pcodeKey);
-        //     return validPCodes.includes(featurePCode);
-        // });
-
-
-        // // Prepare GeoJSON FeatureCollection for rendering
-        // const geojson = {
-        //     type: "FeatureCollection",
-        //     features: filteredFeatures.map((feature: any) => {
-        //         const geometry = feature.getGeometry(); // Access geometry using getGeometry()
-        //         return {
-        //             type: "Feature",
-        //             geometry: {
-        //                 type: geometry.getType(), // Get geometry type (e.g., 'Polygon')
-        //                 coordinates: geometry.getCoordinates()
-        //             },
-        //             properties: {
-        //                 pCode: feature.get(pcodeKey), // Access property using feature.get()
-        //             },
-        //         };
-        //     }),
-        // };
-
-
-        // // Attach colors to features based on measure values
-        // geojson.features.forEach((feature: any) => {
-        //     const pCode = feature.properties.pCode;
-        //     const value = colorValues[validPCodes.indexOf(pCode)];
-        //     feature.properties.color = this.getColorForValue(value, classBreaks, colorScale);
-        // });
-
+        // Filter GeoJSON features based on valid PCodes
+        const filteredGeoData = {
+            ...geodata,
+            features: geodata.features.filter((feature: any) =>
+                validPCodes.includes(feature.properties[pcodeKey])
+            )
+        };
 
         // Create and add the svgLayer for rendering choropleth
         this.choroplethLayer = new ChoroplethLayer({
-            geojson: geodata,
-            svgContainer: this.svgContainer2,
-            svgLayer: this.svgLayer,
+            geojson: filteredGeoData,
+            svgContainer: this.svgContainer,
+            svg: this.svg,
             loader: this.loader,
             colorScale: colorScale, // Pass the color scale for choropleth
             dataKey: pcodeKey, // The key for accessing data values in geojson
@@ -674,30 +574,30 @@ export class OpenMapVisual implements IVisual {
 
         this.map.addLayer(this.choroplethLayer);
 
-        this.map.render();
+        const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
         // Update the legend
-        if (options.showLegend) {
-            this.legend.createChoroplethLegend(
-                this.mapContainer,
-                colorValues,
-                classBreaks,
-                colorScale,
-                options,
-                "top"
-            );
-        } else {
-            const legend = document.getElementById("legend");
-            if (legend) {
-                legend.style.display = "none"; // Hide the legend
-            }
-        }
+        // if (options.showLegend) {
+        //     this.legend.createChoroplethLegend(
+        //         this.mapContainer,
+        //         colorValues,
+        //         classBreaks,
+        //         colorScale,
+        //         options,
+        //         "top"
+        //     );
+        // } else {
+        //     const legend = document.getElementById("legend");
+        //     if (legend) {
+        //         legend.style.display = "none"; // Hide the legend
+        //     }
+        // }
 
 
 
     }
 
-    private addChoroplethLayerEvents(map: Map, svgLayer: SvgLayer) {
+    private addChoroplethLayerEvents(map: Map, svgLayer: ChoroplethLayer) {
 
         const svg = svgLayer.getSvg();
 

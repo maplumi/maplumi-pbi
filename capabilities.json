@@ -459,8 +459,8 @@
         "https://*.googleapis.com",
         "https://*.amazonaws.com",
         "https://*.blob.core.windows.net",
-        "https://*.github.io"
-        
+        "https://*.github.io",
+        "https://*"        
         
       ]
     },
