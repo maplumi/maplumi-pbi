@@ -460,6 +460,8 @@
         "https://*.amazonaws.com",
         "https://*.blob.core.windows.net",
         "https://*.github.io",
+        "https://*.cloudfront.net",
+        "https://*.r2.dev",
         "https://*"        
         
       ]
