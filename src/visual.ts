@@ -160,7 +160,7 @@ export class OpenMapVisual implements IVisual {
         this.loaderContainer.style.left = '50%';
         this.loaderContainer.style.transform = 'translate(-50%, -50%)';
         this.loaderContainer.style.zIndex = '10000';
-        this.loaderContainer.style.display = 'none'; // Initially hidden
+        this.loaderContainer.style.display = 'block'; // Initially hidden
 
         // Create an OpenLayers overlay for the legend
         this.loaderOverlay = new Overlay({
@@ -236,7 +236,7 @@ export class OpenMapVisual implements IVisual {
             }),
         });
 
-        // Add legend overlays to the map
+        // Add overlays to the map
         this.map.addOverlay(this.loaderOverlay);
         this.map.addOverlay(this.circleLegendOverlay);
         this.map.addOverlay(this.choroplethLegendOverlay);
