@@ -15,7 +15,7 @@ export class ChoroplethLayer extends Layer {
 
     
     private svg: any;
-    private loader: any;
+    //private loader: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
 
@@ -24,14 +24,14 @@ export class ChoroplethLayer extends Layer {
         super({ ...options, zIndex: options.zIndex || 10 });
 
         this.svg = options.svg;
-        this.loader=options.loader;
+        //this.loader=options.loader;
         this.options = options;
 
         this.geojson = options.geojson; 
 
         console.log('geojson',this.geojson);
 
-        this.loader.classList.remove('hidden'); // Show the loader
+        //this.loader.classList.remove('hidden'); // Show the loader
 
     }
 
@@ -82,7 +82,7 @@ export class ChoroplethLayer extends Layer {
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
 
-        this.loader.classList.add('hidden'); // Hide loader
+        //this.loader.classList.add('hidden'); // Hide loader
 
         return this.options.svgContainer;
     }

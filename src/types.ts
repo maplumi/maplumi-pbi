@@ -37,7 +37,7 @@ export interface CircleLayerOptions  extends LayerOptions{
     circleScale?: number;
     svg: any;
     svgContainer: HTMLElement;
-    loader: HTMLElement;
+    //loader: HTMLElement;
     zIndex: number;
   }
 
@@ -47,7 +47,7 @@ export interface CircleLayerOptions  extends LayerOptions{
     dataKey: string; // Key in GeoJSON properties used for coloring
     svg: any; // D3 SVG element
     svgContainer: HTMLElement;
-    loader: HTMLElement;
+    //loader: HTMLElement;
     zIndex?: number;
   }
   

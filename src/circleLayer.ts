@@ -14,7 +14,6 @@ import { simplify } from '@turf/turf';
 export class CircleLayer extends Layer {
 
     private svg: any;
-    private loader: any;
     private features: any;
     public options: CircleLayerOptions;
 
@@ -22,7 +21,7 @@ export class CircleLayer extends Layer {
         super({ ...options, zIndex: options.zIndex || 10 });
 
         this.svg = options.svg;
-        this.loader = options.loader;
+        //this.loader = options.loader;
         this.options = options;
 
         this.features = options.longitudes.map((lon, index) => ({
@@ -33,9 +32,6 @@ export class CircleLayer extends Layer {
             },
             properties: {}, // Add additional properties here
         }));
-
-        //console.log('Circle Features:', this.features);
-        this.loader.classList.remove('hidden'); // Show the loader
 
     }
 
@@ -66,8 +62,6 @@ export class CircleLayer extends Layer {
             .scale(scale)
             .center(center) // Center in [lon, lat]
             .translate([width / 2, height / 2]);
-
-        //const d3Path = geoPath().projection(d3Projection);
 
         const { circleSizeValues = [], circleOptions } = this.options as CircleLayerOptions;
         const { minRadius, color, strokeColor, strokeWidth } = circleOptions;
@@ -107,15 +101,8 @@ export class CircleLayer extends Layer {
             }
         });
 
-        // Ensure circles group is always on top AFTER rendering both groups
-        // this.svg.selectAll('g').sort((a: any, b: any) => {
-        //     return a.childNodes[0].tagName === 'circle' ? 1 : -1;
-        // });
-
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
-
-        this.loader.classList.add('hidden');
 
         // Return the div element
         return this.options.svgContainer;
