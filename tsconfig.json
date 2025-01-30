@@ -21,6 +21,7 @@
         "./src/colors.ts",
         "./src/constants.ts",
         "src/circleLayer.ts",
+        "src/choroplethLayer.ts",
         "src/svgLayer.ts",
         "./src/legend.ts",
         "./src/utils.ts",

@@ -2,7 +2,7 @@
     "visual":{
         "name":"open-map-visual",
         "displayName":"Open Map Visual",
-        "guid":"openmapvisual5F98ECA4D79E4FE1AC2FBF871216584B",
+        "guid":"xmap7708541FB6F548EAA4FDBD3BB2AB1811",
         "visualClassName":"OpenMapVisual",
         "version":"1.0.0.0",
         "description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs as well as geojson data hosted in select locations",
