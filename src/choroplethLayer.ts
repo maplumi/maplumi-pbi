@@ -3,7 +3,7 @@ import { Layer } from 'ol/layer.js';
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 import { select } from 'd3-selection';
 import { State } from 'ol/source/Source';
-import { ChoroplethLayerOptions } from './types';
+import { ChoroplethLayerOptions, GeoJSONFeature } from './types';
 import { geoBounds, geoMercator, geoPath, GeoPermissibleObjects } from 'd3-geo';
 import { Extent, getCenter, getWidth } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
@@ -12,10 +12,8 @@ import { FeatureLike } from 'ol/Feature';
 import { simplify } from '@turf/turf';
 
 export class ChoroplethLayer extends Layer {
-
     
     private svg: any;
-    //private loader: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
 
@@ -24,14 +22,11 @@ export class ChoroplethLayer extends Layer {
         super({ ...options, zIndex: options.zIndex || 10 });
 
         this.svg = options.svg;
-        //this.loader=options.loader;
         this.options = options;
 
         this.geojson = options.geojson; 
 
         console.log('geojson',this.geojson);
-
-        //this.loader.classList.remove('hidden'); // Show the loader
 
     }
 
@@ -69,8 +64,9 @@ export class ChoroplethLayer extends Layer {
         const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
 
         // Render features directly from GeoJSON (EPSG:4326)
-        this.geojson.features.forEach((feature) => {
+        
 
+        this.geojson.features.forEach((feature: GeoJSONFeature) => {
             choroplethGroup.append('path')
                 .datum(feature)
                 .attr('d', d3Path)

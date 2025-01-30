@@ -3,7 +3,7 @@ import { Layer } from 'ol/layer.js';
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 import { select } from 'd3-selection';
 import { State } from 'ol/source/Source';
-import { CircleLayerOptions } from './types';
+import { CircleLayerOptions, GeoJSONFeature } from './types';
 import { geoBounds, geoMercator, geoPath, GeoPermissibleObjects } from 'd3-geo';
 import { Extent, getCenter, getWidth } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
@@ -21,16 +21,15 @@ export class CircleLayer extends Layer {
         super({ ...options, zIndex: options.zIndex || 10 });
 
         this.svg = options.svg;
-        //this.loader = options.loader;
         this.options = options;
 
         this.features = options.longitudes.map((lon, index) => ({
             type: 'Feature',
             geometry: {
                 type: 'Point',
-                coordinates: [lon, options.latitudes[index]], // Construct Point feature
+                coordinates: [lon, options.latitudes[index]], 
             },
-            properties: {}, // Add additional properties here
+            properties: {}
         }));
 
     }
@@ -75,7 +74,7 @@ export class CircleLayer extends Layer {
         // Create a group element for circles
         const circlesGroup = this.svg.append('g').attr('id', 'circles-group');
 
-        this.features.forEach((feature, i) => {
+        this.features.forEach((feature: GeoJSONFeature, i:number) => {
 
             if (!feature.geometry || feature.geometry.type !== 'Point') return;
 

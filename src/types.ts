@@ -1,6 +1,20 @@
 import { Options as LayerOptions } from 'ol/layer/Base.js';
 import { Feature } from 'ol';
 
+export interface GeoJSONFeature {
+    type: string;
+    geometry: {
+        type: string;
+        coordinates: any[];
+    };
+    properties: { [key: string]: any };
+}
+
+export interface GeoJSON {
+    type: string;
+    features: GeoJSONFeature[];
+}
+
 export interface BasemapOptions {
     selectedBasemap: string;
     customMapAttribution: string;
@@ -37,17 +51,15 @@ export interface CircleLayerOptions  extends LayerOptions{
     circleScale?: number;
     svg: any;
     svgContainer: HTMLElement;
-    //loader: HTMLElement;
     zIndex: number;
   }
 
   export interface ChoroplethLayerOptions extends LayerOptions {
-    geojson: any; // GeoJSON data for the choropleth
-    colorScale: (value: any) => string; // Function to map a data value to a color
-    dataKey: string; // Key in GeoJSON properties used for coloring
-    svg: any; // D3 SVG element
+    geojson: any; 
+    colorScale: (value: any) => string; 
+    dataKey: string; 
+    svg: any; 
     svgContainer: HTMLElement;
-    //loader: HTMLElement;
     zIndex?: number;
   }
   
