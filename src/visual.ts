@@ -221,7 +221,7 @@ export class OpenMapVisual implements IVisual {
 
         // Fit map options
         this.fitMapOptions = {
-            padding: [50, 50, 50, 50],
+            padding: [40, 40, 40, 40],
             duration: 1000,
             easing: easeOut,
         };
@@ -275,16 +275,18 @@ export class OpenMapVisual implements IVisual {
 
         this.updateBasemap(basemapOptions);
 
-        if (circleOptions.layerControl) {
-
-            this.renderCircleLayer(dataView.categorical, circleOptions);
-
-        }
-
-        if (choroplethOptions.layerControl) {
-
+        if (choroplethOptions.layerControl) {            
             this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
 
+        }else{
+            this.svg.select('#choropleth-group').remove();
+        }
+
+        if (circleOptions.layerControl) {           
+            this.renderCircleLayer(dataView.categorical, circleOptions);
+
+        }else{
+            this.svg.select('#circles-group').remove();
         }
 
         // Force the map to update its size, for example when the visual window is resized
@@ -602,18 +604,24 @@ export class OpenMapVisual implements IVisual {
     private addChoroplethLayerEvents(map: Map, svgLayer: ChoroplethLayer) {
         const svg = svgLayer.getSvg();
         const valueLookup = svgLayer.valueLookup; // Access the value lookup table
+        const spatialIndex = svgLayer.getSpatialIndex(); // Access the spatial index
 
         // Handle single click on map
         map.on('singleclick', (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
             const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
 
-            // Handle choropleth click event
-            svg.selectAll('path').each(function () {
-                const path = d3.select(this);
-                const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
+            // Find features near the click event
+            const nearbyFeatures = spatialIndex.search({
+                minX: lon,
+                minY: lat,
+                maxX: lon,
+                maxY: lat
+            });
 
-                // Check if the mouse click is within the feature
+            // Handle choropleth click event
+            nearbyFeatures.forEach((item: any) => {
+                const feature = item.feature;
                 if (d3.geoContains(feature, [lon, lat])) {
                     const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
                     const pCode = feature.properties[dataKey];
@@ -622,7 +630,9 @@ export class OpenMapVisual implements IVisual {
                     console.log(`Clicked choropleth: Value = ${value}`);
 
                     // Change the fill color for clicked choropleth feature
-                    path.attr('fill', 'blue');
+                    svg.selectAll('path').filter(function (d: any) {
+                        return d === feature;
+                    }).attr('fill', 'blue');
                 }
             });
         });
@@ -632,12 +642,20 @@ export class OpenMapVisual implements IVisual {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
             const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
 
+            // Find features near the pointer event
+            const nearbyFeatures = spatialIndex.search({
+                minX: lon,
+                minY: lat,
+                maxX: lon,
+                maxY: lat
+            });
+
             // Handle pointer movement over choropleth features
             svg.selectAll('path').each(function () {
                 const path = d3.select(this);
                 const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
 
-                if (d3.geoContains(feature, [lon, lat])) {
+                if (nearbyFeatures.some((item: any) => item.feature === feature && d3.geoContains(feature, [lon, lat]))) {
                     // Mouse is over the choropleth feature
                     path.attr('fill', 'red');
                 } else {

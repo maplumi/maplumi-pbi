@@ -6,6 +6,7 @@ import { ChoroplethLayerOptions, GeoJSONFeature } from './types';
 import { geoBounds, geoMercator, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
+import rbush from 'rbush';
 
 
 export class ChoroplethLayer extends Layer {
@@ -14,6 +15,7 @@ export class ChoroplethLayer extends Layer {
     private geojson: any;
     public options: ChoroplethLayerOptions;
     public valueLookup: { [key: string]: number };
+    private spatialIndex: any;
     private d3Path: any;
 
     constructor(options: ChoroplethLayerOptions) {
@@ -33,6 +35,20 @@ export class ChoroplethLayer extends Layer {
             this.valueLookup[pCode] = colorValues[index];
         });
 
+        // Build the spatial index
+        this.spatialIndex = new rbush();
+        const features = this.geojson.features.map((feature: GeoJSONFeature) => {
+            const bounds = geoBounds(feature);
+            return {
+                minX: bounds[0][0],
+                minY: bounds[0][1],
+                maxX: bounds[1][0],
+                maxY: bounds[1][1],
+                feature: feature
+            };
+        });
+        this.spatialIndex.load(features);
+
         this.d3Path = null;
 
         //console.log('geojson',this.geojson);
@@ -51,7 +67,7 @@ export class ChoroplethLayer extends Layer {
         const center  = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number]; // Map center in [lon, lat]
 
         // Clear existing paths
-        this.svg.selectAll('*').remove();
+        this.svg.select('#choropleth-group').remove();
 
         // Set SVG dimensions to match the map viewport
         this.svg
@@ -72,8 +88,7 @@ export class ChoroplethLayer extends Layer {
         // Create a group element for circles
         const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
 
-        // Render features directly from GeoJSON (EPSG:4326)
-        
+        // Render features directly from GeoJSON (EPSG:4326)        
 
         this.geojson.features.forEach((feature: GeoJSONFeature) => {
 
@@ -90,12 +105,23 @@ export class ChoroplethLayer extends Layer {
                 .attr('fill-opacity', this.options.fillOpacity);
         });
 
+        // Manually reorder to ensure circles are on top
+        const choroplethGroupNode = choroplethGroup.node();
+        const circlesGroupNode = this.svg.select('#circles-group').node();
+
+        if (choroplethGroupNode && circlesGroupNode) {
+            choroplethGroupNode.parentNode.appendChild(circlesGroupNode);
+        }
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
 
         //this.loader.classList.add('hidden'); // Hide loader
 
         return this.options.svgContainer;
+    }
+
+    getSpatialIndex() {
+        return this.spatialIndex;
     }
 
     getd3Path() {   

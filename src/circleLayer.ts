@@ -46,7 +46,7 @@ export class CircleLayer extends Layer {
         const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number]; // Map center in [lon, lat]
 
         // Clear existing paths
-        this.svg.selectAll('*').remove();
+        this.svg.select('#circles-group').remove();
 
         // Set SVG dimensions to match the map viewport
         this.svg
@@ -99,6 +99,14 @@ export class CircleLayer extends Layer {
                     .attr('stroke-width', strokeWidth);
             }
         });
+
+        // Manually reorder to ensure circles are on top
+        const choroplethGroupNode = this.svg.select('#choropleth-group').node();
+        const circlesGroupNode = circlesGroup.node();
+
+        if (choroplethGroupNode && circlesGroupNode) {
+            choroplethGroupNode.parentNode.appendChild(circlesGroupNode);
+        }
 
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());

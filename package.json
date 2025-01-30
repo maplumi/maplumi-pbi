@@ -24,6 +24,7 @@
     "powerbi-visuals-utils-formattingmodel": "^6.0.4",
     "powerbi-visuals-utils-formattingutils": "^6.1.2",
     "powerbi-visuals-utils-tooltiputils": "^6.0.4",
+    "rbush": "^4.0.1",
     "simple-statistics": "^7.8.7",
     "topojson-client": "^3.1.0",
     "visual": "file:"
