@@ -56,11 +56,16 @@ export interface CircleLayerOptions  extends LayerOptions{
 
   export interface ChoroplethLayerOptions extends LayerOptions {
     geojson: any; 
+    strokeColor: string;
+    strokeWidth: number;
+    fillOpacity: number;
     colorScale: (value: any) => string; 
     dataKey: string; 
     svg: any; 
     svgContainer: HTMLElement;
     zIndex?: number;
+    categoryValues: string[];
+    measureValues: number[];
   }
   
 

@@ -50,7 +50,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import { Overlay } from "ol";
 
-import { fromLonLat } from "ol/proj";
+import { fromLonLat, toLonLat } from 'ol/proj.js';
 
 import GeoJSON from "ol/format/GeoJSON";
 import TopoJSON from "ol/format/TopoJSON"
@@ -79,6 +79,7 @@ import * as turf from "@turf/turf";
 
 import * as util from "./utils"
 import * as legend from "./legend";
+import { Extent } from "ol/extent";
 
 
 interface TooltipDataItem {
@@ -107,10 +108,6 @@ export class OpenMapVisual implements IVisual {
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
 
-    private loaderOverlay: Overlay;
-    private circleLegendOverlay: Overlay;
-    private choroplethLegendOverlay: Overlay;
-
     private map: Map;
     private basemap: Basemap;
     private basemapLayer: TileLayer;
@@ -122,9 +119,7 @@ export class OpenMapVisual implements IVisual {
     private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
-    private choroplethLegend: HTMLElement;
-    private circleLegend: HTMLElement;
-
+    private mapExtent: Extent;
     private fitMapOptions: any;
 
     private memoryCache: Record<string, { data: any; timestamp: number }>;
@@ -222,9 +217,7 @@ export class OpenMapVisual implements IVisual {
             }),
         });
 
-        // Get legend containers by Id
-        this.choroplethLegend = document.getElementById("choroplethLegend");
-        this.circleLegend = document.getElementById("circleLegend");
+        this.mapExtent = this.map.getView().calculateExtent(this.map.getSize());
 
         // Fit map options
         this.fitMapOptions = {
@@ -261,7 +254,7 @@ export class OpenMapVisual implements IVisual {
 
         this.svgOverlay.style.display = 'none';
 
-        // Retrieve the model and settings
+        // Retrieve model and settings
         this.visualFormattingSettingsModel = this.getFormattingSettings(options);
         const basemapOptions = this.getBasemapOptions();
         const circleOptions = this.getCircleOptions();
@@ -283,18 +276,16 @@ export class OpenMapVisual implements IVisual {
         this.updateBasemap(basemapOptions);
 
         if (circleOptions.layerControl) {
-           // this.loaderContainer.style.display = 'block'; // Show the loader
+
             this.renderCircleLayer(dataView.categorical, circleOptions);
-            //this.loaderContainer.style.display = 'none'; // Hide the loader
+
         }
 
         if (choroplethOptions.layerControl) {
-           // this.loaderContainer.style.display = 'block'; // Show the loader
-            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-           // this.loaderContainer.style.display = 'none'; // Hide the loader
-        }
 
-        
+            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+
+        }
 
         // Force the map to update its size, for example when the visual window is resized
         this.map.updateSize();
@@ -396,11 +387,6 @@ export class OpenMapVisual implements IVisual {
                         svg: this.svg,
                         svgContainer: this.svgContainer,
                         zIndex: 5
-
-                        // OpenLayers-specific options
-                        // opacity: 1,                                // Layer opacity
-                        // visible: true,                             // Visibility of the layer
-
                     };
 
                     this.circleLayer = new CircleLayer(circleLayerOptions);
@@ -410,9 +396,9 @@ export class OpenMapVisual implements IVisual {
                     this.addCircleLayerEvents(this.map, this.circleLayer);
 
                     // Calculate extent of features
-                    const extent = this.circleLayer.getFeaturesExtent();
+                    this.mapExtent = this.circleLayer.getFeaturesExtent();
 
-                    this.map.getView().fit(extent, this.fitMapOptions);
+                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
 
 
                     // Render legend if proportional circles are used
@@ -467,7 +453,7 @@ export class OpenMapVisual implements IVisual {
         // Validate input data
         if (!categorical.values || categorical.values.length === 0) {
             console.warn("Measures not found.");
-            //this.svg.selectAll('g').remove(); // set group selection
+            this.svg.select('#choropleth-group').remove();
             return;
         }
 
@@ -475,9 +461,11 @@ export class OpenMapVisual implements IVisual {
             (c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]
         );
 
+        console.log('AdminPCodeNameIDCategory', AdminPCodeNameIDCategory);
+
         if (!AdminPCodeNameIDCategory) {
             console.warn("Admin PCode/Name/ID not found.");
-            //this.svg.selectAll('g').remove(); // set group selection
+            this.svg.select('#choropleth-group').remove();
             return;
         }
 
@@ -485,50 +473,47 @@ export class OpenMapVisual implements IVisual {
             (c) => c.source?.roles && c.source.roles["Color"]
         );
 
+        console.log('colorMeasure', colorMeasure);
+
         if (!colorMeasure) {
             console.warn("Color Measure not found.");
-            //this.svg.selectAll('g').remove(); // set group selection
+            this.svg.select('#choropleth-group').remove();
             return;
         }
 
         const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
         const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
-        const CACHE_EXPIRY_MS = 3600000; // 1 hour
+
 
         try {
 
-            d3.json(serviceUrl).then(data => {
+            util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey, constants.CACHE_EXPIRY_MS)
+                .then((data: any) => {
 
-                // handle topojson
-                let geojson: FeatureCollection = {
-                    type: "FeatureCollection",
-                    features: []
-                };
+                    // handle topojson
+                    let geojson: FeatureCollection = {
+                        type: "FeatureCollection",
+                        features: []
+                    };
 
-                if (util.isTopoJSON(data)) {
+                    if (util.isTopoJSON(data)) {
 
-                    geojson = util.convertSingleLayerTopoJSONToGeoJSON(data);
+                        geojson = util.convertSingleLayerTopoJSONToGeoJSON(data);
 
-                } else {
+                    } else {
 
-                    geojson = data as FeatureCollection;
-                }
+                        geojson = data as FeatureCollection;
+                    }
 
+                    const turfOptions = { tolerance: 0.01, highQuality: false };
 
-                const turfOptions = { tolerance: 0.01, highQuality: false };
+                    const simplifiedGeo: FeatureCollection = turf.simplify(geojson, turfOptions);
 
-                const tolerance = 0.01;
-                const highQuality = false;
-
-               // const simplifiedGeo = turf.simplify(geojson, tolerance, highQuality);
-
-
-                this.renderChoropleth(geojson, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
-
-            })
+                    this.renderChoropleth(simplifiedGeo, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
+                });
 
         } catch (error) {
-            console.error("Error fetching GeoJSON data:", error);
+            console.error("Error fetching data:", error);
         }
 
 
@@ -552,7 +537,11 @@ export class OpenMapVisual implements IVisual {
 
         const colorValues: number[] = measure.values;
         const classBreaks = this.getClassBreaks(colorValues, options);
+        console.log('classBreaks', classBreaks);
+
         const colorScale = this.getColorScale(classBreaks, options);
+        console.log('colorScale', colorScale);
+
         const pcodeKey = options.locationPcodeNameId;
 
         // Filter GeoJSON features based on valid PCodes
@@ -563,14 +552,19 @@ export class OpenMapVisual implements IVisual {
             )
         };
 
-        const choroplethLayerOptions : ChoroplethLayerOptions = {
+        const choroplethLayerOptions: ChoroplethLayerOptions = {
 
             geojson: filteredGeoData,
-            colorScale: (value: any) => this.getColorForValue(value, classBreaks, colorScale),
+            strokeColor: options.strokeColor,
+            strokeWidth: options.strokeWidth,
+            fillOpacity: options.layerOpacity,
+            colorScale: (value: any) => this.getColorFromClassBreaks(value, classBreaks, colorScale),
             dataKey: pcodeKey,
             svg: this.svg,
             svgContainer: this.svgContainer,
-            zIndex: 5
+            zIndex: 5,
+            categoryValues: category.values,
+            measureValues: measure.values,
         }
 
         this.choroplethLayer = new ChoroplethLayer(choroplethLayerOptions);
@@ -585,92 +579,77 @@ export class OpenMapVisual implements IVisual {
 
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
-        // // Update the legend
-        // if (options.showLegend) {
+        // Update the legend
+        if (options.showLegend) {
 
-        //     legend.createChoroplethLegend(
-        //         this.choroplethLegendContainer,
-        //         colorValues,
-        //         classBreaks,
-        //         colorScale,
-        //         options,
-        //         "top"
-        //     );
+            legend.createChoroplethLegend(
+                this.choroplethLegendContainer,
+                colorValues,
+                classBreaks,
+                colorScale,
+                options,
+                "top"
+            );
 
-        // } else {
+        } else {
 
-        //     this.choroplethLegendContainer.style.display = "none"; // Hide the legend
-        // }
-
+            this.choroplethLegendContainer.style.display = "none"; // Hide the legend
+        }
 
 
     }
 
     private addChoroplethLayerEvents(map: Map, svgLayer: ChoroplethLayer) {
-
         const svg = svgLayer.getSvg();
+        const valueLookup = svgLayer.valueLookup; // Access the value lookup table
 
         // Handle single click on map
         map.on('singleclick', (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+            const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
 
             // Handle choropleth click event
             svg.selectAll('path').each(function () {
                 const path = d3.select(this);
-                const bounds = path.node().getBoundingClientRect();
-                const pathX = bounds.left;
-                const pathY = bounds.top;
-                const pathWidth = bounds.width;
-                const pathHeight = bounds.height;
+                const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
 
-                // Check if the mouse click is within the bounds of the path
-                if (
-                    mouseX >= pathX && mouseX <= pathX + pathWidth &&
-                    mouseY >= pathY && mouseY <= pathY + pathHeight
-                ) {
-                    // Choropleth feature clicked! Perform your action here
-                    const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
-                    //const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
-                    //const value = feature.properties[dataKey];
+                // Check if the mouse click is within the feature
+                if (d3.geoContains(feature, [lon, lat])) {
+                    const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
+                    const pCode = feature.properties[dataKey];
+                    const value = valueLookup[pCode];
 
-                    //console.log(`Clicked choropleth: Value = ${value}`);
+                    console.log(`Clicked choropleth: Value = ${value}`);
 
                     // Change the fill color for clicked choropleth feature
                     path.attr('fill', 'blue');
                 }
             });
-
         });
 
         // Handle pointer movement over the map
         map.on('pointermove', (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+            const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
 
             // Handle pointer movement over choropleth features
             svg.selectAll('path').each(function () {
                 const path = d3.select(this);
-                const bounds = path.node().getBoundingClientRect();
-                const pathX = bounds.left;
-                const pathY = bounds.top;
-                const pathWidth = bounds.width;
-                const pathHeight = bounds.height;
+                const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
 
-                if (
-                    mouseX >= pathX && mouseX <= pathX + pathWidth &&
-                    mouseY >= pathY && mouseY <= pathY + pathHeight
-                ) {
+                if (d3.geoContains(feature, [lon, lat])) {
                     // Mouse is over the choropleth feature
                     path.attr('fill', 'red');
                 } else {
                     // Mouse is outside the choropleth feature
-                    const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
-                    //const colorScale = (canvasLayer.options as ChoroplethLayerOptions).colorScale;
-                    //const dataKey = (canvasLayer.options as ChoroplethLayerOptions).dataKey;
-                    //const color = colorScale(feature.properties[dataKey]);
-                    //path.attr('fill', color); // Revert to original color
+                    const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
+                    const pCode = feature.properties[dataKey];
+                    const value = valueLookup[pCode];
+                    const colorScale = (svgLayer.options as ChoroplethLayerOptions).colorScale;
+                    const color = colorScale(value);
+                    path.attr('fill', color); // Revert to original color
                 }
             });
-
         });
     }
 
@@ -736,69 +715,18 @@ export class OpenMapVisual implements IVisual {
         });
     }
 
-    // Helper to get color for a value based on class breaks
-    private getColorForValue(value: number, classBreaks: number[], colorScale: string[]): string {
-        if (value < classBreaks[0]) {
-            return colorScale[0];
-        } else if (value > classBreaks[classBreaks.length - 1]) {
-            return colorScale[colorScale.length - 1];
-        } else {
-            for (let i = 0; i < classBreaks.length - 1; i++) {
-                if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
-                    return colorScale[i];
-                }
-            }
-        }
-        return "#009edb"; // Default color
-    }
-
-    private getValidPCodes(pCodes: string[]): string[] {
-        return pCodes.filter((pcode) => {
-            if (!pcode) {
-                console.warn(`Skipping invalid PCode: ${pcode}`);
-                return false;
-            }
-            return true;
-        });
-    }
-
-    private parseBoundaryData(
-        data: any,
-        validPCodes: string[],
-        pcodeKey: string
-    ): any[] | null {
-        let format;
-        let features;
-
-        if (util.isValidGeoJson(data)) {
-            format = new GeoJSON();
-        } else if (util.isValidTopoJson(data)) {
-            format = new TopoJSON();
-        } else {
-            console.error("Input data is neither GeoJSON nor TopoJSON.");
-            return null;
-        }
-
-        features = format.readFeatures(data, {
-            dataProjection: "EPSG:4326",
-            featureProjection: "EPSG:3857",
-        });
-
-        // Filter features by valid PCodes
-        return features.filter((feature: any) =>
-            validPCodes.includes(feature.get(pcodeKey))
-        );
-    }
-
     private getColorFromClassBreaks(
         value: number,
         classBreaks: number[],
         colorScale: string[]
     ): string {
+
         if (value < classBreaks[0]) return colorScale[0];
+
         if (value > classBreaks[classBreaks.length - 1]) return colorScale[colorScale.length - 1];
 
         for (let i = 0; i < classBreaks.length - 1; i++) {
+
             if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
                 return colorScale[i];
             }

@@ -63,13 +63,12 @@ export class CircleLayer extends Layer {
             .translate([width / 2, height / 2]);
 
         const { circleSizeValues = [], circleOptions } = this.options as CircleLayerOptions;
-        const { minRadius, color, strokeColor, strokeWidth } = circleOptions;
+        const { minRadius, color,layerOpacity, strokeColor, strokeWidth } = circleOptions;
 
         const minSize = Math.min(...circleSizeValues);
         const maxSize = Math.max(...circleSizeValues);
-        const circleScale = (value: number) =>
-            minRadius +
-            ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
+        const circleScale = (value: number) => minRadius + 
+             ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
 
         // Create a group element for circles
         const circlesGroup = this.svg.append('g').attr('id', 'circles-group');
@@ -95,6 +94,7 @@ export class CircleLayer extends Layer {
                     .attr('cy', y)
                     .attr('r', radius)
                     .attr('fill', color)
+                    .attr('fill-opacity', layerOpacity)
                     .attr('stroke', strokeColor)
                     .attr('stroke-width', strokeWidth);
             }

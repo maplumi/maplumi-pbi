@@ -326,12 +326,14 @@ export async function isCacheExpired(cache: Record<string, { data: any; timestam
 }
 
 // Fetch GeoJSON data with caching
-export async function fetchAndCacheJsonBoundaryData(
+export async function fetchAndCacheJsonGeoDataAsync(
     serviceUrl: string,
     cache:  Record<string, { data: any; timestamp: number }>,
     cacheKey: string,
     maxAge: number = 3600000
 ): Promise<any> {
+
+
 
     if (await isCacheExpired(cache,cacheKey, maxAge)) {
 
@@ -354,11 +356,11 @@ export async function fetchAndCacheJsonBoundaryData(
             return jsonData;
 
         } else {
+            return;
             //console.error("Invalid JSON or response error.");
             // TODO: communicate issue to user
         }
 
-        return;
     }
 
     //console.log("Using cached data.");
@@ -382,74 +384,74 @@ export async function isValidJsonResponse(responseData: any): Promise<boolean> {
 }
 
 
-export function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
-    if (longitudes.length === 0 || latitudes.length === 0) {
-        throw new Error("Longitude and latitude arrays must not be empty.");
-    }
+// export function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
+//     if (longitudes.length === 0 || latitudes.length === 0) {
+//         throw new Error("Longitude and latitude arrays must not be empty.");
+//     }
 
-    if (longitudes.length !== latitudes.length) {
-        throw new Error("Longitude and latitude arrays must have the same length.");
-    }
+//     if (longitudes.length !== latitudes.length) {
+//         throw new Error("Longitude and latitude arrays must have the same length.");
+//     }
 
-    const minX = Math.min(...longitudes);
-    const maxX = Math.max(...longitudes);
-    const minY = Math.min(...latitudes);
-    const maxY = Math.max(...latitudes);
+//     const minX = Math.min(...longitudes);
+//     const maxX = Math.max(...longitudes);
+//     const minY = Math.min(...latitudes);
+//     const maxY = Math.max(...latitudes);
 
-    const extent = [minX, minY, maxX, maxY];
+//     const extent = [minX, minY, maxX, maxY];
 
-    const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
+//     const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
 
-    return transformedExtent;
-}
+//     return transformedExtent;
+// }
 
-export function getElementUnderSvg(x: number, y: number): Element | null {
-    let resultingElement: Element | null;
-    const firstElement = document.elementFromPoint(x, y);
+// export function getElementUnderSvg(x: number, y: number): Element | null {
+//     let resultingElement: Element | null;
+//     const firstElement = document.elementFromPoint(x, y);
 
-    if (firstElement && firstElement.nodeName === "circle") {
-        const display = (firstElement as HTMLElement).style.display; // Save the display property of the SVG element
-        (firstElement as HTMLElement).style.display = "none";       // Make the SVG element invisible
-        resultingElement = document.elementFromPoint(x, y);         // Get the underlying element
-        (firstElement as HTMLElement).style.display = display;      // Restore the display property
-    } else {
-        resultingElement = firstElement;                            // Use the first element if it's not an SVG element
-    }
+//     if (firstElement && firstElement.nodeName === "circle") {
+//         const display = (firstElement as HTMLElement).style.display; // Save the display property of the SVG element
+//         (firstElement as HTMLElement).style.display = "none";       // Make the SVG element invisible
+//         resultingElement = document.elementFromPoint(x, y);         // Get the underlying element
+//         (firstElement as HTMLElement).style.display = display;      // Restore the display property
+//     } else {
+//         resultingElement = firstElement;                            // Use the first element if it's not an SVG element
+//     }
 
-    return resultingElement;
-}
+//     return resultingElement;
+// }
 
-export function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void {
-    const { clientX: x, clientY: y } = event;
+// export function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void {
+//     const { clientX: x, clientY: y } = event;
 
-    // Get the topmost element under the cursor
-    const firstElement = document.elementFromPoint(x, y);
+//     // Get the topmost element under the cursor
+//     const firstElement = document.elementFromPoint(x, y);
 
-    if (firstElement && firstElement.nodeName === 'circle') {
-        // Temporarily hide the SVG circle
-        const display = (firstElement as HTMLElement).style.display;
-        (firstElement as HTMLElement).style.display = 'none';
+//     if (firstElement && firstElement.nodeName === 'circle') {
+//         // Temporarily hide the SVG circle
+//         const display = (firstElement as HTMLElement).style.display;
+//         (firstElement as HTMLElement).style.display = 'none';
 
-        // Get the underlying element
-        const underlyingElement = document.elementFromPoint(x, y);
-        (firstElement as HTMLElement).style.display = display;
+//         // Get the underlying element
+//         const underlyingElement = document.elementFromPoint(x, y);
+//         (firstElement as HTMLElement).style.display = display;
 
-        // If the underlying element is the map, pass the event to it
-        if (underlyingElement === mapElement) {
-            mapElement.dispatchEvent(new WheelEvent(event.type, event));
-        }
-    } else if (firstElement === mapElement) {
-        // If the event is already on the map, let it proceed
-        mapElement.dispatchEvent(new WheelEvent(event.type, event));
-    }
-}
+//         // If the underlying element is the map, pass the event to it
+//         if (underlyingElement === mapElement) {
+//             mapElement.dispatchEvent(new WheelEvent(event.type, event));
+//         }
+//     } else if (firstElement === mapElement) {
+//         // If the event is already on the map, let it proceed
+//         mapElement.dispatchEvent(new WheelEvent(event.type, event));
+//     }
+// }
 
 
-// Helper function to check if a point is inside a circle
-export function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
-    const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
-    return distanceSquared <= radius ** 2;
-}
+// // Helper function to check if a point is inside a circle
+// export function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
+//     const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
+//     return distanceSquared <= radius ** 2;
+// }
 
 
 

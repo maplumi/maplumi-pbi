@@ -1,21 +1,20 @@
 
 import { Layer } from 'ol/layer.js';
 import { fromLonLat, toLonLat } from 'ol/proj.js';
-import { select } from 'd3-selection';
 import { State } from 'ol/source/Source';
 import { ChoroplethLayerOptions, GeoJSONFeature } from './types';
-import { geoBounds, geoMercator, geoPath, GeoPermissibleObjects } from 'd3-geo';
-import { Extent, getCenter, getWidth } from 'ol/extent.js';
+import { geoBounds, geoMercator, geoPath } from 'd3-geo';
+import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
-import { transformExtent } from 'ol/proj.js';
-import { FeatureLike } from 'ol/Feature';
-import { simplify } from '@turf/turf';
+
 
 export class ChoroplethLayer extends Layer {
     
     private svg: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
+    public valueLookup: { [key: string]: number };
+    private d3Path: any;
 
     constructor(options: ChoroplethLayerOptions) {
 
@@ -26,7 +25,17 @@ export class ChoroplethLayer extends Layer {
 
         this.geojson = options.geojson; 
 
-        console.log('geojson',this.geojson);
+        // Create a lookup table for measure values
+        this.valueLookup = {};
+        const pCodes = options.categoryValues as string[];
+        const colorValues = options.measureValues as number[];
+        pCodes.forEach((pCode, index) => {
+            this.valueLookup[pCode] = colorValues[index];
+        });
+
+        this.d3Path = null;
+
+        //console.log('geojson',this.geojson);
 
     }
 
@@ -58,7 +67,7 @@ export class ChoroplethLayer extends Layer {
             .center(center) // Center in [lon, lat]
             .translate([width / 2, height / 2]);
 
-        const d3Path = geoPath().projection(d3Projection);
+        this.d3Path = geoPath().projection(d3Projection);
 
         // Create a group element for circles
         const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
@@ -67,12 +76,18 @@ export class ChoroplethLayer extends Layer {
         
 
         this.geojson.features.forEach((feature: GeoJSONFeature) => {
+
+            const pCode = feature.properties[this.options.dataKey];
+            const value = this.valueLookup[pCode];
+            const fillColor = this.options.colorScale(value);
+
             choroplethGroup.append('path')
                 .datum(feature)
-                .attr('d', d3Path)
-                .attr('stroke', 'blue')
-                .attr('stroke-width', 1)
-                .attr('fill', 'none');
+                .attr('d', this.d3Path)
+                .attr('stroke', this.options.strokeColor )
+                .attr('stroke-width', this.options.strokeWidth)
+                .attr('fill', fillColor )
+                .attr('fill-opacity', this.options.fillOpacity);
         });
 
         // Append the SVG element to the div
@@ -83,7 +98,9 @@ export class ChoroplethLayer extends Layer {
         return this.options.svgContainer;
     }
 
-    
+    getd3Path() {   
+        return this.d3Path;
+    }
 
     // Expose SVG for external handlers
     getSvg() {
