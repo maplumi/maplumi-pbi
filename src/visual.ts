@@ -66,7 +66,7 @@ import { MapboxVectorLayer } from "ol-mapbox-style";
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
-import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions } from "./types";
+import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types";
 import { ColorRampGenerator } from "./colors";
 
 import { CircleLayer } from "./circleLayer";
@@ -110,6 +110,8 @@ export class MaplyticsVisual implements IVisual {
     private basemap: Basemap;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
+
+    private mapToolsOptions: MapToolsOptions;
 
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
@@ -263,6 +265,7 @@ export class MaplyticsVisual implements IVisual {
         const basemapOptions = this.getBasemapOptions();
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
+        this.mapToolsOptions = this.getMapToolsOptions();
 
         this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
 
@@ -438,7 +441,15 @@ export class MaplyticsVisual implements IVisual {
                 // Calculate extent of features
                 this.mapExtent = this.circleLayer.getFeaturesExtent();
 
-                this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+                if(this.mapToolsOptions.lockMapExtent) {
+
+                    this.lockMapToCurrentExtent();
+
+                }else{
+
+                    this.unlockMap();
+                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+                }           
 
 
                 // Render legend if proportional circles are used
@@ -606,13 +617,21 @@ export class MaplyticsVisual implements IVisual {
 
         this.choroplethLayer = new ChoroplethLayer(choroplethLayerOptions);
 
-        const extent = this.choroplethLayer.getFeaturesExtent();
-
-        this.map.getView().fit(extent, this.fitMapOptions);
-
         this.map.addLayer(this.choroplethLayer);
 
         this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
+
+        const extent = this.choroplethLayer.getFeaturesExtent();
+
+        if(this.mapToolsOptions.lockMapExtent) {
+
+            this.lockMapToCurrentExtent();
+            
+        }else{
+
+            this.unlockMap();
+            this.map.getView().fit(extent, this.fitMapOptions);
+        }        
 
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
@@ -879,6 +898,15 @@ export class MaplyticsVisual implements IVisual {
             mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
             mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
             declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+        };
+    }
+
+    private getMapToolsOptions(): MapToolsOptions {
+        const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
+        return {
+            
+            lockMapExtent: maptoolsSettings.lockMapExtent.value,
+            showZoomControl: maptoolsSettings.showZoomControl.value,
         };
     }
 

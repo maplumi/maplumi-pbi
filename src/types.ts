@@ -107,3 +107,8 @@ export interface HeatmapOptions {
     layerOpacity: number; 
     showLegend: boolean; 
 }
+
+export interface MapToolsOptions {
+    lockMapExtent: boolean;
+    showZoomControl: boolean;
+}

@@ -429,6 +429,21 @@
           }
         }
       }
+    },
+    "mapToolsVisualCardSettings":{
+      "properties": {
+                
+        "lockMapExtent": {
+          "type": {
+            "bool": false
+          }
+        },
+        "showZoomControl": {
+          "type": {
+            "bool": false
+          }
+        }
+      }
     }
   },
   "suppressDefaultTitle": false,
