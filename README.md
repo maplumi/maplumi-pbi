@@ -1,1 +1,1 @@
-Open Map Visual
+Maplytics Poer BI Map Visual
