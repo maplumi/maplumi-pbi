@@ -89,7 +89,7 @@ interface TooltipDataItem {
     // ... other properties you might need (header, color, etc.)
 }
 
-export class OpenMapVisual implements IVisual {
+export class MaplyticsVisual implements IVisual {
 
     private host: IVisualHost;
     private formattingSettingsService: FormattingSettingsService;
@@ -123,6 +123,8 @@ export class OpenMapVisual implements IVisual {
     private fitMapOptions: any;
 
     private memoryCache: Record<string, { data: any; timestamp: number }>;
+
+    private abortController: AbortController | null = null;
 
     constructor(options: VisualConstructorOptions) {
 
@@ -240,7 +242,6 @@ export class OpenMapVisual implements IVisual {
         }
 
         this.svg = d3.select(this.svgOverlay);
-
         this.svgContainer = document.createElement('div'); // svg node container      
 
         console.log("Visual initialized.");
@@ -250,7 +251,9 @@ export class OpenMapVisual implements IVisual {
 
         console.log("Update invoked.");
 
-        this.svg.selectAll('*').remove();
+        // Reset state on new update
+        this.cleanupLayers();
+        if (this.abortController) this.abortController.abort();
 
         this.svgOverlay.style.display = 'none';
 
@@ -268,31 +271,59 @@ export class OpenMapVisual implements IVisual {
         if (!dataView || !dataView.categorical) {
             console.log("No categorical data found.");
 
-            this.svg.selectAll('*').remove();
-
             return;
         }
 
         this.updateBasemap(basemapOptions);
 
-        if (choroplethOptions.layerControl) {            
-            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+        // Handle layers
+        this.handleLayer(
+            choroplethOptions.layerControl,
+            'choropleth-group',
+            this.renderChoroplethLayer,
+            dataView.categorical,
+            choroplethOptions
+        );
 
-        }else{
-            this.svg.select('#choropleth-group').remove();
-        }
+        this.handleLayer(
+            circleOptions.layerControl,
+            'circles-group',
+            this.renderCircleLayer,
+            dataView.categorical,
+            circleOptions
+        );
 
-        if (circleOptions.layerControl) {           
-            this.renderCircleLayer(dataView.categorical, circleOptions);
 
-        }else{
-            this.svg.select('#circles-group').remove();
+        // Optional: Clear entire SVG if all layers are off
+        if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
+            this.svg.selectAll('*').remove(); // Use cautiously
         }
 
         // Force the map to update its size, for example when the visual window is resized
         this.map.updateSize();
 
     }
+
+    // Helper function to handle layer visibility and rendering
+    private handleLayer(shouldRender: boolean, groupId: string, renderFunction: (data: any, options: any) => void,
+        data: any,
+        options: any
+    ) {
+        const group = this.svg.select(`#${groupId}`);
+
+        // Always clean up before re-rendering to avoid duplication
+        group.selectAll("*").remove();  // Clear children, not the group itself
+
+        if (shouldRender) {
+            renderFunction.call(this, data, options);
+        }
+
+        // Call this in handleLayer when disabling a layer
+        if (!shouldRender) {
+            this.cleanupLayers();
+        }
+    }
+
 
     private updateBasemap(basemapOptions: BasemapOptions): void {
 
@@ -321,6 +352,11 @@ export class OpenMapVisual implements IVisual {
             newLayer = this.basemapLayer;
         } else if (basemapOptions.selectedBasemap === "none") {
             // remove basemap
+            if(this.basemapLayer) {
+                this.map.removeLayer(this.basemapLayer);
+            }else if(this.mapboxVectorLayer) {
+                this.map.removeLayer(this.mapboxVectorLayer);
+            }
         }
 
         // Update the layer and attribution if a valid layer was found
@@ -330,10 +366,9 @@ export class OpenMapVisual implements IVisual {
         }
     }
 
-    private renderCircleLayer(
-        categorical: any,
-        circleOptions: CircleOptions
-    ) {
+    private renderCircleLayer(categorical: any, circleOptions: CircleOptions) {
+
+        if (!circleOptions.layerControl) return; // Early exit if layer is off
 
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
@@ -344,7 +379,6 @@ export class OpenMapVisual implements IVisual {
 
         if (circleOptions.layerControl) {
 
-            this.svg.select('#circles-group').remove();
             this.svgOverlay.style.display = 'block';
 
             console.log('Rendering circles...')
@@ -352,102 +386,95 @@ export class OpenMapVisual implements IVisual {
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
             const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
 
-            if (lonCategory && latCategory) {
+            if (!lonCategory || !latCategory) {
+                console.warn("Both Longitude and Latitude roles must be assigned.");
+                return;
+            }
 
-                // Extract tooltips
-                const tooltips = this.extractTooltips(categorical);
+            // Extract tooltips
+            const tooltips = this.extractTooltips(categorical);
 
-                longitudes = lonCategory.values as number[];
-                latitudes = latCategory.values as number[];
+            longitudes = lonCategory.values as number[];
+            latitudes = latCategory.values as number[];
 
-                if (longitudes.length !== latitudes.length) {
+            if (longitudes.length !== latitudes.length) {
 
-                    console.warn("Longitude and Latitude have different lengths.");
-
-                } else {
-
-                    // Handle Circle Size Measure or default size
-                    const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
-
-                    circleSizeValues = CircleSizeMeasure.values as number[];
-                    minCircleSizeValue = Math.min(...circleSizeValues);
-                    maxCircleSizeValue = Math.max(...circleSizeValues);
-                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
-
-                    const circleLayerOptions: CircleLayerOptions = {
-                        // Required properties for the CircleLayer
-                        longitudes: longitudes,
-                        latitudes: latitudes,
-
-                        // Circle customization options
-                        circleOptions: circleOptions,
-
-                        // Optional properties for proportional circles
-                        circleSizeValues: circleSizeValues,
-                        minCircleSizeValue: minCircleSizeValue,
-                        circleScale: circleScale,
-                        svg: this.svg,
-                        svgContainer: this.svgContainer,
-                        zIndex: 5
-                    };
-
-                    this.circleLayer = new CircleLayer(circleLayerOptions);
-
-                    this.map.addLayer(this.circleLayer);
-
-                    this.addCircleLayerEvents(this.map, this.circleLayer);
-
-                    // Calculate extent of features
-                    this.mapExtent = this.circleLayer.getFeaturesExtent();
-
-                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
-
-
-                    // Render legend if proportional circles are used
-                    if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
-
-                        let radii: number[] | undefined;
-
-                        longitudes.forEach((i) => {
-
-                            // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
-                            const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
-                                ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
-                                : circleOptions.minRadius;
-
-                            radii.push(radius);
-
-                        });
-
-                        legend.createProportionalCircleLegend(
-                            this.circleLegendContainer,
-                            circleSizeValues,
-                            radii,
-                            circleOptions.legendTitle,
-                            circleOptions
-                        );
-                    }
-
-                }
+                console.warn("Longitude and Latitude have different lengths.");
 
             } else {
 
-                console.warn("Both Longitude and Latitude roles must be assigned.");
-                this.svg.select('#circles-group').remove();
+                // Handle Circle Size Measure or default size
+                const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+
+                circleSizeValues = CircleSizeMeasure.values as number[];
+                minCircleSizeValue = Math.min(...circleSizeValues);
+                maxCircleSizeValue = Math.max(...circleSizeValues);
+                circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+
+                const circleLayerOptions: CircleLayerOptions = {
+                    // Required properties for the CircleLayer
+                    longitudes: longitudes,
+                    latitudes: latitudes,
+
+                    // Circle customization options
+                    circleOptions: circleOptions,
+
+                    // Optional properties for proportional circles
+                    circleSizeValues: circleSizeValues,
+                    minCircleSizeValue: minCircleSizeValue,
+                    circleScale: circleScale,
+                    svg: this.svg,
+                    svgContainer: this.svgContainer,
+                    zIndex: 5
+                };
+
+                this.circleLayer = new CircleLayer(circleLayerOptions);
+
+                this.map.addLayer(this.circleLayer);
+
+                this.addCircleLayerEvents(this.map, this.circleLayer);
+
+                // Calculate extent of features
+                this.mapExtent = this.circleLayer.getFeaturesExtent();
+
+                this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+
+
+                // Render legend if proportional circles are used
+                if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
+
+                    let radii: number[] | undefined;
+
+                    longitudes.forEach((i) => {
+
+                        // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
+                        const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
+                            ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
+                            : circleOptions.minRadius;
+
+                        radii.push(radius);
+
+                    });
+
+                    legend.createProportionalCircleLegend(
+                        this.circleLegendContainer,
+                        circleSizeValues,
+                        radii,
+                        circleOptions.legendTitle,
+                        circleOptions
+                    );
+                }
 
             }
-        } else {
-            // we are not rendering circles
-            this.svg.select('#circles-group').remove();
+
+
         }
     }
 
-    private renderChoroplethLayer(
-        categorical: any,
-        choroplethOptions: ChoroplethOptions
-    ) {
+    private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
 
-        this.svg.select('#choropleth-group').remove();
+        if (!choroplethOptions.layerControl) return; // Early exit
+
         this.svgOverlay.style.display = 'flex';
 
         console.log('Rendering choropleth...');
@@ -455,7 +482,6 @@ export class OpenMapVisual implements IVisual {
         // Validate input data
         if (!categorical.values || categorical.values.length === 0) {
             console.warn("Measures not found.");
-            this.svg.select('#choropleth-group').remove();
             return;
         }
 
@@ -467,7 +493,6 @@ export class OpenMapVisual implements IVisual {
 
         if (!AdminPCodeNameIDCategory) {
             console.warn("Admin PCode/Name/ID not found.");
-            this.svg.select('#choropleth-group').remove();
             return;
         }
 
@@ -479,18 +504,27 @@ export class OpenMapVisual implements IVisual {
 
         if (!colorMeasure) {
             console.warn("Color Measure not found.");
-            this.svg.select('#choropleth-group').remove();
             return;
         }
 
         const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
         const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
 
+        // Cancel previous fetch
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+        this.abortController = new AbortController();
 
         try {
 
-            util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey, constants.CACHE_EXPIRY_MS)
+            util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey,
+                this.abortController.signal as AbortSignal,
+                constants.CACHE_EXPIRY_MS)
                 .then((data: any) => {
+
+                    // Check if layer is still enabled after async operation
+                    if (!choroplethOptions.layerControl) return;
 
                     // handle topojson
                     let geojson: FeatureCollection = {
@@ -924,6 +958,21 @@ export class OpenMapVisual implements IVisual {
         return this.formattingSettingsService.buildFormattingModel(
             this.visualFormattingSettingsModel
         );
+    }
+
+    private cleanupLayers() {
+        if (this.circleLayer) {
+            this.circleLegendContainer.style.display = "none"; // Hide the legend
+            this.map.removeLayer(this.circleLayer);
+            this.circleLayer.setActive(false); // Ensure no further renders
+            this.circleLayer = null;
+        }
+        if (this.choroplethLayer) {
+            this.choroplethLegendContainer.style.display = "none"; // Hide the legend
+            this.map.removeLayer(this.choroplethLayer);
+            this.choroplethLayer.setActive(false); // Ensure no further renders
+            this.choroplethLayer = null;
+        }
     }
 
     public destroy(): void {

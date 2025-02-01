@@ -51,7 +51,7 @@ export class ChoroplethLayer extends Layer {
 
         this.d3Path = null;
 
-        //console.log('geojson',this.geojson);
+        this.changed(); // Trigger re-render
 
     }
 
@@ -59,7 +59,16 @@ export class ChoroplethLayer extends Layer {
         return 'ready';
     }
 
+    private isActive: boolean = true; // Add this
+
+    setActive(active: boolean) {
+        this.isActive = active;
+        this.changed(); // Trigger re-render
+    }
+
     render(frameState: FrameState) {
+
+        if (!this.isActive) return; // Guard clause
 
         const width = frameState.size[0]; // Map viewport width
         const height = frameState.size[1]; // Map viewport height

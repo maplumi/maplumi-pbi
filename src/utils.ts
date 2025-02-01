@@ -298,7 +298,7 @@ async function cacheJsonData(cache: Record<string, { data: any; timestamp: numbe
         if (error.name === "SecurityError") {
             //console.warn("IndexedDB is restricted in this context (e.g., file:// or incognito). Using memory cache.");
         } else {
-           // console.error("IndexedDB error. Falling back to memory cache.", error);
+            // console.error("IndexedDB error. Falling back to memory cache.", error);
         }
 
         // Memory cache fallback
@@ -314,7 +314,7 @@ async function cacheJsonData(cache: Record<string, { data: any; timestamp: numbe
 }
 
 // Retrieve GeoJSON data from cache
-export async function getCachedJsonData(cache:  Record<string, { data: any; timestamp: number }>, key: string): Promise<any | null> {
+export async function getCachedJsonData(cache: Record<string, { data: any; timestamp: number }>, key: string): Promise<any | null> {
     return cache[key]?.data || null;
 }
 
@@ -328,14 +328,14 @@ export async function isCacheExpired(cache: Record<string, { data: any; timestam
 // Fetch GeoJSON data with caching
 export async function fetchAndCacheJsonGeoDataAsync(
     serviceUrl: string,
-    cache:  Record<string, { data: any; timestamp: number }>,
+    cache: Record<string, { data: any; timestamp: number }>,
     cacheKey: string,
+    signal: AbortSignal,
     maxAge: number = 3600000
 ): Promise<any> {
 
 
-
-    if (await isCacheExpired(cache,cacheKey, maxAge)) {
+    if (await isCacheExpired(cache, cacheKey, maxAge)) {
 
         //console.log("Fetching data from service...");
 
@@ -364,7 +364,7 @@ export async function fetchAndCacheJsonGeoDataAsync(
     }
 
     //console.log("Using cached data.");
-    return await getCachedJsonData(cache,cacheKey);
+    return await getCachedJsonData(cache, cacheKey);
 }
 
 // Helper function to validate if fetch response is valid json
@@ -383,79 +383,6 @@ export async function isValidJsonResponse(responseData: any): Promise<boolean> {
     }
 }
 
-
-// export function calculateExtent(longitudes: number[], latitudes: number[]): Extent {
-//     if (longitudes.length === 0 || latitudes.length === 0) {
-//         throw new Error("Longitude and latitude arrays must not be empty.");
-//     }
-
-//     if (longitudes.length !== latitudes.length) {
-//         throw new Error("Longitude and latitude arrays must have the same length.");
-//     }
-
-//     const minX = Math.min(...longitudes);
-//     const maxX = Math.max(...longitudes);
-//     const minY = Math.min(...latitudes);
-//     const maxY = Math.max(...latitudes);
-
-//     const extent = [minX, minY, maxX, maxY];
-
-//     const transformedExtent = transformExtent(extent, 'EPSG:4326', 'EPSG:3857');
-
-//     return transformedExtent;
-// }
-
-// export function getElementUnderSvg(x: number, y: number): Element | null {
-//     let resultingElement: Element | null;
-//     const firstElement = document.elementFromPoint(x, y);
-
-//     if (firstElement && firstElement.nodeName === "circle") {
-//         const display = (firstElement as HTMLElement).style.display; // Save the display property of the SVG element
-//         (firstElement as HTMLElement).style.display = "none";       // Make the SVG element invisible
-//         resultingElement = document.elementFromPoint(x, y);         // Get the underlying element
-//         (firstElement as HTMLElement).style.display = display;      // Restore the display property
-//     } else {
-//         resultingElement = firstElement;                            // Use the first element if it's not an SVG element
-//     }
-
-//     return resultingElement;
-// }
-
-// export function passEventToMap(event: WheelEvent, mapElement: HTMLElement): void {
-//     const { clientX: x, clientY: y } = event;
-
-//     // Get the topmost element under the cursor
-//     const firstElement = document.elementFromPoint(x, y);
-
-//     if (firstElement && firstElement.nodeName === 'circle') {
-//         // Temporarily hide the SVG circle
-//         const display = (firstElement as HTMLElement).style.display;
-//         (firstElement as HTMLElement).style.display = 'none';
-
-//         // Get the underlying element
-//         const underlyingElement = document.elementFromPoint(x, y);
-//         (firstElement as HTMLElement).style.display = display;
-
-//         // If the underlying element is the map, pass the event to it
-//         if (underlyingElement === mapElement) {
-//             mapElement.dispatchEvent(new WheelEvent(event.type, event));
-//         }
-//     } else if (firstElement === mapElement) {
-//         // If the event is already on the map, let it proceed
-//         mapElement.dispatchEvent(new WheelEvent(event.type, event));
-//     }
-// }
-
-
-// // Helper function to check if a point is inside a circle
-// export function isPointInCircle(pointX, pointY, circleX, circleY, radius) {
-//     const distanceSquared = (pointX - circleX) ** 2 + (pointY - circleY) ** 2;
-//     return distanceSquared <= radius ** 2;
-// }
-
-
-
-
 export function isTopoJSON(json) {
     // Check if the JSON has the unique characteristics of TopoJSON
     return json.type === "Topology" &&
@@ -464,7 +391,7 @@ export function isTopoJSON(json) {
 }
 
 export function convertSingleLayerTopoJSONToGeoJSON(topojsondata) {
-    
+
     if (!topojsondata || typeof topojsondata !== "object") {
         throw new Error("Invalid TopoJSON object provided.");
     }

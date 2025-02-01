@@ -1,13 +1,13 @@
 {
     "visual":{
-        "name":"open-map-visual",
-        "displayName":"Open Map Visual",
-        "guid":"xmap7708541FB6F548EAA4FDBD3BB2AB1811",
-        "visualClassName":"OpenMapVisual",
+        "name":"maplytics",
+        "displayName":"Maplytics",
+        "guid":"maplytics7708541FB6F548EAA4FDBD3BB2AB1811",
+        "visualClassName":"MaplyticsVisual",
         "version":"1.0.0.0",
-        "description":"A custom power bi map visual for use with HDX CODs Country ISO3 codes and PCODEs as well as geojson data hosted in select locations",
-        "supportUrl":"https://github.com/ayiemba/open-map-visual/issues",
-        "gitHubUrl":"https://github.com/ayiemba/open-map-visual"
+        "description":"Enhanced Map Visual for Power BI",
+        "supportUrl":"https://github.com/ayiemba/maplytics-pbi/issues",
+        "gitHubUrl":"https://github.com/ayiemba/maplytics-pbi"
     },
     "apiVersion":"5.11.0",
     "author":{
