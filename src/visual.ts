@@ -48,16 +48,14 @@ import { Basemap } from "./basemap";
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
-import { Overlay } from "ol";
+
+import {Interaction, DragZoom, MouseWheelZoom, PinchZoom, DoubleClickZoom } from 'ol/interaction';
 
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 
-import GeoJSON from "ol/format/GeoJSON";
-import TopoJSON from "ol/format/TopoJSON"
 import { FeatureCollection } from "geojson";
 
 import TileLayer from "ol/layer/Tile";
-import { transform, transformExtent } from 'ol/proj.js';
 
 import { easeOut } from "ol/easing";
 
@@ -121,6 +119,9 @@ export class MaplyticsVisual implements IVisual {
 
     private mapExtent: Extent;
     private fitMapOptions: any;
+
+    private lockedView: View | null = null;
+    private originalInteractions: Interaction[] = [];
 
     private memoryCache: Record<string, { data: any; timestamp: number }>;
 
@@ -352,9 +353,9 @@ export class MaplyticsVisual implements IVisual {
             newLayer = this.basemapLayer;
         } else if (basemapOptions.selectedBasemap === "none") {
             // remove basemap
-            if(this.basemapLayer) {
+            if (this.basemapLayer) {
                 this.map.removeLayer(this.basemapLayer);
-            }else if(this.mapboxVectorLayer) {
+            } else if (this.mapboxVectorLayer) {
                 this.map.removeLayer(this.mapboxVectorLayer);
             }
         }
@@ -958,6 +959,74 @@ export class MaplyticsVisual implements IVisual {
         return this.formattingSettingsService.buildFormattingModel(
             this.visualFormattingSettingsModel
         );
+    }
+
+
+
+    // Lock to current extent function
+    private lockMapToCurrentExtent() {
+        const currentView = this.map.getView();
+        const currentExtent = currentView.calculateExtent(this.map.getSize());
+        const currentResolution = currentView.getResolution();
+
+        if (!currentResolution) return;
+
+        // Create new constrained view
+        this.lockedView = new View({
+            extent: currentExtent,
+            resolution: currentResolution,
+            minResolution: currentResolution,
+            maxResolution: currentResolution,
+            constrainOnlyCenter: true,
+            enableRotation: false
+        });
+
+        // Backup original interactions
+        this.originalInteractions = this.map.getInteractions().getArray();
+
+        // Remove all zoom-related interactions
+        this.map.getInteractions().clear();
+
+        // Add back non-zoom interactions
+        this.originalInteractions.forEach(interaction => {
+            if (!this.isZoomInteraction(interaction)) {
+                this.map.addInteraction(interaction);
+            }
+        });
+
+        // Apply the locked view
+        this.map.setView(this.lockedView);
+    }
+
+    // Check if interaction is zoom-related
+    private isZoomInteraction(interaction: Interaction): boolean {
+        const zoomTypes = [
+            'DragZoom',
+            'MouseWheelZoom',
+            'PinchZoom',
+            'DoubleClickZoom'
+        ];
+        return zoomTypes.includes(interaction.constructor.name);
+    }
+
+    // Unlock map
+    private unlockMap() {
+        if (!this.lockedView) return;
+
+        // Restore original view
+        this.map.setView(new View({
+            center: this.lockedView.getCenter(),
+            zoom: this.lockedView.getZoom(),
+            extent: undefined // Remove extent constraint
+        }));
+
+        // Restore original interactions
+        this.map.getInteractions().clear();
+        this.originalInteractions.forEach(interaction => {
+            this.map.addInteraction(interaction);
+        });
+
+        this.lockedView = null;
     }
 
     private cleanupLayers() {
