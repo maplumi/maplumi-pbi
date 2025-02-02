@@ -49,7 +49,9 @@ import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
 
-import {Interaction, DragZoom, MouseWheelZoom, PinchZoom, DoubleClickZoom } from 'ol/interaction';
+import { Interaction, DragZoom, MouseWheelZoom, PinchZoom, DoubleClickZoom } from 'ol/interaction';
+import Collection from 'ol/Collection';
+import Control from 'ol/control/Control';
 
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 
@@ -107,6 +109,7 @@ export class MaplyticsVisual implements IVisual {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
 
     private map: Map;
+    private mapView: View;
     private basemap: Basemap;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
@@ -119,11 +122,12 @@ export class MaplyticsVisual implements IVisual {
     private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
-    private mapExtent: Extent;
+    private mapExtent: Extent | undefined;
     private fitMapOptions: any;
 
     private lockedView: View | null = null;
     private originalInteractions: Interaction[] = [];
+    private originalControls: Control[] = [];
 
     private memoryCache: Record<string, { data: any; timestamp: number }>;
 
@@ -206,14 +210,17 @@ export class MaplyticsVisual implements IVisual {
 
         this.container.appendChild(this.choroplethLegendContainer);
 
+        // create map view
+        this.mapView = new View({
+            center: fromLonLat([0, 0]), // Center the map at the origin
+            zoom: 2
+        });
+
         // Initialize the map
         this.map = new Map({
             target: this.container,
             layers: [this.basemapLayer],
-            view: new View({
-                center: fromLonLat([0, 0]), // Center the map at the origin
-                zoom: 2
-            }),
+            view: this.mapView,
             controls: defaultControls({
                 attribution: true, // Ensure attribution control is enabled
                 attributionOptions: {
@@ -221,8 +228,6 @@ export class MaplyticsVisual implements IVisual {
                 },
             }),
         });
-
-        this.mapExtent = this.map.getView().calculateExtent(this.map.getSize());
 
         // Fit map options
         this.fitMapOptions = {
@@ -296,11 +301,25 @@ export class MaplyticsVisual implements IVisual {
             dataView.categorical,
             circleOptions
         );
+        
+        if (this.mapToolsOptions.lockMapExtent) {
+
+            this.lockMapToCurrentExtent();
+
+        } else {
+
+            this.unlockMap();
+        
+            // Ensure the view is reset before fitting
+            setTimeout(() => {
+                this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+            }, 0);
+        }        
 
 
         // Optional: Clear entire SVG if all layers are off
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
-            this.svg.selectAll('*').remove(); // Use cautiously
+            this.svg.selectAll('*').remove();
         }
 
         // Force the map to update its size, for example when the visual window is resized
@@ -438,19 +457,7 @@ export class MaplyticsVisual implements IVisual {
 
                 this.addCircleLayerEvents(this.map, this.circleLayer);
 
-                // Calculate extent of features
                 this.mapExtent = this.circleLayer.getFeaturesExtent();
-
-                if(this.mapToolsOptions.lockMapExtent) {
-
-                    this.lockMapToCurrentExtent();
-
-                }else{
-
-                    this.unlockMap();
-                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
-                }           
-
 
                 // Render legend if proportional circles are used
                 if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
@@ -621,17 +628,7 @@ export class MaplyticsVisual implements IVisual {
 
         this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
 
-        const extent = this.choroplethLayer.getFeaturesExtent();
-
-        if(this.mapToolsOptions.lockMapExtent) {
-
-            this.lockMapToCurrentExtent();
-            
-        }else{
-
-            this.unlockMap();
-            this.map.getView().fit(extent, this.fitMapOptions);
-        }        
+        this.mapExtent = this.choroplethLayer.getFeaturesExtent();
 
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
@@ -651,7 +648,6 @@ export class MaplyticsVisual implements IVisual {
 
             this.choroplethLegendContainer.style.display = "none"; // Hide the legend
         }
-
 
     }
 
@@ -904,7 +900,7 @@ export class MaplyticsVisual implements IVisual {
     private getMapToolsOptions(): MapToolsOptions {
         const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
         return {
-            
+
             lockMapExtent: maptoolsSettings.lockMapExtent.value,
             showZoomControl: maptoolsSettings.showZoomControl.value,
         };
@@ -989,18 +985,39 @@ export class MaplyticsVisual implements IVisual {
         );
     }
 
-
-
-    // Lock to current extent function
     private lockMapToCurrentExtent() {
         const currentView = this.map.getView();
         const currentExtent = currentView.calculateExtent(this.map.getSize());
         const currentResolution = currentView.getResolution();
 
-        if (!currentResolution) return;
+        if (!currentResolution) {
+            console.error("Unable to calculate current resolution.");
+            return;
+        }
 
-        // Create new constrained view
+        // Backup original controls
+        this.originalControls = this.map.getControls().getArray();
+
+        // Remove all controls (including zoom buttons)
+        this.originalControls.forEach(control => {
+            this.map.removeControl(control);
+        });
+
+        // Backup and clear interactions
+        this.originalInteractions = this.map.getInteractions().getArray();
+        this.map.getInteractions().clear();
+
+        // Add back non-zoom interactions (e.g., drag pan)
+        this.originalInteractions.forEach(interaction => {
+            if (!this.isZoomInteraction(interaction)) {
+                this.map.addInteraction(interaction);
+            }
+        });
+
+        // Create and set the locked view
         this.lockedView = new View({
+            projection: currentView.getProjection(),
+            center: currentView.getCenter(),
             extent: currentExtent,
             resolution: currentResolution,
             minResolution: currentResolution,
@@ -1009,52 +1026,47 @@ export class MaplyticsVisual implements IVisual {
             enableRotation: false
         });
 
-        // Backup original interactions
-        this.originalInteractions = this.map.getInteractions().getArray();
-
-        // Remove all zoom-related interactions
-        this.map.getInteractions().clear();
-
-        // Add back non-zoom interactions
-        this.originalInteractions.forEach(interaction => {
-            if (!this.isZoomInteraction(interaction)) {
-                this.map.addInteraction(interaction);
-            }
-        });
-
-        // Apply the locked view
         this.map.setView(this.lockedView);
     }
 
-    // Check if interaction is zoom-related
+
+
     private isZoomInteraction(interaction: Interaction): boolean {
-        const zoomTypes = [
-            'DragZoom',
-            'MouseWheelZoom',
-            'PinchZoom',
-            'DoubleClickZoom'
-        ];
-        return zoomTypes.includes(interaction.constructor.name);
+        return interaction instanceof DragZoom ||
+               interaction instanceof MouseWheelZoom ||
+               interaction instanceof PinchZoom ||
+               interaction instanceof DoubleClickZoom;
     }
 
-    // Unlock map
     private unlockMap() {
-        if (!this.lockedView) return;
-
-        // Restore original view
-        this.map.setView(new View({
+        if (!this.map || !this.lockedView) return;
+    
+        // Restore controls
+        this.originalControls.forEach(control => this.map.addControl(control));
+        
+        // Restore interactions
+        this.map.getInteractions().clear();
+        this.originalInteractions.forEach(interaction => 
+            this.map.addInteraction(interaction)
+        );
+    
+        // Create completely unrestricted view
+        const freeView = new View({
+            projection: this.lockedView.getProjection(),
             center: this.lockedView.getCenter(),
             zoom: this.lockedView.getZoom(),
-            extent: undefined // Remove extent constraint
-        }));
-
-        // Restore original interactions
-        this.map.getInteractions().clear();
-        this.originalInteractions.forEach(interaction => {
-            this.map.addInteraction(interaction);
+            extent: undefined,
+            minResolution: undefined,
+            maxResolution: undefined,
+            constrainResolution: false
         });
-
+    
+        this.map.setView(freeView);
         this.lockedView = null;
+    
+        // Force view refresh
+        this.map.updateSize();
+        this.map.render();
     }
 
     private cleanupLayers() {

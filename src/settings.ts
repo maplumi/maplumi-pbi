@@ -563,7 +563,7 @@ class mapToolsVisualCardSettings extends formattingSettings.SimpleCard {
     showZoomControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
         name: "showZoomControl",
         displayName: "Show Zoom Control",
-        value: false
+        value: true
     });
     
 

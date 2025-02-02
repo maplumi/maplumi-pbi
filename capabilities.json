@@ -432,15 +432,15 @@
     },
     "mapToolsVisualCardSettings":{
       "properties": {
-                
+
         "lockMapExtent": {
           "type": {
-            "bool": false
+            "bool": true
           }
         },
         "showZoomControl": {
           "type": {
-            "bool": false
+            "bool": true
           }
         }
       }
@@ -476,8 +476,7 @@
         "https://*.blob.core.windows.net",
         "https://*.github.io",
         "https://*.cloudfront.net",
-        "https://*.r2.dev",
-        "https://*"        
+        "https://*.r2.dev"      
         
       ]
     },
