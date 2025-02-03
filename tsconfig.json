@@ -24,7 +24,6 @@
         "src/choroplethLayer.ts",
         "src/svgLayer.ts",
         "./src/legend.ts",
-        "./src/utils.ts",
-        "./src/tooltips.ts"
+        "./src/utils.ts"
     ]
 }

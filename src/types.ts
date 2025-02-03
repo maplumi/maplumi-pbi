@@ -1,5 +1,7 @@
 import { Options as LayerOptions } from 'ol/layer/Base.js';
 import { Feature } from 'ol';
+import { ITooltipServiceWrapper } from 'powerbi-visuals-utils-tooltiputils';
+import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 export interface GeoJSONFeature {
     type: string;
@@ -7,7 +9,11 @@ export interface GeoJSONFeature {
         type: string;
         coordinates: any[];
     };
-    properties: { [key: string]: any };
+    properties: {
+        [key: string]: any;
+        selectionId?: powerbi.visuals.ISelectionId; // Optional field for selection ID
+        tooltip?: VisualTooltipDataItem[]; // Optional field for tooltips
+    };
 }
 
 export interface GeoJSON {
@@ -43,6 +49,7 @@ export interface CircleOptions {
 }
 
 export interface CircleLayerOptions  extends LayerOptions{
+    
     longitudes: number[];
     latitudes: number[];
     circleOptions: CircleOptions;
@@ -52,6 +59,14 @@ export interface CircleLayerOptions  extends LayerOptions{
     svg: any;
     svgContainer: HTMLElement;
     zIndex: number;
+    dataPoints?: Array<{ // Add this
+        longitude: number;
+        latitude: number;
+        tooltip: VisualTooltipDataItem[];
+        selectionId: powerbi.visuals.ISelectionId;
+    }>;
+    tooltipServiceWrapper: ITooltipServiceWrapper; // Use wrapper instead of raw service
+    selectionManager: powerbi.extensibility.ISelectionManager;
   }
 
   export interface ChoroplethLayerOptions extends LayerOptions {

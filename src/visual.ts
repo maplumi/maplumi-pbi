@@ -31,6 +31,7 @@ import "./../style/visual.less";
 import { constants } from "./constants";
 
 import { createTooltipServiceWrapper, TooltipEventArgs, ITooltipServiceWrapper, TooltipEnabledDataPoint } from "powerbi-visuals-utils-tooltiputils";
+import ISelectionManager = powerbi.extensibility.ISelectionManager;
 
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
@@ -97,6 +98,7 @@ export class MaplyticsVisual implements IVisual {
 
     private tooltipServiceWrapper: ITooltipServiceWrapper;
     private tooltipService: powerbi.extensibility.ITooltipService;
+    private selectionManager: ISelectionManager;
 
     private container: HTMLElement;
     private svgContainer: HTMLElement;
@@ -142,7 +144,8 @@ export class MaplyticsVisual implements IVisual {
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new HumanitarianMapVisualFormattingSettingsModel();
 
-        this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);;
+        this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);
+        this.selectionManager = this.host.createSelectionManager();
 
         this.basemap = new Basemap();
         this.basemapLayer = this.basemap.getDefaultBasemap();
@@ -301,7 +304,7 @@ export class MaplyticsVisual implements IVisual {
             dataView.categorical,
             circleOptions
         );
-        
+
         if (this.mapToolsOptions.lockMapExtent) {
 
             this.lockMapToCurrentExtent();
@@ -309,12 +312,12 @@ export class MaplyticsVisual implements IVisual {
         } else {
 
             this.unlockMap();
-        
+
             // Ensure the view is reset before fitting
             setTimeout(() => {
                 this.map.getView().fit(this.mapExtent, this.fitMapOptions);
             }, 0);
-        }        
+        }
 
 
         // Optional: Clear entire SVG if all layers are off
@@ -414,11 +417,29 @@ export class MaplyticsVisual implements IVisual {
                 return;
             }
 
+            longitudes = lonCategory.values as number[];
+            latitudes = latCategory.values as number[];
+
             // Extract tooltips
             const tooltips = this.extractTooltips(categorical);
 
-            longitudes = lonCategory.values as number[];
-            latitudes = latCategory.values as number[];
+            // Create data points for each circle
+            const dataPoints = longitudes.map((lon, i) => {
+
+                // Create selection ID for cross-filtering
+                const selectionId = this.host.createSelectionIdBuilder()
+                    .withCategory(categorical.categories[0], i) // Use the primary category (e.g., location)
+                    .createSelectionId();
+
+                return {
+                    longitude: lon,
+                    latitude: latitudes[i],
+                    sizeValue: circleSizeValues?.[i] || circleOptions.minRadius,
+                    tooltip: tooltips[i],
+                    selectionId: selectionId, // Include selection ID
+                };
+            });
+
 
             if (longitudes.length !== latitudes.length) {
 
@@ -435,6 +456,7 @@ export class MaplyticsVisual implements IVisual {
                 circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
 
                 const circleLayerOptions: CircleLayerOptions = {
+
                     // Required properties for the CircleLayer
                     longitudes: longitudes,
                     latitudes: latitudes,
@@ -448,7 +470,12 @@ export class MaplyticsVisual implements IVisual {
                     circleScale: circleScale,
                     svg: this.svg,
                     svgContainer: this.svgContainer,
-                    zIndex: 5
+                    zIndex: 5,
+
+                    dataPoints: dataPoints,
+                    tooltipServiceWrapper: this.tooltipServiceWrapper, // Pass the wrapper
+                    selectionManager: this.selectionManager,
+
                 };
 
                 this.circleLayer = new CircleLayer(circleLayerOptions);
@@ -722,7 +749,6 @@ export class MaplyticsVisual implements IVisual {
     }
 
     private addCircleLayerEvents(map: Map, canvasLayer: CircleLayer) {
-
         const svg = canvasLayer.getSvg();
 
         // Helper function to check if a point is inside a circle
@@ -732,55 +758,42 @@ export class MaplyticsVisual implements IVisual {
             return dx * dx + dy * dy <= radius * radius;
         };
 
-        // Handle single click on map
-        map.on('singleclick', (event) => {
-            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
-
-            // Handle circle click event
-            svg.selectAll('circle').each(function () {
-                const circle = d3.select(this);
-                const circleX = parseFloat(circle.attr('cx'));
-                const circleY = parseFloat(circle.attr('cy'));
-                const radius = parseFloat(circle.attr('r'));
-
-                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                    // Circle clicked! Perform your action here
-                    const id = circle.attr('data-id');
-                    const sizeValue = circle.attr('data-size-value');
-                    const index = circle.attr('data-index');
-
-                    console.log(`Clicked circle: ID = ${id}, SizeValue = ${sizeValue}, Index = ${index}`);
-
-                    // Change the circle's fill color on click
-                    circle.attr('fill', 'blue');
-                }
+        map.on('singleclick', (event: any) => {
+            // Reset stroke on all circles
+            svg.selectAll('circle').attr('stroke', (d: any) => {
+                const defaultStrokeColor = canvasLayer.options.circleOptions?.strokeColor || 'defaultStroke';
+                const defaultStrokeWidth = canvasLayer.options.circleOptions?.strokeWidth || 1;
+                return defaultStrokeColor;  // Reset stroke color
+            }).attr('stroke-width', (d: any) => {
+                const defaultStrokeWidth = canvasLayer.options.circleOptions?.strokeWidth || 1;
+                return defaultStrokeWidth;  // Reset stroke width
             });
 
+            //event.stopPropagation(); // Prevents unintended behavior
         });
 
-        // Handle pointer movement over the map
-        map.on('pointermove', (event) => {
+        map.on("pointermove", (event) => {
             const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
 
-            // Handle pointer movement over circles
-            svg.selectAll('circle').each(function () {
+            svg.selectAll("circle").each(function () {
                 const circle = d3.select(this);
-                const circleX = parseFloat(circle.attr('cx'));
-                const circleY = parseFloat(circle.attr('cy'));
-                const radius = parseFloat(circle.attr('r'));
+                const circleX = parseFloat(circle.attr("cx"));
+                const circleY = parseFloat(circle.attr("cy"));
+                const radius = parseFloat(circle.attr("r"));
 
                 if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                    // Mouse is over the circle
-                    circle.attr('fill', 'red');
-                } else {
-                    // Mouse is outside the circle
-
-                    const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || 'defaultColor';
-                    circle.attr('fill', circleColor);
+                    // Change color to indicate hover
+                    circle.attr("fill", "red");
+                } 
+                else {
+                    // Restore original color when mouse leaves
+                    const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || "defaultColor";
+                    circle.attr("fill", circleColor);
                 }
             });
-
         });
+
+
     }
 
     private getColorFromClassBreaks(
@@ -961,22 +974,21 @@ export class MaplyticsVisual implements IVisual {
         };
     }
 
-    private extractTooltips(categorical: any) {
-
-        if (categorical.values && categorical.values.length > 0) {
-            const tooltipMeasure = categorical?.values?.find(
-                (c) => c.source?.roles && c.source.roles["Tooltips"]
-            );
-            if (tooltipMeasure) {
-                //console.log("Tooltips Found:", tooltipMeasure.values);
-                return tooltipMeasure.values;
-            } else {
-                //console.log("Tooltips not found.");
-            }
-        } else {
-            //console.log("No values found.");
+    private extractTooltips(categorical: any): VisualTooltipDataItem[][] {
+        // Assuming tooltip fields are in the 'values' collection
+        const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
+        const tooltips: VisualTooltipDataItem[][] = [];
+    
+        for (let i = 0; i < categorical.categories[0].values.length; i++) {
+            const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => ({
+                displayName: field.source.displayName,
+                value: field.values[i]
+            }));
+            tooltips.push(tooltipItems);
         }
-        return undefined;
+    
+        console.log("All Tooltips:", tooltips);
+        return tooltips;
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
@@ -1033,23 +1045,23 @@ export class MaplyticsVisual implements IVisual {
 
     private isZoomInteraction(interaction: Interaction): boolean {
         return interaction instanceof DragZoom ||
-               interaction instanceof MouseWheelZoom ||
-               interaction instanceof PinchZoom ||
-               interaction instanceof DoubleClickZoom;
+            interaction instanceof MouseWheelZoom ||
+            interaction instanceof PinchZoom ||
+            interaction instanceof DoubleClickZoom;
     }
 
     private unlockMap() {
         if (!this.map || !this.lockedView) return;
-    
+
         // Restore controls
         this.originalControls.forEach(control => this.map.addControl(control));
-        
+
         // Restore interactions
         this.map.getInteractions().clear();
-        this.originalInteractions.forEach(interaction => 
+        this.originalInteractions.forEach(interaction =>
             this.map.addInteraction(interaction)
         );
-    
+
         // Create completely unrestricted view
         const freeView = new View({
             projection: this.lockedView.getProjection(),
@@ -1060,10 +1072,10 @@ export class MaplyticsVisual implements IVisual {
             maxResolution: undefined,
             constrainResolution: false
         });
-    
+
         this.map.setView(freeView);
         this.lockedView = null;
-    
+
         // Force view refresh
         this.map.updateSize();
         this.map.render();

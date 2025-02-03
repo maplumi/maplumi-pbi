@@ -10,11 +10,12 @@ import { FrameState } from 'ol/Map';
 import { transformExtent } from 'ol/proj.js';
 import { FeatureLike } from 'ol/Feature';
 import { simplify } from '@turf/turf';
+import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 export class CircleLayer extends Layer {
 
     private svg: any;
-    private features: any;
+    private features: GeoJSONFeature[];
     public options: CircleLayerOptions;
 
     constructor(options: CircleLayerOptions) {
@@ -23,14 +24,17 @@ export class CircleLayer extends Layer {
         this.svg = options.svg;
         this.options = options;
 
-        this.features = options.longitudes.map((lon, index) => ({
+        this.features = options.dataPoints?.map((d, index) => ({
             type: 'Feature',
             geometry: {
                 type: 'Point',
-                coordinates: [lon, options.latitudes[index]], 
+                coordinates: [d.longitude, d.latitude],
             },
-            properties: {}
-        }));
+            properties: {
+                tooltip: d.tooltip,
+                selectionId: d.selectionId, // Store selection ID
+            },
+        })) || [];
 
         this.changed(); // Trigger re-render
 
@@ -73,17 +77,17 @@ export class CircleLayer extends Layer {
             .translate([width / 2, height / 2]);
 
         const { circleSizeValues = [], circleOptions } = this.options as CircleLayerOptions;
-        const { minRadius, color,layerOpacity, strokeColor, strokeWidth } = circleOptions;
+        const { minRadius, color, layerOpacity, strokeColor, strokeWidth } = circleOptions;
 
         const minSize = Math.min(...circleSizeValues);
         const maxSize = Math.max(...circleSizeValues);
-        const circleScale = (value: number) => minRadius + 
-             ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
+        const circleScale = (value: number) => minRadius +
+            ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
 
         // Create a group element for circles
         const circlesGroup = this.svg.append('g').attr('id', 'circles-group');
 
-        this.features.forEach((feature: GeoJSONFeature, i:number) => {
+        this.features.forEach((feature: GeoJSONFeature, i: number) => {
 
             if (!feature.geometry || feature.geometry.type !== 'Point') return;
 
@@ -98,7 +102,8 @@ export class CircleLayer extends Layer {
                     ? circleScale(circleSizeValues[i])
                     : minRadius;
 
-                circlesGroup
+                // After appending the circle to the group:
+                const circle = circlesGroup
                     .append('circle')
                     .attr('cx', x)
                     .attr('cy', y)
@@ -106,9 +111,52 @@ export class CircleLayer extends Layer {
                     .attr('fill', color)
                     .attr('fill-opacity', layerOpacity)
                     .attr('stroke', strokeColor)
-                    .attr('stroke-width', strokeWidth);
+                    .attr('stroke-width', strokeWidth)
+                    .datum(feature.properties.selectionId)
+                    .style('cursor', 'pointer')
+                    .style('pointer-events', 'all');
+
+                // Attach the tooltip if tooltip data is available
+                if (feature.properties.tooltip) {
+
+                    // Use addTooltip with the reload parameter set to true.
+                    this.options.tooltipServiceWrapper.addTooltip(
+                        circle,
+                        () => {
+                            return feature.properties.tooltip;
+                        },
+                        () => feature.properties.selectionId,
+                        true  // Forces the tooltip data to reload on every mouse move.
+                    );
+                }
+
+                // Handle selection on single click
+                circle.on('click', (event: MouseEvent) => {
+                    const selectionId = feature.properties.selectionId;
+                    const nativeEvent = event;
+
+                    // Handle selection with CTRL/META key support for multiple selections
+                    this.options.selectionManager
+                        .select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
+                        .then((selectedIds) => {
+                            if (selectedIds.length > 0) {
+                                circle.attr('stroke', 'black').attr('stroke-width', 2);  // Mark as selected
+                            } else {
+                                const strokeColor = this.options.circleOptions?.strokeColor || 'defaultStroke';
+                                const strokeWidth = this.options.circleOptions?.strokeWidth || 1;
+                                circle.attr('stroke', strokeColor).attr('stroke-width', strokeWidth);  // Reset stroke
+                            }
+                        });
+
+                    event.stopPropagation(); // Prevent other listeners from triggering
+                });
+
+
             }
+
         });
+
+
 
         // Manually reorder to ensure circles are on top
         const choroplethGroupNode = this.svg.select('#choropleth-group').node();
