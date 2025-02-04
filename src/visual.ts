@@ -482,7 +482,7 @@ export class MaplyticsVisual implements IVisual {
 
                 this.map.addLayer(this.circleLayer);
 
-                this.addCircleLayerEvents(this.map, this.circleLayer);
+                //this.addCircleLayerEvents(this.map, this.circleLayer);
 
                 this.mapExtent = this.circleLayer.getFeaturesExtent();
 
@@ -758,40 +758,74 @@ export class MaplyticsVisual implements IVisual {
             return dx * dx + dy * dy <= radius * radius;
         };
 
-        map.on('singleclick', (event: any) => {
-            // Reset stroke on all circles
-            svg.selectAll('circle').attr('stroke', (d: any) => {
-                const defaultStrokeColor = canvasLayer.options.circleOptions?.strokeColor || 'defaultStroke';
-                const defaultStrokeWidth = canvasLayer.options.circleOptions?.strokeWidth || 1;
-                return defaultStrokeColor;  // Reset stroke color
-            }).attr('stroke-width', (d: any) => {
-                const defaultStrokeWidth = canvasLayer.options.circleOptions?.strokeWidth || 1;
-                return defaultStrokeWidth;  // Reset stroke width
-            });
+        // map.on('singleclick', (event: any) => {
+        //     // Get click pixel coordinates
+        //     const pixel = event.pixel;
+        
+        //     // First reset all circles to full opacity
+        //     svg.selectAll('circle').attr('opacity', 1);
+        
+        //     // Find clicked circle(s) using collision detection
+        //     const clickedCircles = svg.selectAll('circle')
+        //         .filter(function(this: SVGCircleElement) {
+        //             const circle = d3.select(this);
+        //             const cx = parseFloat(circle.attr('cx'));
+        //             const cy = parseFloat(circle.attr('cy'));
+        //             const r = parseFloat(circle.attr('r'));
+                    
+        //             // Calculate distance between click and circle center
+        //             const dx = pixel[0] - cx;
+        //             const dy = pixel[1] - cy;
+        //             return dx * dx + dy * dy <= r * r;
+        //         });
+        
+        //     if (!clickedCircles.empty()) {
+        //         // Reduce opacity for non-selected circles
+        //         svg.selectAll('circle')
+        //             .filter(function(this: SVGCircleElement) {
+        //                 // Keep clicked circles at full opacity
+        //                 return !clickedCircles.nodes().includes(this);
+        //             })
+        //             .attr('opacity', 0.4);
+        //     }
+        
+        //     event.stopPropagation();
+        // });
 
-            //event.stopPropagation(); // Prevents unintended behavior
-        });
 
-        map.on("pointermove", (event) => {
-            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+        // map.on('singleclick', (event: any) => {
 
-            svg.selectAll("circle").each(function () {
-                const circle = d3.select(this);
-                const circleX = parseFloat(circle.attr("cx"));
-                const circleY = parseFloat(circle.attr("cy"));
-                const radius = parseFloat(circle.attr("r"));
+        //     // Clear selection using the selectionManager.
+        //     canvasLayer.options.selectionManager.clear().then(() => {
+        //         // For example, reset circle opacities here.
+        //         const circlesGroup = this.svg.select('#circles-group');
+        //         circlesGroup.selectAll('circle')
+        //             .attr('fill-opacity', canvasLayer.options.circleOptions.layerOpacity);
+        //     });
 
-                if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-                    // Change color to indicate hover
-                    circle.attr("fill", "red");
-                } 
-                else {
-                    // Restore original color when mouse leaves
-                    const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || "defaultColor";
-                    circle.attr("fill", circleColor);
-                }
-            });
-        });
+        //     event.stopPropagation(); // Prevents unintended behavior
+        // });
+
+        // map.on("pointermove", (event) => {
+        //     const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
+
+        //     svg.selectAll("circle").each(function () {
+        //         const circle = d3.select(this);
+        //         const circleX = parseFloat(circle.attr("cx"));
+        //         const circleY = parseFloat(circle.attr("cy"));
+        //         const radius = parseFloat(circle.attr("r"));
+
+        //         if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
+        //             // Change color to indicate hover
+        //             circle.attr("fill", "red");
+        //         } 
+        //         else {
+        //             // Restore original color when mouse leaves
+        //             const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || "defaultColor";
+        //             circle.attr("fill", circleColor);
+        //         }
+        //     });
+        // });
 
 
     }

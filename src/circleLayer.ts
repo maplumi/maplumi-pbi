@@ -59,6 +59,8 @@ export class CircleLayer extends Layer {
         const resolution = frameState.viewState.resolution; // Meters per pixel
         const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number]; // Map center in [lon, lat]
 
+        this.options.selectionManager.clear(); // Clear selection on re-render
+
         // Clear existing paths
         this.svg.select('#circles-group').remove();
 
@@ -86,6 +88,28 @@ export class CircleLayer extends Layer {
 
         // Create a group element for circles
         const circlesGroup = this.svg.append('g').attr('id', 'circles-group');
+
+        // Append a transparent rectangle that will capture click events.
+        // This rectangle should be added as the first child so that it sits behind other elements.
+        const clickableRect = this.svg.selectAll('#clickable-bg').data([null]);
+        clickableRect.enter()
+            .append('rect')
+            .attr('id', 'clickable-bg')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .style('fill', 'transparent')
+            // Enable pointer events on this rectangle so that clicks are captured.
+            .style('pointer-events', 'all')
+            .on('click', (event: MouseEvent) => {
+                // Clear selection using the selectionManager.
+                this.options.selectionManager.clear().then(() => {
+                    // For example, reset circle opacities here.
+                    const circlesGroup = this.svg.select('#circles-group');
+                    circlesGroup.selectAll('circle')
+                        .attr('fill-opacity', this.options.circleOptions.layerOpacity);
+                });
+            });
+
 
         this.features.forEach((feature: GeoJSONFeature, i: number) => {
 
@@ -131,32 +155,33 @@ export class CircleLayer extends Layer {
                 }
 
                 // Handle selection on single click
+
                 circle.on('click', (event: MouseEvent) => {
                     const selectionId = feature.properties.selectionId;
                     const nativeEvent = event;
 
-                    // Handle selection with CTRL/META key support for multiple selections
                     this.options.selectionManager
                         .select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                         .then((selectedIds) => {
+                            // Reset all circles to full opacity
+                            circlesGroup.selectAll('circle')
+                                .attr('fill-opacity', layerOpacity);
+
                             if (selectedIds.length > 0) {
-                                circle.attr('stroke', 'black').attr('stroke-width', 2);  // Mark as selected
-                            } else {
-                                const strokeColor = this.options.circleOptions?.strokeColor || 'defaultStroke';
-                                const strokeWidth = this.options.circleOptions?.strokeWidth || 1;
-                                circle.attr('stroke', strokeColor).attr('stroke-width', strokeWidth);  // Reset stroke
+                                // Reduce opacity for non-selected circles
+                                circlesGroup.selectAll('circle')
+                                    .filter(d => !selectedIds.includes(d))
+                                    .attr('fill-opacity', 0.4);
                             }
                         });
 
-                    event.stopPropagation(); // Prevent other listeners from triggering
+                    event.stopPropagation();
                 });
 
 
             }
 
         });
-
-
 
         // Manually reorder to ensure circles are on top
         const choroplethGroupNode = this.svg.select('#choropleth-group').node();
