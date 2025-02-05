@@ -3,8 +3,6 @@ import { ChoroplethOptions, CircleOptions } from "./types";
 
 import * as util from "./utils"
 
-
-
 export function createChoroplethLegend(
     legendContainer: HTMLElement,
     colorValues: number[],
@@ -122,7 +120,6 @@ export function createProportionalCircleLegend(
     legendContainer: HTMLElement,
     sizeValues: number[],
     radii: number[],
-    legendTitle: string,
     circleOptions: CircleOptions,
     formatTemplate: string = "{:.0f}"
 ) {
@@ -131,8 +128,6 @@ export function createProportionalCircleLegend(
         console.error("Container not found");
         return;
     }
-
-    console.log("Creating proportional circle legend");
 
     const opacity = circleOptions.legendBackgroundOpacity / 100;
     const bgColor = circleOptions.legendBackgroundColor;
@@ -163,7 +158,7 @@ export function createProportionalCircleLegend(
 
     // Add title to the legend with customizable alignment
     const title = document.createElement("div");
-    title.textContent = legendTitle;
+    title.textContent = circleOptions.legendTitle;
     title.style.color = circleOptions.legendTitleColor;
     title.style.fontSize = "12px";
     title.style.fontWeight = "bold";
@@ -268,10 +263,13 @@ export function createProportionalCircleLegend(
     svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
     svg.setAttribute("preserveAspectRatio", "xMinYMin meet"); // Preserve scaling
 
-    console.log("Circle Legend", svg);
-
     // Append the SVG to the container
     legendContainer.appendChild(svg);
+
+    console.log("Proportional Circle Legend created", this.legendContainer);
+
+    // Ensure the legend is visible
+    legendContainer.style.display = "flex";
 }
 
 // function to get proportional circle legend data i.e min, medium and max
@@ -299,6 +297,40 @@ function getProportionalCircleLegendData(sizeValues: number[], radii: number[]) 
 
     return [min, medium, max];
 }
+
+function getQuantileCircleLegendData(sizeValues: number[], radii: number[]) {
+    if (sizeValues.length !== radii.length) {
+      console.error("sizeValues and radii arrays must have the same length");
+      return [];
+    }
+    // Map values with their corresponding radii
+    const data = sizeValues.map((size, index) => ({ size, radius: radii[index] }));
+    // Sort data by size
+    data.sort((a, b) => a.size - b.size);
+    const n = data.length;
+    
+    // Helper to get the quantile at a given fraction (e.g., 0.25 for the 25th percentile)
+    const quantile = (q) => {
+      const pos = q * (n - 1);
+      const base = Math.floor(pos);
+      const rest = pos - base;
+      if (base + 1 < n) {
+        return {
+          size: data[base].size + rest * (data[base + 1].size - data[base].size),
+          radius: data[base].radius + rest * (data[base + 1].radius - data[base].radius)
+        };
+      } else {
+        return data[base];
+      }
+    };
+    
+    const lower = quantile(0.25);
+    const median = quantile(0.50);
+    const upper = quantile(0.75);
+    
+    return [lower, median, upper];
+  }
+  
 
 
 // function to create a legend item

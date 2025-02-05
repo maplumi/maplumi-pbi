@@ -2,17 +2,8 @@
 "use strict";
 
 import TileLayer from "ol/layer/Tile";
-import TileArcGISRest from 'ol/source/TileArcGISRest';
-import ImageTile from 'ol/source/ImageTile.js';
 import OSM from "ol/source/OSM";
-import XYZ from "ol/source/XYZ";
 import { MapboxVectorLayer } from 'ol-mapbox-style';
-import { WMTS } from "ol/tilegrid";
-import TileGrid from "ol/tilegrid/TileGrid";
-import VectorTile from "ol/layer/VectorTile";
-import VectorTileSource from "ol/source/VectorTile";
-import MVT from "ol/format/MVT";
-import { createXYZ } from "ol/tilegrid";
 import { BasemapOptions } from "./types";
 
 
@@ -31,7 +22,7 @@ export class Basemap {
 
     getMapboxBasemap(basemapOptions:BasemapOptions): MapboxVectorLayer {
 
-        if(basemapOptions.mapboxStye === 'custom' && basemapOptions.mapboxCustomStyleUrl.startsWith('mapbox://')){
+        if(basemapOptions.mapboxStyle === 'custom' && basemapOptions.mapboxCustomStyleUrl.startsWith('mapbox://')){
 
             console.log('Custom Mapbox Style URL: ', basemapOptions.mapboxCustomStyleUrl);
 
@@ -44,7 +35,7 @@ export class Basemap {
         }else{
 
             return new MapboxVectorLayer({
-                styleUrl: basemapOptions.mapboxStye,
+                styleUrl: basemapOptions.mapboxStyle,
                 accessToken: basemapOptions.mapboxAccessToken,
                 declutter: basemapOptions.declutterLabels
             });

@@ -90,15 +90,3 @@ export class ColorRampGenerator {
 }
 
 
-// Usage Example
-const colorRampGenerator = new ColorRampGenerator('blue');  // Choose 'blue' color ramp
-
-// Define class breaks (example)
-const classBreaks = [0, 50, 100, 150, 200];  // Define breaks for your data
-
-// Generate a color ramp with 5 colors, applying the classBreaks to the scale
-// number of classes is always one less number of class breaks
-const colorRamp = colorRampGenerator.generateColorRamp(classBreaks,4);
-console.log(colorRamp);
-
-

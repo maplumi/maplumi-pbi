@@ -61,6 +61,8 @@ import { FeatureCollection } from "geojson";
 
 import TileLayer from "ol/layer/Tile";
 
+import XYZ from "ol/source/XYZ";
+
 import { easeOut } from "ol/easing";
 
 import { defaults as defaultControls } from "ol/control";
@@ -118,6 +120,11 @@ export class MaplyticsVisual implements IVisual {
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
 
+    // for basemap state management
+    private currentBasemapType: string = "";
+    private currentAttribution: string = "";
+    private currentMapboxStyle: string = '';
+
     private mapToolsOptions: MapToolsOptions;
 
     private circleLayer: CircleLayer;
@@ -127,6 +134,7 @@ export class MaplyticsVisual implements IVisual {
     private isDataLoading: boolean = false;
 
     private mapExtent: Extent | undefined;
+    private choroplethDisplayed: boolean = false;
     private fitMapOptions: any;
 
     private lockedView: View | null = null;
@@ -258,7 +266,7 @@ export class MaplyticsVisual implements IVisual {
         this.svgContainer = document.createElement('div'); // svg node container      
     }
 
-   
+
 
     update(options: VisualUpdateOptions) {
 
@@ -286,6 +294,7 @@ export class MaplyticsVisual implements IVisual {
             return;
         }
 
+        this.choroplethDisplayed = choroplethOptions.layerControl;
 
         this.updateBasemap(basemapOptions);
 
@@ -351,44 +360,82 @@ export class MaplyticsVisual implements IVisual {
         }
     }
 
-
     private updateBasemap(basemapOptions: BasemapOptions): void {
 
-        // Dictionary to store default attributions
-        const attributions: Record<string, string> = {
+        // Dictionary of default attributions.
+        const defaultAttributions: Record<string, string> = {
             mapbox: "© Mapbox © OpenStreetMap",
             openstreetmap: "© OpenStreetMap",
+            none: ""
         };
 
-        // Retrieve the appropriate attribution
-        const defaultAttribution = attributions[basemapOptions.selectedBasemap] || "";
-        let attribution = defaultAttribution;
+        // Compute the effective attribution.
+        const defaultAttribution = defaultAttributions[basemapOptions.selectedBasemap] || "";
+        const newAttribution = basemapOptions.customMapAttribution
+            ? `${basemapOptions.customMapAttribution} ${defaultAttribution}`
+            : defaultAttribution;
 
-        // Add custom attribution if provided
-        if (basemapOptions.customMapAttribution) {
-            attribution = `${basemapOptions.customMapAttribution} ${defaultAttribution}`;
+        const mapboxStyleChanged = basemapOptions.mapboxStyle !== this.currentMapboxStyle;
+        const basemapTypeChanged = basemapOptions.selectedBasemap !== this.currentBasemapType;
+        const attributionChanged = newAttribution !== this.currentAttribution;
+
+        if (!basemapTypeChanged && !mapboxStyleChanged && !attributionChanged) {
+            return;
         }
 
-        // Determine the layer based on the selected basemap
+        this.currentBasemapType = basemapOptions.selectedBasemap;
+        this.currentMapboxStyle = basemapOptions.mapboxStyle;
+        this.currentAttribution = newAttribution;
+
         let newLayer: any = null;
+
         if (basemapOptions.selectedBasemap === "mapbox") {
+
+            // Create a Mapbox vector layer.
             this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
             newLayer = this.mapboxVectorLayer;
+
         } else if (basemapOptions.selectedBasemap === "openstreetmap") {
+
+            // Create or retrieve the OpenStreetMap layer.
             this.basemapLayer = this.basemap.getBasemap(basemapOptions);
             newLayer = this.basemapLayer;
-        } else if (basemapOptions.selectedBasemap === "none") {
-            // remove basemap
-            if (this.basemapLayer) {
-                this.map.removeLayer(this.basemapLayer);
-            } else if (this.mapboxVectorLayer) {
-                this.map.removeLayer(this.mapboxVectorLayer);
-            }
+
+        } else if (basemapOptions.selectedBasemap === "none" && newAttribution) {
+
+            // Remove any existing basemap layers.
+            // if (this.basemapLayer) {
+
+            //     this.map.removeLayer(this.basemapLayer);
+            //     this.basemapLayer = null;
+            // }
+
+            // if (this.mapboxVectorLayer) {
+
+            //     this.map.removeLayer(this.mapboxVectorLayer);
+            //     this.mapboxVectorLayer = null;
+            // }
+
+            // If a custom attribution is provided & selected basemap is none, create a dummy (invisible) layer
+            // whose source provides the attribution so that the built-in attribution
+            // control still shows it.
+
+
+            newLayer = new TileLayer({
+                source: new XYZ({
+                    url: '', // No URL since we don't want to load any tiles
+                    tileLoadFunction: () => { }, // Empty function to prevent tile loading
+                    attributions: newAttribution, // Set your custom attribution here
+                }),
+                visible: false, // Keep the layer invisible
+            });
+
+
         }
 
-        // Update the layer and attribution if a valid layer was found
+        // If a new layer (or dummy layer) is created, update its attribution and add it to the map.
         if (newLayer) {
-            newLayer.getSource()?.setAttributions(attribution);
+            newLayer.getSource()?.setAttributions(newAttribution);
             this.map.getLayers().setAt(0, newLayer);
         }
     }
@@ -494,11 +541,11 @@ export class MaplyticsVisual implements IVisual {
 
                 this.map.addLayer(this.circleLayer);
 
-                // Get current selection and update the new layer
-                // const currentSelection = this.selectionManager.getSelectionIds() as powerbi.visuals.ISelectionId[];
-                // this.circleLayer.updateSelection(currentSelection);
+                if(!this.choroplethDisplayed){
+                    this.mapExtent = this.circleLayer.getFeaturesExtent();
 
-                this.mapExtent = this.circleLayer.getFeaturesExtent();
+                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+                }
 
                 // Render legend if proportional circles are used
                 if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
@@ -520,9 +567,12 @@ export class MaplyticsVisual implements IVisual {
                         this.circleLegendContainer,
                         circleSizeValues,
                         radii,
-                        circleOptions.legendTitle,
                         circleOptions
                     );
+
+                } else {
+
+                    this.circleLegendContainer.style.display = "none"; // Hide the legend
                 }
 
             }
@@ -560,7 +610,7 @@ export class MaplyticsVisual implements IVisual {
             (c) => c.source?.roles && c.source.roles["Color"]
         );
 
-        console.log('colorMeasure', colorMeasure);
+        //console.log('colorMeasure', colorMeasure);
 
         if (!colorMeasure) {
             console.warn("Color Measure not found.");
@@ -633,10 +683,10 @@ export class MaplyticsVisual implements IVisual {
 
         const colorValues: number[] = measure.values;
         const classBreaks = this.getClassBreaks(colorValues, options);
-        console.log('classBreaks', classBreaks);
+        //console.log('classBreaks', classBreaks);
 
         const colorScale = this.getColorScale(classBreaks, options);
-        console.log('colorScale', colorScale);
+        //console.log('colorScale', colorScale);
 
         const pcodeKey = options.locationPcodeNameId;
 
@@ -667,9 +717,11 @@ export class MaplyticsVisual implements IVisual {
 
         this.map.addLayer(this.choroplethLayer);
 
-        this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
+        //this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
 
         this.mapExtent = this.choroplethLayer.getFeaturesExtent();
+
+        this.map.getView().fit(this.mapExtent, this.fitMapOptions);
 
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
@@ -951,7 +1003,7 @@ export class MaplyticsVisual implements IVisual {
             selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
             customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
             mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStye: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
+            mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
             mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
             mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
             declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,

@@ -26,7 +26,7 @@ export interface BasemapOptions {
     selectedBasemap: string;
     customMapAttribution: string;
     mapboxCustomStyleUrl: string;    
-    mapboxStye: string;
+    mapboxStyle: string;
     mapboxAccessToken: string;
     mapboxBaseUrl: string;
     declutterLabels: boolean;
