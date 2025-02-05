@@ -31,6 +31,7 @@ import "./../style/visual.less";
 import { constants } from "./constants";
 
 import { createTooltipServiceWrapper, TooltipEventArgs, ITooltipServiceWrapper, TooltipEnabledDataPoint } from "powerbi-visuals-utils-tooltiputils";
+import ISelectionBuilder = powerbi.visuals.ISelectionIdBuilder;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
@@ -97,8 +98,9 @@ export class MaplyticsVisual implements IVisual {
     private visualFormattingSettingsModel: HumanitarianMapVisualFormattingSettingsModel;
 
     private tooltipServiceWrapper: ITooltipServiceWrapper;
-    private tooltipService: powerbi.extensibility.ITooltipService;
+
     private selectionManager: ISelectionManager;
+    private selectedIds: powerbi.visuals.ISelectionId[] = []; // Track selections
 
     private container: HTMLElement;
     private svgContainer: HTMLElement;
@@ -254,13 +256,11 @@ export class MaplyticsVisual implements IVisual {
 
         this.svg = d3.select(this.svgOverlay);
         this.svgContainer = document.createElement('div'); // svg node container      
-
-        console.log("Visual initialized.");
     }
 
-    update(options: VisualUpdateOptions) {
+   
 
-        console.log("Update invoked.");
+    update(options: VisualUpdateOptions) {
 
         // Reset state on new update
         this.cleanupLayers();
@@ -285,6 +285,7 @@ export class MaplyticsVisual implements IVisual {
 
             return;
         }
+
 
         this.updateBasemap(basemapOptions);
 
@@ -407,10 +408,9 @@ export class MaplyticsVisual implements IVisual {
 
             this.svgOverlay.style.display = 'block';
 
-            console.log('Rendering circles...')
-
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
             const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
+            const circleSizeValuesCategory = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
             if (!lonCategory || !latCategory) {
                 console.warn("Both Longitude and Latitude roles must be assigned.");
@@ -427,8 +427,14 @@ export class MaplyticsVisual implements IVisual {
             const dataPoints = longitudes.map((lon, i) => {
 
                 // Create selection ID for cross-filtering
+                // const selectionId = this.host.createSelectionIdBuilder()
+                //     .withCategory(categorical.categories[0], i) // Use the primary category (e.g., location)
+                //     .createSelectionId();
+
+                // Ensure all relevant data roles (category, measure, etc.) are included
                 const selectionId = this.host.createSelectionIdBuilder()
-                    .withCategory(categorical.categories[0], i) // Use the primary category (e.g., location)
+                    .withCategory(lonCategory, i) // Use the actual category variable
+                    .withMeasure(circleSizeValuesCategory.source?.queryName) // Include measure roles if needed
                     .createSelectionId();
 
                 return {
@@ -448,9 +454,9 @@ export class MaplyticsVisual implements IVisual {
             } else {
 
                 // Handle Circle Size Measure or default size
-                const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+                //const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
-                circleSizeValues = CircleSizeMeasure.values as number[];
+                circleSizeValues = circleSizeValuesCategory.values as number[];
                 minCircleSizeValue = Math.min(...circleSizeValues);
                 maxCircleSizeValue = Math.max(...circleSizeValues);
                 circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
@@ -478,11 +484,19 @@ export class MaplyticsVisual implements IVisual {
 
                 };
 
+                // Remove existing CircleLayer if it exists
+                if (this.circleLayer) {
+                    this.map.removeLayer(this.circleLayer);
+                }
+
+                // Create new CircleLayer
                 this.circleLayer = new CircleLayer(circleLayerOptions);
 
                 this.map.addLayer(this.circleLayer);
 
-                //this.addCircleLayerEvents(this.map, this.circleLayer);
+                // Get current selection and update the new layer
+                // const currentSelection = this.selectionManager.getSelectionIds() as powerbi.visuals.ISelectionId[];
+                // this.circleLayer.updateSelection(currentSelection);
 
                 this.mapExtent = this.circleLayer.getFeaturesExtent();
 
@@ -761,10 +775,10 @@ export class MaplyticsVisual implements IVisual {
         // map.on('singleclick', (event: any) => {
         //     // Get click pixel coordinates
         //     const pixel = event.pixel;
-        
+
         //     // First reset all circles to full opacity
         //     svg.selectAll('circle').attr('opacity', 1);
-        
+
         //     // Find clicked circle(s) using collision detection
         //     const clickedCircles = svg.selectAll('circle')
         //         .filter(function(this: SVGCircleElement) {
@@ -772,13 +786,13 @@ export class MaplyticsVisual implements IVisual {
         //             const cx = parseFloat(circle.attr('cx'));
         //             const cy = parseFloat(circle.attr('cy'));
         //             const r = parseFloat(circle.attr('r'));
-                    
+
         //             // Calculate distance between click and circle center
         //             const dx = pixel[0] - cx;
         //             const dy = pixel[1] - cy;
         //             return dx * dx + dy * dy <= r * r;
         //         });
-        
+
         //     if (!clickedCircles.empty()) {
         //         // Reduce opacity for non-selected circles
         //         svg.selectAll('circle')
@@ -788,7 +802,7 @@ export class MaplyticsVisual implements IVisual {
         //             })
         //             .attr('opacity', 0.4);
         //     }
-        
+
         //     event.stopPropagation();
         // });
 
@@ -1012,7 +1026,7 @@ export class MaplyticsVisual implements IVisual {
         // Assuming tooltip fields are in the 'values' collection
         const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
         const tooltips: VisualTooltipDataItem[][] = [];
-    
+
         for (let i = 0; i < categorical.categories[0].values.length; i++) {
             const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => ({
                 displayName: field.source.displayName,
@@ -1020,8 +1034,7 @@ export class MaplyticsVisual implements IVisual {
             }));
             tooltips.push(tooltipItems);
         }
-    
-        console.log("All Tooltips:", tooltips);
+
         return tooltips;
     }
 
