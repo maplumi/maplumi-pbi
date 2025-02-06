@@ -482,6 +482,20 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "" // Placeholder text
     });
 
+    legendTitleAlignment: DropDown = new DropDown({
+        name: "legendTitleAlignment",
+        displayName: "Legend Title Alignment",
+        value: {
+            value: "left",  //default value
+            displayName: "Left" 
+        },
+        items: [
+            { value: "left", displayName: "Left" },
+            { value: "center", displayName: "Center" },
+            { value: "right", displayName: "Right" }
+        ]
+    });
+
     legendTitleColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "legendTitleColor",
         displayName: "Legend Title Color",
@@ -492,6 +506,35 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendLabelsColor",
         displayName: "Legend Labels Color",
         value: { value: "#000000" } // Default color
+    });
+
+    legendLabelPosition: DropDown = new DropDown({
+        name: "legendLabelPosition",
+        displayName: "Legend Label Position",
+        value: {
+            value: "top",  //default value
+            displayName: "top" 
+        },
+        items: [
+            { value: "top", displayName: "Top" },
+            { value: "center", displayName: "Center" },
+            { value: "bottom", displayName: "Bottom" },
+            { value: "right", displayName: "Right" },
+            { value: "left", displayName: "Left" }
+        ]
+    });
+
+    legendOrientation: DropDown = new DropDown({
+        name: "legendOrientation",
+        displayName: "Legend Orientation",
+        value: {
+            value: "horizontal",  //default value
+            displayName: "Horizontal" 
+        },
+        items: [
+            { value: "horizontal", displayName: "Horizontal" },
+            { value: "vertical", displayName: "Vertical" }
+        ]
     });
 
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
@@ -523,6 +566,9 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
     slices: formattingSettings.Slice[] = [
         this.showLegend ,
         this.legendTitle,
+        this.legendTitleAlignment,
+        this.legendOrientation,
+        this.legendLabelPosition,
         this.legendTitleColor,
         this.legendLabelsColor,
         this.legendBackgroundColor,

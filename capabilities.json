@@ -396,6 +396,11 @@
             "text": true
           }
         },
+        "legendTitleAlignment": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "legendTitleColor": {
           "type": {
             "fill": {
@@ -412,6 +417,16 @@
                 "color": true
               }
             }
+          }
+        },
+        "legendLabelPosition": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "legendOrientation": {
+          "type": {
+            "enumeration": []
           }
         },
         "legendBackgroundColor": {

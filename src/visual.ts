@@ -551,8 +551,6 @@ export class MaplyticsVisual implements IVisual {
                 // Render legend if proportional circles are used
                 if (circleOptions.showLegend) {
 
-                    console.log('Rendering circle legend...');
-
                     let radii: number[] | undefined;
 
                     if (circleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
@@ -610,8 +608,6 @@ export class MaplyticsVisual implements IVisual {
         const AdminPCodeNameIDCategory = categorical.categories.find(
             (c) => c.source?.roles && c.source.roles["AdminPCodeNameID"]
         );
-
-        console.log('AdminPCodeNameIDCategory', AdminPCodeNameIDCategory);
 
         if (!AdminPCodeNameIDCategory) {
             console.warn("Admin PCode/Name/ID not found.");
@@ -745,8 +741,7 @@ export class MaplyticsVisual implements IVisual {
                 colorValues,
                 classBreaks,
                 colorScale,
-                choroplethOptions,
-                "top"
+                choroplethOptions                
             );
 
         } else {
@@ -1079,6 +1074,9 @@ export class MaplyticsVisual implements IVisual {
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
             showLegend: choroplethLegendSettings.showLegend.value,
             legendTitle: choroplethLegendSettings.legendTitle.value,
+            legendTitleAlignment: choroplethLegendSettings.legendTitleAlignment.value.value.toString(),
+            legendOrientation: choroplethLegendSettings.legendOrientation.value.value.toString(),
+            legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value.toString(),
             legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
             legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
             legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,

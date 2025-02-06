@@ -1,120 +1,7 @@
 
 import { ChoroplethOptions, CircleOptions } from "./types";
 
-import * as util from "./utils"
-
-export function createChoroplethLegend(
-    legendContainer: HTMLElement,
-    colorValues: number[],
-    classBreaks: number[],
-    colorScale: any,
-    options: ChoroplethOptions,
-    legendLabelPosition: "top" | "inside" | "bottom" | "right" | "left" = "inside",
-    formatTemplate: string = "{:.0f}",
-    titleAlignment: "left" | "center" | "right" = "left",
-    gapSize: number = 2.5
-): void {
-    const uniqueColorValues: number[] = [...new Set(colorValues)].sort(
-        (a, b) => a - b
-    );
-
-    //const legendContainer = this.choroplethLegend;
-    if (!legendContainer) return;
-
-    // Clear existing legend
-    while (legendContainer.firstChild) {
-        legendContainer.removeChild(legendContainer.firstChild);
-    }
-
-    // compute legend background color and opacity
-    const opacity = options.legendBackgroundOpacity / 100;
-    const bgColor = util.hexToRgba(options.legendBackgroundColor, opacity);
-
-    // Style the legend container
-    legendContainer.style.display = "flex";
-    legendContainer.style.flexDirection = "column";
-    legendContainer.style.alignItems = "flex-start";
-    legendContainer.style.gap = "5px";
-    (legendContainer.style.backgroundColor = bgColor), //"rgba(255, 255, 255, 0.5)";
-        (legendContainer.style.border = "none");
-    legendContainer.style.padding = "5px";
-
-    // Add title to the legend with customizable alignment
-    const title = document.createElement("div");
-    title.textContent = options.legendTitle;
-    title.style.color = options.legendTitleColor;
-    title.style.fontSize = "12px";
-    title.style.fontWeight = "bold";
-    title.style.marginBottom = "5px";
-
-    // Align the title based on user selection
-    title.style.textAlign = titleAlignment;
-
-    // Align the title itself depending on the alignment choice
-    if (titleAlignment === "left") {
-        title.style.marginLeft = "0";
-    } else if (titleAlignment === "center") {
-        title.style.marginLeft = "auto";
-        title.style.marginRight = "auto";
-    } else if (titleAlignment === "right") {
-        title.style.marginLeft = "auto";
-    }
-
-    // Append the title to the legend
-    legendContainer.appendChild(title);
-
-    // Create horizontal layout for legend items
-    const itemsContainer = document.createElement("div");
-    itemsContainer.style.display = "flex";
-    itemsContainer.style.flexDirection = "row";
-    itemsContainer.style.alignItems = "flex-start";
-    itemsContainer.style.gap = `${gapSize}px`;
-
-    if (options.classifyData) {
-        // Classified Mode
-        for (let i = 0; i < classBreaks.length - 1; i++) {
-            const color = colorScale[i];
-            let labelText = "";
-
-            // Determine label text based on index
-            labelText = `${util.formatValue(
-                classBreaks[i],
-                formatTemplate
-            )} - ${util.formatValue(classBreaks[i + 1], formatTemplate)}`;
-
-            // Create legend item
-            const legendItem = createChoroplethLegendItem(
-                labelText,
-                color,
-                options.legendLabelsColor,
-                legendLabelPosition
-            );
-            itemsContainer.appendChild(legendItem);
-        }
-    } else {
-        // Unique Value Mode
-        for (let i = 0; i < uniqueColorValues.length; i++) {
-            const uniqueValue = uniqueColorValues[i];
-            const color = colorScale[i]; // Get color from colorScale
-            const labelText = util.formatValue(uniqueValue, formatTemplate); // Format the unique value
-
-            // Create legend item
-            const legendItem = createChoroplethLegendItem(
-                labelText,
-                color,
-                options.legendLabelsColor,
-                legendLabelPosition
-            );
-            itemsContainer.appendChild(legendItem);
-        }
-    }
-
-    // Append the items container to the legend
-    legendContainer.appendChild(itemsContainer);
-
-    // Ensure the legend is visible
-    legendContainer.style.display = "flex";
-}
+import * as util from "./utils";
 
 export function createProportionalCircleLegend(
     legendContainer: HTMLElement,
@@ -266,13 +153,10 @@ export function createProportionalCircleLegend(
     // Append the SVG to the container
     legendContainer.appendChild(svg);
 
-    console.log("Proportional Circle Legend created", legendContainer);
-
     // Ensure the legend is visible
     legendContainer.style.display = "flex";
 }
 
-// function to get proportional circle legend data i.e min, medium and max
 function getProportionalCircleLegendData(
     sizeValues: number[],
     radii: number[],
@@ -340,114 +224,184 @@ function getProportionalCircleLegendData(
     ];
 }
 
-function getProportionalCircleLegendDatax(sizeValues: number[], radii: number[]) {
+export function createChoroplethLegend(
+    legendContainer: HTMLElement,
+    colorValues: number[],
+    classBreaks: number[],
+    colorScale: any,
+    options: ChoroplethOptions,    
+    formatTemplate: string = "{:.0f}",
+    gapSize: number = 2.5
+): void {
+    const uniqueColorValues: number[] = [...new Set(colorValues)].sort((a, b) => a - b);
+    if (!legendContainer) return;
 
-    if (sizeValues.length !== radii.length) {
-        console.log("sizeValues and radii arrays must have the same length");
-        return [];
+    // Clear existing legend
+    while (legendContainer.firstChild) {
+        legendContainer.removeChild(legendContainer.firstChild);
     }
 
-    // Sort by sizeValues
-    const sortedData = sizeValues
-        .map((size, index) => ({ size, radius: radii[index] }))
-        .sort((a, b) => a.size - b.size);
+    // Compute legend background
+    const opacity = options.legendBackgroundOpacity / 100;
+    const bgColor = util.hexToRgba(options.legendBackgroundColor, opacity);
 
-    // Extract min and max
-    const min = sortedData[0];
-    const max = sortedData[sortedData.length - 1];
+    // Style legend container
+    legendContainer.style.display = "flex";
+    legendContainer.style.flexDirection = "column";
+    legendContainer.style.alignItems = "flex-start";
+    legendContainer.style.gap = "5px";
+    legendContainer.style.backgroundColor = bgColor;
+    legendContainer.style.padding = "5px";
 
-    // Compute medium as half of max size, rounded to the nearest thousand
-    const mediumSize = Math.round(max.size / 2 / 1000) * 1000;
-    const mediumRadius = (max.radius / max.size) * mediumSize; // Scale radius proportionally
+    // Add title
+    const title = document.createElement("div");
+    title.textContent = options.legendTitle;
+    title.style.color = options.legendTitleColor;
+    title.style.fontSize = "12px";
+    title.style.fontWeight = "bold";
+    title.style.marginBottom = "5px";
+    title.style.textAlign = options.legendTitleAlignment;
+    legendContainer.appendChild(title);
 
-    const medium = { size: mediumSize, radius: mediumRadius };
-
-    return [min, medium, max];
-}
-
-function getProportionalCircleLegendDataxx(sizeValues: number[], radii: number[]) {
-    if (sizeValues.length !== radii.length) {
-        console.error("sizeValues and radii arrays must have the same length");
-        return [];
-    }
-    // Map values with their corresponding radii
-    const data = sizeValues.map((size, index) => ({ size, radius: radii[index] }));
-    // Sort data by size
-    data.sort((a, b) => a.size - b.size);
-    const n = data.length;
-
-    // Helper to get the quantile at a given fraction (e.g., 0.25 for the 25th percentile)
-    const quantile = (q) => {
-        const pos = q * (n - 1);
-        const base = Math.floor(pos);
-        const rest = pos - base;
-        if (base + 1 < n) {
-            return {
-                size: data[base].size + rest * (data[base + 1].size - data[base].size),
-                radius: data[base].radius + rest * (data[base + 1].radius - data[base].radius)
-            };
-        } else {
-            return data[base];
+    // Collect all labels and calculate max width
+    const allLabels = [];
+    if (options.classifyData) {
+        for (let i = 0; i < classBreaks.length - 1; i++) {
+            allLabels.push(`${util.formatValue(classBreaks[i], formatTemplate)} - ${util.formatValue(classBreaks[i + 1], formatTemplate)}`);
         }
-    };
+    } else {
+        uniqueColorValues.forEach(value => {
+            allLabels.push(util.formatValue(value, formatTemplate));
+        });
+    }
 
-    const lower = quantile(0.25);
-    const median = quantile(0.50);
-    const upper = quantile(0.75);
+    // Calculate max width when needed
+    let maxWidth = 0;
+    const needsUniformWidth = 
+        (options.legendOrientation === "horizontal" && ["top", "center", "bottom"].includes(options.legendLabelPosition)) ||
+        (options.legendOrientation === "vertical" && options.legendLabelPosition === "center");
 
-    return [lower, median, upper];
+    if (needsUniformWidth) {
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.visibility = "hidden";
+        tempDiv.style.whiteSpace = "nowrap";
+        tempDiv.style.fontSize = "10px";
+        if (options.legendLabelPosition === "center") {
+            tempDiv.style.padding = "0 4px";
+        }
+        document.body.appendChild(tempDiv);
+
+        allLabels.forEach(label => {
+            tempDiv.textContent = label;
+            maxWidth = Math.max(maxWidth, tempDiv.offsetWidth);
+        });
+
+        document.body.removeChild(tempDiv);
+    }
+
+    // Create items container
+    const itemsContainer = document.createElement("div");
+    itemsContainer.style.display = "flex";
+    itemsContainer.style.flexDirection = options.legendOrientation === "vertical" ? "column" : "row";
+    itemsContainer.style.gap = `${gapSize}px`;
+    itemsContainer.style.alignItems = "flex-start";
+
+    // Create legend items
+    const colors = options.classifyData 
+        ? classBreaks.slice(0, -1).map((_, i) => colorScale[i])
+        : uniqueColorValues.map((_, i) => colorScale[i]);
+
+    colors.forEach((color, i) => {
+        const legendItem = createChoroplethLegendItem(
+            allLabels[i],
+            color,
+            options.legendLabelsColor,
+            options.legendLabelPosition,
+            options.legendOrientation,
+            maxWidth
+        );
+        itemsContainer.appendChild(legendItem);
+    });
+
+    legendContainer.appendChild(itemsContainer);
 }
 
-
-
-// function to create a legend item
 function createChoroplethLegendItem(
     labelText: string,
-    boxColor: string,
+    color: string,
     labelColor: string,
-    labelPosition: "top" | "inside" | "bottom" | "right" | "left"
+    labelPosition: string,
+    orientation: string,
+    maxWidth: number
 ): HTMLElement {
-    const legendItem = document.createElement("div");
-    legendItem.style.display = "flex";
-    legendItem.style.flexDirection = "column";
-    legendItem.style.alignItems = "center";
-
-    // Calculate the dynamic width of the color box
-    const boxWidth = `${labelText.length * 5 + 10}px`;
-
-    // Create color box
+    const container = document.createElement("div");
     const colorBox = document.createElement("div");
-    colorBox.style.position = "relative";
-    colorBox.style.width = boxWidth;
-    colorBox.style.height = "20px";
-    colorBox.style.backgroundColor = boxColor;
-    colorBox.style.textAlign = "center";
-    colorBox.style.display = "flex";
-    colorBox.style.justifyContent = "center";
-    colorBox.style.alignItems =
-        labelPosition === "inside" ? "center" : "flex-start";
+    const label = document.createElement("div");
 
-    // Add label
-    const label = document.createElement("span");
-    label.textContent = labelText;
-    label.style.color = labelColor; //labelPosition === "inside" ? "#fff" : "#000";
-    label.style.fontSize = "10px";
+    // Configure container layout
+    container.style.display = "flex";
+    container.style.alignItems = "center";
+    container.style.gap = "4px";
 
-    // Append label based on position
-    if (labelPosition === "top") {
-        label.style.marginBottom = "5px";
-        legendItem.appendChild(label);
-        legendItem.appendChild(colorBox);
-    } else if (labelPosition === "bottom") {
-        label.style.marginTop = "5px";
-        legendItem.appendChild(colorBox);
-        legendItem.appendChild(label);
+    // Handle different layouts
+    if (orientation === "vertical") {
+        if (["left", "right"].includes(labelPosition)) {
+            container.style.flexDirection = labelPosition === "left" ? "row-reverse" : "row";
+            container.style.width = "100%";
+            container.style.justifyContent = labelPosition === "left" ? "flex-end" : "flex-start";
+        } else {
+            container.style.flexDirection = "column";
+        }
     } else {
-        colorBox.appendChild(label);
-        legendItem.appendChild(colorBox);
+        container.style.flexDirection = ["top", "bottom"].includes(labelPosition) 
+            ? (labelPosition === "top" ? "column-reverse" : "column") 
+            : "row";
     }
 
-    return legendItem;
+    // Configure color box sizing
+    const useUniformWidth = 
+        (orientation === "horizontal" && ["top", "center", "bottom"].includes(labelPosition)) ||
+        (orientation === "vertical" && labelPosition === "center");
+
+    colorBox.style.height = "20px";
+    colorBox.style.backgroundColor = color;
+    colorBox.style.border = "1px solid #ccc";
+    colorBox.style.position = "relative";
+
+    if (useUniformWidth) {
+        colorBox.style.width = `${maxWidth}px`;
+        if (labelPosition === "center") {
+            colorBox.style.display = "flex";
+            colorBox.style.alignItems = "center";
+            colorBox.style.justifyContent = "center";
+            colorBox.style.padding = "0 4px";
+        }
+    } else {
+        colorBox.style.width = "20px";
+    }
+
+    // Configure label
+    label.textContent = labelText;
+    label.style.color = labelColor;
+    label.style.fontSize = "10px";
+    label.style.whiteSpace = "nowrap";
+
+    // Handle positioning
+    if (labelPosition === "center") {
+        colorBox.appendChild(label);
+        container.appendChild(colorBox);
+    } else {
+        if (["top", "left"].includes(labelPosition)) {
+            container.appendChild(label);
+            container.appendChild(colorBox);
+        } else {
+            container.appendChild(colorBox);
+            container.appendChild(label);
+        }
+    }
+
+    return container;
 }
 
 

@@ -105,7 +105,10 @@ export interface ChoroplethOptions {
     layerOpacity: number; 
     
     showLegend: boolean; 
+    legendLabelPosition: string;
+    legendOrientation: string;
     legendTitle: string;
+    legendTitleAlignment: string;
     legendTitleColor: string;
     legendLabelsColor: string;
     legendBackgroundOpacity:number;
