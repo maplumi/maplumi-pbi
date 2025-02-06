@@ -43,7 +43,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import PrimitiveValue = powerbi.PrimitiveValue;
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
-import { HumanitarianMapVisualFormattingSettingsModel } from "./settings";
+import { MaplyticsVisualFormattingSettingsModel } from "./settings";
 
 import { Basemap } from "./basemap";
 
@@ -97,7 +97,7 @@ export class MaplyticsVisual implements IVisual {
 
     private host: IVisualHost;
     private formattingSettingsService: FormattingSettingsService;
-    private visualFormattingSettingsModel: HumanitarianMapVisualFormattingSettingsModel;
+    private visualFormattingSettingsModel: MaplyticsVisualFormattingSettingsModel;
 
     private tooltipServiceWrapper: ITooltipServiceWrapper;
 
@@ -152,7 +152,7 @@ export class MaplyticsVisual implements IVisual {
         this.memoryCache = {};
 
         this.formattingSettingsService = new FormattingSettingsService();
-        this.visualFormattingSettingsModel = new HumanitarianMapVisualFormattingSettingsModel();
+        this.visualFormattingSettingsModel = new MaplyticsVisualFormattingSettingsModel();
 
         this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);
         this.selectionManager = this.host.createSelectionManager();
@@ -541,34 +541,46 @@ export class MaplyticsVisual implements IVisual {
 
                 this.map.addLayer(this.circleLayer);
 
-                if(!this.choroplethDisplayed){
+                if (!this.choroplethDisplayed) {
+
                     this.mapExtent = this.circleLayer.getFeaturesExtent();
 
                     this.map.getView().fit(this.mapExtent, this.fitMapOptions);
                 }
 
                 // Render legend if proportional circles are used
-                if (circleOptions.showLegend && circleSizeValues && circleSizeValues.length > 0) {
+                if (circleOptions.showLegend) {
+
+                    console.log('Rendering circle legend...');
 
                     let radii: number[] | undefined;
 
-                    longitudes.forEach((i) => {
+                    if (circleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
 
-                        // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
-                        const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
-                            ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
-                            : circleOptions.minRadius;
+                        radii = circleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
 
-                        radii.push(radius);
 
-                    });
+                        // longitudes.forEach((i) => {
 
-                    legend.createProportionalCircleLegend(
-                        this.circleLegendContainer,
-                        circleSizeValues,
-                        radii,
-                        circleOptions
-                    );
+                        //     // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
+                        //     const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
+                        //         ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
+                        //         : circleOptions.minRadius;
+
+                        //     radii.push(radius);
+
+                        // });
+
+                        legend.createProportionalCircleLegend(
+                            this.circleLegendContainer,
+                            circleSizeValues,
+                            radii,
+                            circleOptions
+                        );
+
+                    }
+
+                    
 
                 } else {
 
@@ -665,7 +677,7 @@ export class MaplyticsVisual implements IVisual {
 
     }
 
-    private renderChoropleth(geodata: any, category: any, measure: any, options: ChoroplethOptions) {
+    private renderChoropleth(geodata: any, category: any, measure: any, choroplethOptions: ChoroplethOptions) {
 
         // Get PCodes (this is the category/feature identifier)
         const pCodes = category.values as string[];
@@ -682,13 +694,13 @@ export class MaplyticsVisual implements IVisual {
         }
 
         const colorValues: number[] = measure.values;
-        const classBreaks = this.getClassBreaks(colorValues, options);
+        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);
         //console.log('classBreaks', classBreaks);
 
-        const colorScale = this.getColorScale(classBreaks, options);
+        const colorScale = this.getColorScale(classBreaks, choroplethOptions);
         //console.log('colorScale', colorScale);
 
-        const pcodeKey = options.locationPcodeNameId;
+        const pcodeKey = choroplethOptions.locationPcodeNameId;
 
         // Filter GeoJSON features based on valid PCodes
         const filteredGeoData = {
@@ -701,9 +713,9 @@ export class MaplyticsVisual implements IVisual {
         const choroplethLayerOptions: ChoroplethLayerOptions = {
 
             geojson: filteredGeoData,
-            strokeColor: options.strokeColor,
-            strokeWidth: options.strokeWidth,
-            fillOpacity: options.layerOpacity,
+            strokeColor: choroplethOptions.strokeColor,
+            strokeWidth: choroplethOptions.strokeWidth,
+            fillOpacity: choroplethOptions.layerOpacity,
             colorScale: (value: any) => this.getColorFromClassBreaks(value, classBreaks, colorScale),
             dataKey: pcodeKey,
             svg: this.svg,
@@ -726,14 +738,14 @@ export class MaplyticsVisual implements IVisual {
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
         // Update the legend
-        if (options.showLegend) {
+        if (choroplethOptions.showLegend) {
 
             legend.createChoroplethLegend(
                 this.choroplethLegendContainer,
                 colorValues,
                 classBreaks,
                 colorScale,
-                options,
+                choroplethOptions,
                 "top"
             );
 
@@ -992,7 +1004,7 @@ export class MaplyticsVisual implements IVisual {
 
     private getFormattingSettings(options: VisualUpdateOptions) {
         return this.formattingSettingsService.populateFormattingSettingsModel(
-            HumanitarianMapVisualFormattingSettingsModel,
+            MaplyticsVisualFormattingSettingsModel,
             options.dataViews[0]
         );
     }

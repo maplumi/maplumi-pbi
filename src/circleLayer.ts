@@ -84,7 +84,7 @@ export class CircleLayer extends Layer {
                     this.selectedIds = []; // Clear stored selections
                     this.changed(); // Trigger re-render to update opacity
                 });
-                //event.stopPropagation();  // stopping event progagation here will prevent visual selection
+                //event.stopPropagation();
             });
 
         this.features.forEach((feature: GeoJSONFeature, i: number) => {
@@ -134,7 +134,7 @@ export class CircleLayer extends Layer {
                             console.log('Selected IDs:', this.selectedIds);
                             this.changed(); // Trigger re-render to apply new opacity
                         });
-                    //event.stopPropagation(); // stopping event progagation here will interfere with data point selection/deselection
+                    //event.stopPropagation();
                 });
             }
         });

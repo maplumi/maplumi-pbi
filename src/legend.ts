@@ -170,7 +170,7 @@ export function createProportionalCircleLegend(
     // Get legend data using the provided function
     const legendData = getProportionalCircleLegendData(sizeValues, radii);
 
-    console.log(legendData);
+    //console.log(legendData);
 
     if (!legendData || legendData.length === 0) {
         console.error("Invalid legend data");
@@ -266,14 +266,81 @@ export function createProportionalCircleLegend(
     // Append the SVG to the container
     legendContainer.appendChild(svg);
 
-    console.log("Proportional Circle Legend created", this.legendContainer);
+    console.log("Proportional Circle Legend created", legendContainer);
 
     // Ensure the legend is visible
     legendContainer.style.display = "flex";
 }
 
 // function to get proportional circle legend data i.e min, medium and max
-function getProportionalCircleLegendData(sizeValues: number[], radii: number[]) {
+function getProportionalCircleLegendData(
+    sizeValues: number[],
+    radii: number[],
+    minRadiusThreshold: number = 5 // Minimum visual distinction for radii
+) {
+    // Validate inputs
+    if (sizeValues.length !== radii.length) {
+        console.error("Arrays must have the same length");
+        return [];
+    }
+
+    // Filter out invalid/negative values
+    const validData = sizeValues
+        .map((size, index) => ({ size, radius: radii[index] }))
+        .filter((item) => item.size >= 0 && item.radius >= 0);
+
+    if (validData.length === 0) {
+        console.error("No valid positive data points");
+        return [];
+    }
+
+    // Sort by size
+    const sortedData = [...validData].sort((a, b) => a.size - b.size);
+    const min = sortedData[0];
+    const max = sortedData[sortedData.length - 1];
+
+    // Edge case: All values are identical
+    if (min.size === max.size) {
+        return [min, min, min]; // Single size dominates
+    }
+
+    // Dynamic medium calculation
+    let mediumSize: number;
+    const range = max.size - min.size;
+
+    // Case 1: Zero-inflated data (min is zero)
+    if (min.size === 0) {
+        mediumSize = Math.round(max.size * 0.25); // 25% of max instead of 50%
+    }
+    // Case 2: Small range handling
+    else if (range < max.size * 0.1) { // Less than 10% range
+        mediumSize = min.size + Math.round(range * 0.33); // 33% of range
+    }
+    // Default case
+    else {
+        mediumSize = Math.round((min.size + max.size) / 2); // True midpoint
+    }
+
+    // Scale radius proportionally with safety checks
+    const scaleFactor = max.radius / max.size;
+    let mediumRadius = scaleFactor * mediumSize;
+
+    // Ensure visual distinction between min/medium/max
+    if (mediumRadius - min.radius < minRadiusThreshold) {
+        mediumRadius = min.radius + minRadiusThreshold;
+    }
+    if (max.radius - mediumRadius < minRadiusThreshold) {
+        mediumRadius = max.radius - minRadiusThreshold;
+    }
+
+    return [
+        min,
+        { size: mediumSize, radius: mediumRadius },
+        max
+    ];
+}
+
+function getProportionalCircleLegendDatax(sizeValues: number[], radii: number[]) {
 
     if (sizeValues.length !== radii.length) {
         console.log("sizeValues and radii arrays must have the same length");
@@ -298,39 +365,39 @@ function getProportionalCircleLegendData(sizeValues: number[], radii: number[]) 
     return [min, medium, max];
 }
 
-function getQuantileCircleLegendData(sizeValues: number[], radii: number[]) {
+function getProportionalCircleLegendDataxx(sizeValues: number[], radii: number[]) {
     if (sizeValues.length !== radii.length) {
-      console.error("sizeValues and radii arrays must have the same length");
-      return [];
+        console.error("sizeValues and radii arrays must have the same length");
+        return [];
     }
     // Map values with their corresponding radii
     const data = sizeValues.map((size, index) => ({ size, radius: radii[index] }));
     // Sort data by size
     data.sort((a, b) => a.size - b.size);
     const n = data.length;
-    
+
     // Helper to get the quantile at a given fraction (e.g., 0.25 for the 25th percentile)
     const quantile = (q) => {
-      const pos = q * (n - 1);
-      const base = Math.floor(pos);
-      const rest = pos - base;
-      if (base + 1 < n) {
-        return {
-          size: data[base].size + rest * (data[base + 1].size - data[base].size),
-          radius: data[base].radius + rest * (data[base + 1].radius - data[base].radius)
-        };
-      } else {
-        return data[base];
-      }
+        const pos = q * (n - 1);
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        if (base + 1 < n) {
+            return {
+                size: data[base].size + rest * (data[base + 1].size - data[base].size),
+                radius: data[base].radius + rest * (data[base + 1].radius - data[base].radius)
+            };
+        } else {
+            return data[base];
+        }
     };
-    
+
     const lower = quantile(0.25);
     const median = quantile(0.50);
     const upper = quantile(0.75);
-    
+
     return [lower, median, upper];
-  }
-  
+}
+
 
 
 // function to create a legend item

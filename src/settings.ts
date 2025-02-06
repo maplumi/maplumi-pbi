@@ -578,7 +578,7 @@ class mapToolsVisualCardSettings extends formattingSettings.SimpleCard {
 * visual settings model class
 *
 */
-export class HumanitarianMapVisualFormattingSettingsModel extends FormattingSettingsModel {
+export class MaplyticsVisualFormattingSettingsModel extends FormattingSettingsModel {
 
     // Create formatting settings model formatting cards
     BasemapVisualCardSettings = new basemapVisualCardSettings();
