@@ -402,25 +402,7 @@ export class MaplyticsVisual implements IVisual {
             newLayer = this.basemapLayer;
 
         } else if (basemapOptions.selectedBasemap === "none" && newAttribution) {
-
-            // Remove any existing basemap layers.
-            // if (this.basemapLayer) {
-
-            //     this.map.removeLayer(this.basemapLayer);
-            //     this.basemapLayer = null;
-            // }
-
-            // if (this.mapboxVectorLayer) {
-
-            //     this.map.removeLayer(this.mapboxVectorLayer);
-            //     this.mapboxVectorLayer = null;
-            // }
-
-            // If a custom attribution is provided & selected basemap is none, create a dummy (invisible) layer
-            // whose source provides the attribution so that the built-in attribution
-            // control still shows it.
-
-
+            // Create a dummy layer with the custom attribution.
             newLayer = new TileLayer({
                 source: new XYZ({
                     url: '', // No URL since we don't want to load any tiles
@@ -472,11 +454,6 @@ export class MaplyticsVisual implements IVisual {
 
             // Create data points for each circle
             const dataPoints = longitudes.map((lon, i) => {
-
-                // Create selection ID for cross-filtering
-                // const selectionId = this.host.createSelectionIdBuilder()
-                //     .withCategory(categorical.categories[0], i) // Use the primary category (e.g., location)
-                //     .createSelectionId();
 
                 // Ensure all relevant data roles (category, measure, etc.) are included
                 const selectionId = this.host.createSelectionIdBuilder()
@@ -557,18 +534,6 @@ export class MaplyticsVisual implements IVisual {
 
                         radii = circleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
 
-
-                        // longitudes.forEach((i) => {
-
-                        //     // Calculate radius: proportional if circleSizeValues are provided, otherwise default to minRadius
-                        //     const radius = circleSizeValues && minCircleSizeValue !== undefined && circleScale !== undefined
-                        //         ? circleOptions.minRadius + (circleSizeValues[i] - minCircleSizeValue) * circleScale
-                        //         : circleOptions.minRadius;
-
-                        //     radii.push(radius);
-
-                        // });
-
                         legend.createProportionalCircleLegend(
                             this.circleLegendContainer,
                             circleSizeValues,
@@ -577,8 +542,6 @@ export class MaplyticsVisual implements IVisual {
                         );
 
                     }
-
-                    
 
                 } else {
 
@@ -748,158 +711,6 @@ export class MaplyticsVisual implements IVisual {
 
             this.choroplethLegendContainer.style.display = "none"; // Hide the legend
         }
-
-    }
-
-    private addChoroplethLayerEvents(map: Map, svgLayer: ChoroplethLayer) {
-        const svg = svgLayer.getSvg();
-        const valueLookup = svgLayer.valueLookup; // Access the value lookup table
-        const spatialIndex = svgLayer.getSpatialIndex(); // Access the spatial index
-
-        // Handle single click on map
-        map.on('singleclick', (event) => {
-            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
-            const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
-
-            // Find features near the click event
-            const nearbyFeatures = spatialIndex.search({
-                minX: lon,
-                minY: lat,
-                maxX: lon,
-                maxY: lat
-            });
-
-            // Handle choropleth click event
-            nearbyFeatures.forEach((item: any) => {
-                const feature = item.feature;
-                if (d3.geoContains(feature, [lon, lat])) {
-                    const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
-                    const pCode = feature.properties[dataKey];
-                    const value = valueLookup[pCode];
-
-                    console.log(`Clicked choropleth: Value = ${value}`);
-
-                    // Change the fill color for clicked choropleth feature
-                    svg.selectAll('path').filter(function (d: any) {
-                        return d === feature;
-                    }).attr('fill', 'blue');
-                }
-            });
-        });
-
-        // Handle pointer movement over the map
-        map.on('pointermove', (event) => {
-            const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
-            const [lon, lat] = toLonLat(map.getCoordinateFromPixel(event.pixel)); // Convert pixel to lon/lat
-
-            // Find features near the pointer event
-            const nearbyFeatures = spatialIndex.search({
-                minX: lon,
-                minY: lat,
-                maxX: lon,
-                maxY: lat
-            });
-
-            // Handle pointer movement over choropleth features
-            svg.selectAll('path').each(function () {
-                const path = d3.select(this);
-                const feature = path.datum() as GeoJSON.Feature<GeoJSON.GeometryObject, { [key: string]: any }>;
-
-                if (nearbyFeatures.some((item: any) => item.feature === feature && d3.geoContains(feature, [lon, lat]))) {
-                    // Mouse is over the choropleth feature
-                    path.attr('fill', 'red');
-                } else {
-                    // Mouse is outside the choropleth feature
-                    const dataKey = (svgLayer.options as ChoroplethLayerOptions).dataKey;
-                    const pCode = feature.properties[dataKey];
-                    const value = valueLookup[pCode];
-                    const colorScale = (svgLayer.options as ChoroplethLayerOptions).colorScale;
-                    const color = colorScale(value);
-                    path.attr('fill', color); // Revert to original color
-                }
-            });
-        });
-    }
-
-    private addCircleLayerEvents(map: Map, canvasLayer: CircleLayer) {
-        const svg = canvasLayer.getSvg();
-
-        // Helper function to check if a point is inside a circle
-        const isPointInCircle = (mouseX: number, mouseY: number, circleX: number, circleY: number, radius: number) => {
-            const dx = mouseX - circleX;
-            const dy = mouseY - circleY;
-            return dx * dx + dy * dy <= radius * radius;
-        };
-
-        // map.on('singleclick', (event: any) => {
-        //     // Get click pixel coordinates
-        //     const pixel = event.pixel;
-
-        //     // First reset all circles to full opacity
-        //     svg.selectAll('circle').attr('opacity', 1);
-
-        //     // Find clicked circle(s) using collision detection
-        //     const clickedCircles = svg.selectAll('circle')
-        //         .filter(function(this: SVGCircleElement) {
-        //             const circle = d3.select(this);
-        //             const cx = parseFloat(circle.attr('cx'));
-        //             const cy = parseFloat(circle.attr('cy'));
-        //             const r = parseFloat(circle.attr('r'));
-
-        //             // Calculate distance between click and circle center
-        //             const dx = pixel[0] - cx;
-        //             const dy = pixel[1] - cy;
-        //             return dx * dx + dy * dy <= r * r;
-        //         });
-
-        //     if (!clickedCircles.empty()) {
-        //         // Reduce opacity for non-selected circles
-        //         svg.selectAll('circle')
-        //             .filter(function(this: SVGCircleElement) {
-        //                 // Keep clicked circles at full opacity
-        //                 return !clickedCircles.nodes().includes(this);
-        //             })
-        //             .attr('opacity', 0.4);
-        //     }
-
-        //     event.stopPropagation();
-        // });
-
-
-        // map.on('singleclick', (event: any) => {
-
-        //     // Clear selection using the selectionManager.
-        //     canvasLayer.options.selectionManager.clear().then(() => {
-        //         // For example, reset circle opacities here.
-        //         const circlesGroup = this.svg.select('#circles-group');
-        //         circlesGroup.selectAll('circle')
-        //             .attr('fill-opacity', canvasLayer.options.circleOptions.layerOpacity);
-        //     });
-
-        //     event.stopPropagation(); // Prevents unintended behavior
-        // });
-
-        // map.on("pointermove", (event) => {
-        //     const [mouseX, mouseY] = event.pixel; // Mouse position in pixels
-
-        //     svg.selectAll("circle").each(function () {
-        //         const circle = d3.select(this);
-        //         const circleX = parseFloat(circle.attr("cx"));
-        //         const circleY = parseFloat(circle.attr("cy"));
-        //         const radius = parseFloat(circle.attr("r"));
-
-        //         if (isPointInCircle(mouseX, mouseY, circleX, circleY, radius)) {
-        //             // Change color to indicate hover
-        //             circle.attr("fill", "red");
-        //         } 
-        //         else {
-        //             // Restore original color when mouse leaves
-        //             const circleColor = (canvasLayer.options as CircleLayerOptions).circleOptions?.color || "defaultColor";
-        //             circle.attr("fill", circleColor);
-        //         }
-        //     });
-        // });
-
 
     }
 
