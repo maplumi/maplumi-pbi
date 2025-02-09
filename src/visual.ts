@@ -87,12 +87,12 @@ import { LegendManager } from "./legend";
 import { Extent } from "ol/extent";
 
 
-interface TooltipDataItem {
-    displayName: string;
-    value: string;
-    data: { displayName: string; value: any }[];
-    // ... other properties you might need (header, color, etc.)
-}
+// interface TooltipDataItem {
+//     displayName: string;
+//     value: string;
+//     data: { displayName: string; value: any }[];
+//     // ... other properties you might need (header, color, etc.)
+// }
 
 export class MaplyticsVisual implements IVisual {
 
@@ -108,7 +108,7 @@ export class MaplyticsVisual implements IVisual {
     private container: HTMLElement;
     private svgContainer: HTMLElement;
 
-    private loaderContainer: HTMLElement;
+    private spinner: HTMLElement;
     private legendContainer: HTMLElement;
     private legendManager: LegendManager;
 
@@ -164,25 +164,25 @@ export class MaplyticsVisual implements IVisual {
         this.container = options.element;
 
         // create loader/spinner element
-        this.loaderContainer = document.createElement('div');
-        this.loaderContainer.setAttribute('id', 'loader');
-        this.loaderContainer.classList.add('loader');
-        this.loaderContainer.style.border = '8px solid #f3f3f3';
-        this.loaderContainer.style.borderRadius = '50%';
-        this.loaderContainer.style.borderTop = '8px solid #3498db';
-        this.loaderContainer.style.width = '40px';
-        this.loaderContainer.style.height = '40px';
-        this.loaderContainer.style.animation = 'spin 2s linear infinite';
-        this.loaderContainer.style.position = 'absolute';
-        this.loaderContainer.style.top = '50%';
-        this.loaderContainer.style.left = '50%';
-        this.loaderContainer.style.transform = 'translate(-50%, -50%)';
-        this.loaderContainer.style.zIndex = '1000';
-        this.loaderContainer.style.display = 'none'; // Initially hidden
+        this.spinner = document.createElement('div');
+        this.spinner.setAttribute('id', 'spinner');
+        this.spinner.classList.add('loader');
+        this.spinner.style.border = '8px solid #f3f3f3';
+        this.spinner.style.borderRadius = '50%';
+        this.spinner.style.borderTop = '8px solid #3498db';
+        this.spinner.style.width = '40px';
+        this.spinner.style.height = '40px';
+        this.spinner.style.animation = 'spin 2s linear infinite';
+        this.spinner.style.position = 'absolute';
+        this.spinner.style.top = '50%';
+        this.spinner.style.left = '50%';
+        this.spinner.style.transform = 'translate(-50%, -50%)';
+        this.spinner.style.zIndex = '1000';
+        this.spinner.style.display = 'none'; // Initially hidden
 
-        this.loaderContainer.style.pointerEvents = 'none';
+        this.spinner.style.pointerEvents = 'none';
 
-        this.container.appendChild(this.loaderContainer);
+        this.container.appendChild(this.spinner);
 
         //legend container
         this.legendContainer = document.createElement("div");
@@ -407,7 +407,8 @@ export class MaplyticsVisual implements IVisual {
 
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
-        let circleSizeValues: number[] | undefined;
+        let circle1SizeValues: number[] | undefined;
+        let circle2SizeValues: number[] | undefined;
         let minCircleSizeValue: number | undefined;
         let maxCircleSizeValue: number | undefined;
         let circleScale: number | undefined;
@@ -418,7 +419,16 @@ export class MaplyticsVisual implements IVisual {
 
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
             const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
-            const circleSizeValuesCategory = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+            //const circleSizeValuesMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
+
+            const circleSizeValuesObjects = categorical?.values
+                ?.filter((c) => c.source?.roles?.Size) || [];
+
+            const combinedCircleSizeValues = [
+                ...(circleSizeValuesObjects[0]?.values || []),
+                ...(circleSizeValuesObjects[1]?.values || [])
+            ].map(Number); // Ensure all elements are numbers
+
 
             if (!lonCategory || !latCategory) {
                 console.warn("Both Longitude and Latitude roles must be assigned.");
@@ -437,13 +447,14 @@ export class MaplyticsVisual implements IVisual {
                 // Ensure all relevant data roles (category, measure, etc.) are included
                 const selectionId = this.host.createSelectionIdBuilder()
                     .withCategory(lonCategory, i) // Use the actual category variable
-                    .withMeasure(circleSizeValuesCategory.source?.queryName) // Include measure roles if needed
+                    .withMeasure(circleSizeValuesObjects[0]?.source?.queryName) // Include measure roles if needed
+                    .withMeasure(circleSizeValuesObjects[1]?.source?.queryName)
                     .createSelectionId();
 
                 return {
                     longitude: lon,
                     latitude: latitudes[i],
-                    sizeValue: circleSizeValues?.[i] || circleOptions.minRadius,
+                    //size1Value: circle1SizeValues?.[i] || circleOptions.minRadius,
                     tooltip: tooltips[i],
                     selectionId: selectionId, // Include selection ID
                 };
@@ -459,9 +470,11 @@ export class MaplyticsVisual implements IVisual {
                 // Handle Circle Size Measure or default size
                 //const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
-                circleSizeValues = circleSizeValuesCategory.values as number[];
-                minCircleSizeValue = Math.min(...circleSizeValues);
-                maxCircleSizeValue = Math.max(...circleSizeValues);
+                circle1SizeValues = circleSizeValuesObjects[0]?.values as number[];
+                circle2SizeValues = circleSizeValuesObjects[1]?.values as number[];
+
+                minCircleSizeValue = Math.min(...combinedCircleSizeValues);
+                maxCircleSizeValue = Math.max(...combinedCircleSizeValues);
                 circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
 
                 const circleLayerOptions: CircleLayerOptions = {
@@ -472,9 +485,11 @@ export class MaplyticsVisual implements IVisual {
 
                     // Circle customization options
                     circleOptions: circleOptions,
+                    combinedCircleSizeValues: combinedCircleSizeValues,
 
                     // Optional properties for proportional circles
-                    circleSizeValues: circleSizeValues,
+                    circle1SizeValues: circle1SizeValues,
+                    circle2SizeValues: circle2SizeValues,
                     minCircleSizeValue: minCircleSizeValue,
                     circleScale: circleScale,
                     svg: this.svg,
@@ -511,12 +526,12 @@ export class MaplyticsVisual implements IVisual {
 
                     let radii: number[] | undefined;
 
-                    if (circleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
+                    if (combinedCircleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
 
-                        radii = circleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
+                        radii = combinedCircleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
 
-                        this.legendManager.createProportionalCircleLegend(                            
-                            circleSizeValues,
+                        this.legendManager.createProportionalCircleLegend(
+                            combinedCircleSizeValues,
                             radii,
                             circleOptions
                         );
@@ -526,7 +541,7 @@ export class MaplyticsVisual implements IVisual {
                     }
 
                 }
-                
+
 
             }
 

@@ -54,19 +54,21 @@ export interface CircleLayerOptions  extends LayerOptions{
     longitudes: number[];
     latitudes: number[];
     circleOptions: CircleOptions;
-    circleSizeValues?: number[];
+    combinedCircleSizeValues?: number[];
+    circle1SizeValues?: number[];
+    circle2SizeValues?: number[];
     minCircleSizeValue?: number;
     circleScale?: number;
     svg: any;
     svgContainer: HTMLElement;
     zIndex: number;
-    dataPoints?: Array<{ // Add this
+    dataPoints?: Array<{ 
         longitude: number;
         latitude: number;
         tooltip: VisualTooltipDataItem[];
-        selectionId: ISelectionId;//powerbi.visuals.ISelectionId;
+        selectionId: ISelectionId;
     }>;
-    tooltipServiceWrapper: ITooltipServiceWrapper; // Use wrapper instead of raw service
+    tooltipServiceWrapper: ITooltipServiceWrapper;
     selectionManager: powerbi.extensibility.ISelectionManager;
   }
 
