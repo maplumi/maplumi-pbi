@@ -259,27 +259,6 @@ export class MaplyticsVisual implements IVisual {
         this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
         this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;
 
-        // // Reset all positioning properties
-        // this.legendContainer.style.top = 'auto';
-        // this.legendContainer.style.right = 'auto';
-        // this.legendContainer.style.bottom = 'auto';
-        // this.legendContainer.style.left = 'auto';
-
-        // // Set new position
-        // if (this.mapToolsOptions.legendPosition === 'top-right') {
-        //     this.legendContainer.style.top = '10px';
-        //     this.legendContainer.style.right = '10px';
-        // } else if (this.mapToolsOptions.legendPosition === 'top-left') {
-        //     this.legendContainer.style.top = '10px';
-        //     this.legendContainer.style.left = '10px';
-        // } else if (this.mapToolsOptions.legendPosition === 'bottom-right') {
-        //     this.legendContainer.style.bottom = '10px';
-        //     this.legendContainer.style.right = '10px';
-        // } else { // bottom-left (default)
-        //     this.legendContainer.style.bottom = '10px';
-        //     this.legendContainer.style.left = '10px';
-        // }
-
         // Reset all positioning properties first
         this.legendContainer.style.top = 'auto';
         this.legendContainer.style.right = 'auto';
