@@ -31,8 +31,8 @@ export class CircleLayer extends Layer {
                 tooltip: d.tooltip?.map(t => ({
                     displayName: t.displayName,
                     value: t.value !== null ? t.value.toString() : "N/A"
-                })), // Ensure conversion
-                selectionId: d.selectionId, // Store selection ID
+                })), 
+                selectionId: d.selectionId
             },
         })) || [];        
 

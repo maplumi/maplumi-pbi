@@ -26,22 +26,14 @@
 
 "use strict";
 
-import powerbiVisualsApi from "powerbi-visuals-api";
-import { formatting } from "powerbi-visuals-utils-formattingutils";
+
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 
 import FormattingSettingsCard = formattingSettings.SimpleCard;
-import FormattingSettingsSlice = formattingSettings.Slice;
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
 import DropDown = formattingSettings.ItemDropdown;
-import DataViewObjectsParser = dataViewObjectsParser.DataViewObjectsParser;
-import { TextArea } from "powerbi-visuals-utils-formattingmodel/lib/FormattingSettingsComponents";
-
-/**
- * OpenLayers Visual Formatting Cards
- */
 
 class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
 
@@ -67,11 +59,10 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
     });
 
     name: string = "basemapSelectSettingsGroup";
-    //displayName: string = "Select Basemap";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [this.selectedBasemap, this.customMapAttribution];
 
-    
+
 
 }
 
@@ -83,7 +74,7 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         value: "",
         placeholder: "Enter Access Token" // Placeholder text
     });
-    
+
     mapboxBaseUrl: formattingSettings.TextInput = new TextInput({
         name: "mapboxBaseUrl",
         displayName: "Mapbox Base URL",
@@ -97,7 +88,7 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         displayName: "Select Map Style",
         value: {
             value: "mapbox://styles/mapbox/light-v10?optimize=true",  // The actual value
-            displayName: "Light" 
+            displayName: "Light"
         },
         items: [
             { value: "mapbox://styles/mapbox/light-v10?optimize=true", displayName: "Light" },
@@ -135,16 +126,12 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
 
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
-    groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup ];
+    groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup];
 
 }
 
-class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
-    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "showLayerControl",
-        value: true
-    });
+class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
     // Proportional circle styling options
     proportionalCirclesColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -216,6 +203,22 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         }
     });
 
+    name: string = "proportalCirclesDisplaySettingsGroup";
+    displayName: string = "Display";
+    collapsible: boolean = false;
+    slices: formattingSettings.Slice[] = [
+        this.proportionalCirclesColor,
+        this.proportionalCirclesMinimumRadius,
+        this.proportionalCirclesMaximumRadius,
+        this.proportionalCirclesStrokeColor,
+        this.proportionalCirclesStrokeWidth,
+        this.proportionalCirclesLayerOpacity
+    ];
+
+}
+
+class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCard {
+
     showLegend: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
         name: "showLegend",
         displayName: "Show Legend",
@@ -224,32 +227,9 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
 
     legendTitle: formattingSettings.TextInput = new formattingSettings.TextInput({
         name: "legendTitle",
-        displayName:"Legend Title",
-        value:"Legend",
-        placeholder:""
-    });
-
-    legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
-        name: "legendBackgroundOpacity",
-        displayName: "Background Opacity",
-        value: 90,//default value
-        options: // optional input value validator  
-        {
-            maxValue: {
-                type: powerbi.visuals.ValidatorType.Max,
-                value: 100
-            },
-            minValue: {
-                type: powerbi.visuals.ValidatorType.Min,
-                value: 0
-            }
-        }
-    });
-
-    legendBackgroundColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "legendBackgroundColor",
-        displayName: "Background Color",
-        value: { value: "#ffffff" } // Default color
+        displayName: "Legend Title",
+        value: "Legend",
+        placeholder: ""
     });
 
     legendTitleColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -258,47 +238,51 @@ class proportionalCirclesVisualCardSettings extends FormattingSettingsCard {
         value: { value: "#000000" } // Default color
     });
 
-    legendItemsColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "legendItemsColor",
-        displayName: "Legend Items Color",
+    leaderLineColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "leaderLineColor",
+        displayName: "Leader Line Color",
         value: { value: "#000000" } // Default color
     });
 
-    legendBottomMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
-        name: "legendBottomMargin",
-        displayName: "Bottom Margin",
-        value: 40, // Default size
-        options: // optional input value validator  
-        {
-            maxValue: {
-                type: powerbi.visuals.ValidatorType.Max,
-                value: 80
-            },
-            minValue: {
-                type: powerbi.visuals.ValidatorType.Min,
-                value: 10
-            }
-        }
+    leaderLineStrokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "leaderLineStrokeWidth",
+        displayName: "Stroke Width",
+        value: 1, // Default size
     });
+
+    labelTextColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "labelTextColor",
+        displayName: "Label Text Color",
+        value: { value: "#000000" } // Default color
+    });
+
+    name: string = "proportalCirclesLegendSettingsGroup";
+    displayName: string = "Legend";
+    collapsible: boolean = false;
+    slices: formattingSettings.Slice[] = [
+        this.showLegend,
+        this.legendTitle,
+        this.legendTitleColor,
+        this.leaderLineColor,
+        this.labelTextColor
+    ];
+
+}
+
+class proportionalCirclesVisualCardSettings extends formattingSettings.CompositeCard {
+
+    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLayerControl",
+        value: true
+    });
+
+    public proportalCirclesDisplaySettingsGroup = new proportionalCirclesDisplaySettingsGroup();
+    public proportionalCircleLegendSettingsGroup = new proportionalCirclesLegendSettingsGroup();
 
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
     displayName: string = "Circles";
-    slices: Array<formattingSettings.Slice> = [
-        this.proportionalCirclesColor,
-        this.proportionalCirclesMinimumRadius,
-        this.proportionalCirclesMaximumRadius,
-        this.proportionalCirclesStrokeColor,
-        this.proportionalCirclesStrokeWidth,
-        this.proportionalCirclesLayerOpacity,
-        this.showLegend,
-        this.legendTitle,
-        this.legendTitleColor,
-        this.legendItemsColor,
-        this.legendBackgroundColor,
-        this.legendBackgroundOpacity,
-        this.legendBottomMargin
-    ];
+    groups: formattingSettings.Group[] = [this.proportalCirclesDisplaySettingsGroup, this.proportionalCircleLegendSettingsGroup];
 
 }
 
@@ -314,14 +298,14 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     locationPcodeNameId: formattingSettings.TextInput = new TextInput({
         name: "locationPcodeNameId",
         displayName: "PCode/Name/Id Field Name",
-        value: "", 
+        value: "",
         placeholder: "Field Name"
-    });    
+    });
 
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Location Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId ];
+    slices: formattingSettings.Slice[] = [this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId];
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
@@ -343,7 +327,7 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
         displayName: "Classification Method",
         value: {
             value: "q",  //default value
-            displayName: "Quantile" 
+            displayName: "Quantile"
         },
         items: [
             { value: "q", displayName: "Quantile" },
@@ -354,12 +338,12 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
         ]
     });
 
-    
+
     name: string = "choroplethClassificationSettingsGroup";
     displayName: string = "Classification";
     slices: formattingSettings.Slice[] = [
         this.classifyData,
-        this.classificationMethod, 
+        this.classificationMethod,
         this.numClasses
     ];
 }
@@ -377,7 +361,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         displayName: "Predefined Color Ramp",
         value: {
             value: "blue",  //default value
-            displayName: "Blue" 
+            displayName: "Blue"
         },
         items: [
             { value: "blue", displayName: "Blue" },
@@ -454,10 +438,10 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
-    slices: formattingSettings.Slice[] = [        
-        this.usePredefinedColorRamp,        
-        this.colorRamp, 
-        this.invertColorRamp,    
+    slices: formattingSettings.Slice[] = [
+        this.usePredefinedColorRamp,
+        this.colorRamp,
+        this.invertColorRamp,
         this.minColor,
         this.midColor,
         this.maxColor,
@@ -473,8 +457,8 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "showLegend",
         displayName: "Show Legend",
         value: false
-    });   
-    
+    });
+
     legendTitle: formattingSettings.TextInput = new TextInput({
         name: "legendTitle",
         displayName: "Legend Title",
@@ -487,7 +471,7 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         displayName: "Legend Title Alignment",
         value: {
             value: "left",  //default value
-            displayName: "Left" 
+            displayName: "Left"
         },
         items: [
             { value: "left", displayName: "Left" },
@@ -513,7 +497,7 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         displayName: "Legend Label Position",
         value: {
             value: "top",  //default value
-            displayName: "top" 
+            displayName: "top"
         },
         items: [
             { value: "top", displayName: "Top" },
@@ -529,12 +513,122 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         displayName: "Legend Orientation",
         value: {
             value: "horizontal",  //default value
-            displayName: "Horizontal" 
+            displayName: "Horizontal"
         },
         items: [
             { value: "horizontal", displayName: "Horizontal" },
             { value: "vertical", displayName: "Vertical" }
         ]
+    });
+
+
+    name: string = "choroplethLegendSettingsGroup";
+    displayName: string = "Legend";
+    slices: formattingSettings.Slice[] = [
+        this.showLegend,
+        this.legendTitle,
+        this.legendTitleAlignment,
+        this.legendOrientation,
+        this.legendLabelPosition,
+        this.legendTitleColor,
+        this.legendLabelsColor
+    ];
+}
+
+
+class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
+
+    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showLayerControl",
+        value: false
+    });
+
+    public choroplethLocationBoundarySettingsGroup: choroplethLocationBoundarySettingsGroup = new choroplethLocationBoundarySettingsGroup();
+    public choroplethClassificationSettingsGroup: choroplethClassificationSettingsGroup = new choroplethClassificationSettingsGroup();
+    public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
+    public choroplethLegendSettingsGroup: choroplethLegendSettingsGroup = new choroplethLegendSettingsGroup();
+
+    topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
+    name: string = "choroplethVisualCardSettings";
+    displayName: string = "Choropleth";
+    groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup, this.choroplethClassificationSettingsGroup,
+    this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
+
+}
+
+class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
+
+    lockMapExtent: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "lockMapExtent",
+        displayName: "Lock Map Extent",
+        value: false
+    });
+
+    showZoomControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "showZoomControl",
+        displayName: "Show Zoom Control",
+        value: true
+    });
+
+    name: string = "mapToolsSettingsGroup";
+    displayName: string = "Map Tools";
+    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl];
+
+}
+
+class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
+
+    legendPosition: DropDown = new DropDown({
+        name: "legendPosition",
+        displayName: "Position",
+        value: {
+            value: "top-right",  //default value
+            displayName: "Top Right"
+        },
+        items: [
+            { value: "top-right", displayName: "Top Right" },
+            { value: "top-left", displayName: "Top Left" },
+            { value: "top-center", displayName: "Top Center" },
+            { value: "bottom-right", displayName: "Bottom Right" },
+            { value: "bottom-left", displayName: "Bottom Left" },
+            { value: "bottom-center", displayName: "Bottom Center" }
+
+        ]
+    });
+
+    legendBorderWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendBorderWidth",
+        displayName: "Border Width",
+        value: 1, // Default size
+    });
+
+    legendBorderRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "legendBorderRadius",
+        displayName: "Rounded Corners",
+        value: 5,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 30
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    legendBorderColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendBorderColor",
+        displayName: "Border Color",
+        value: { value: "#ffffff" } // Default color
+    });
+
+    legendBackgroundColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendBackgroundColor",
+        displayName: "Background Color",
+        value: { value: "#ffffff" } // Default color
     });
 
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
@@ -554,70 +648,42 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
-    legendBackgroundColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "legendBackgroundColor",
-        displayName: "Background Color",
-        value: { value: "#ffffff" } // Default color
+    legendBottomMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendBottomMargin",
+        displayName: "Bottom Margin",
+        value: 40, // Default size
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 80
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 10
+            }
+        }
     });
 
-    
-    name: string = "choroplethLegendSettingsGroup";
-    displayName: string = "Legend";
-    slices: formattingSettings.Slice[] = [
-        this.showLegend ,
-        this.legendTitle,
-        this.legendTitleAlignment,
-        this.legendOrientation,
-        this.legendLabelPosition,
-        this.legendTitleColor,
-        this.legendLabelsColor,
-        this.legendBackgroundColor,
-        this.legendBackgroundOpacity       
-    ];
+
+    name: string = "legendContainerSettingsGroup";
+    displayName: string = "Legend Container";
+    slices: formattingSettings.Slice[] = [this.legendPosition, this.legendBorderWidth, this.legendBorderRadius, this.legendBorderColor,
+    this.legendBackgroundColor, this.legendBackgroundOpacity, this.legendBottomMargin];
+
 }
 
 
-class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
+class mapToolsVisualCardSettings extends formattingSettings.CompositeCard {
 
-    showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "showLayerControl",
-        value: false
-    });
-    
-    public choroplethLocationBoundarySettingsGroup: choroplethLocationBoundarySettingsGroup = new choroplethLocationBoundarySettingsGroup();
-    public choroplethClassificationSettingsGroup: choroplethClassificationSettingsGroup = new choroplethClassificationSettingsGroup();
-    public choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup = new choroplethDisplaySettingsGroup();
-    public choroplethLegendSettingsGroup: choroplethLegendSettingsGroup = new choroplethLegendSettingsGroup();
-
-    topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
-    name: string = "choroplethVisualCardSettings";
-    displayName: string = "Choropleth";
-    groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup,this.choroplethClassificationSettingsGroup,
-         this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
-   
-}
+    public mapToolsSettingsGroup: mapToolsSettingsGroup = new mapToolsSettingsGroup();
+    public legendContainerSettingsGroup: legendContainerSettingsGroup = new legendContainerSettingsGroup();
 
 
-class mapToolsVisualCardSettings extends formattingSettings.SimpleCard {
-
-    lockMapExtent: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "lockMapExtent",
-        displayName: "Lock Map Extent",
-        value: false
-    });
-
-    showZoomControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "showZoomControl",
-        displayName: "Show Zoom Control",
-        value: true
-    });
-    
-
-   
     name: string = "mapToolsVisualCardSettings";
-    displayName: string = "Map Tools";
-    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl];
-   
+    displayName: string = "Tools";
+    groups: formattingSettings.Group[] = [this.mapToolsSettingsGroup, this.legendContainerSettingsGroup];
+
 }
 
 /**

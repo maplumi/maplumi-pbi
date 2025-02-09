@@ -32,13 +32,14 @@ export class LegendManager {
         // Set basic visibility
         this.circleLegendContainer.style.display = "flex";
 
-        const opacity = circleOptions.legendBackgroundOpacity / 100;
-        const bgColor = circleOptions.legendBackgroundColor;
-        const bottomMargin = `${circleOptions.legendBottomMargin}px`;
-        const legendBbgColor = util.hexToRgba(bgColor, opacity);
+        // const opacity = circleOptions.legendBackgroundOpacity / 100;
+        // const bgColor = circleOptions.legendBackgroundColor;
+        // const bottomMargin = `${circleOptions.legendBottomMargin}px`;
+        // const legendBbgColor = util.hexToRgba(bgColor, opacity);
 
-        circleLegendItemsContainer.style.backgroundColor = legendBbgColor;
-        circleLegendItemsContainer.style.bottom = bottomMargin;
+        // circleLegendItemsContainer.style.backgroundColor = legendBbgColor;
+        // circleLegendItemsContainer.style.bottom = bottomMargin;
+
         circleLegendItemsContainer.style.display = "flex";
         circleLegendItemsContainer.style.flexDirection = "column";
         circleLegendItemsContainer.style.alignItems = "flex-start";
@@ -66,7 +67,10 @@ export class LegendManager {
         const bottomY = 2 * maxRadius + padding;
         let maxLabelWidth = 0;
 
-        legendData.forEach((item) => {
+        // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
+        const sortedLegendData = [...legendData].sort((a, b) => b.radius - a.radius);
+
+        sortedLegendData.forEach((item) => {
             // Calculate the Y position so all circles are aligned at the bottom
             const currentY = bottomY - item.radius;
 
@@ -78,8 +82,10 @@ export class LegendManager {
             circle.setAttribute("cx", centerX.toString());
             circle.setAttribute("cy", currentY.toString());
             circle.setAttribute("r", item.radius.toString());
-            circle.setAttribute("stroke", circleOptions.legendItemsColor);
-            circle.setAttribute("fill", "none");
+            circle.setAttribute("stroke", circleOptions.strokeColor);
+            circle.setAttribute("stroke-width", circleOptions.strokeWidth.toString());
+            circle.setAttribute("fill", circleOptions.color);
+            circle.setAttribute("fill-opacity", circleOptions.layerOpacity.toString());
 
             svg.appendChild(circle);
 
@@ -96,8 +102,8 @@ export class LegendManager {
             line.setAttribute("y1", (currentY - item.radius).toString());
             line.setAttribute("x2", (labelX - 3).toString());
             line.setAttribute("y2", labelY.toString());
-            line.setAttribute("stroke", circleOptions.legendItemsColor);
-            line.setAttribute("stroke-width", "1");
+            line.setAttribute("stroke", circleOptions.leaderLineColor);
+            line.setAttribute("stroke-width", circleOptions.leaderLineStrokeWidth.toString());
 
             svg.appendChild(line);
 
@@ -111,7 +117,7 @@ export class LegendManager {
             text.setAttribute("x", labelX.toString());
             text.setAttribute("y", labelY.toString());
             text.setAttribute("alignment-baseline", "middle");
-            text.setAttribute("fill", circleOptions.legendItemsColor);
+            text.setAttribute("fill", circleOptions.labelTextColor);
             text.textContent = `${formattedLabel}`;
 
             svg.appendChild(text);
@@ -167,11 +173,6 @@ export class LegendManager {
 
         const uniqueColorValues: number[] = [...new Set(colorValues)].sort((a, b) => a - b);
 
-        // Original implementation logic
-        const opacity = options.legendBackgroundOpacity / 100;
-        const bgColor = util.hexToRgba(options.legendBackgroundColor, opacity);
-
-        choroplethItemsContainer.style.backgroundColor = bgColor;
         choroplethItemsContainer.style.padding = "5px";
         choroplethItemsContainer.style.display = "flex";
         choroplethItemsContainer.style.flexDirection = "column"; // Stack title and items vertically
@@ -247,10 +248,8 @@ export class LegendManager {
             itemsContainer.appendChild(legendItem);
         });
 
-        // Append items container to the choroplethItemsContainer (not directly to choroplethLegendContainer)
         choroplethItemsContainer.appendChild(itemsContainer);
 
-        // Append the choroplethItemsContainer to the main legend container
         this.choroplethLegendContainer.appendChild(choroplethItemsContainer);
     }
 

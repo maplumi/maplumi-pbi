@@ -85,14 +85,7 @@ import * as util from "./utils"
 
 import { LegendManager } from "./legend";
 import { Extent } from "ol/extent";
-
-
-// interface TooltipDataItem {
-//     displayName: string;
-//     value: string;
-//     data: { displayName: string; value: any }[];
-//     // ... other properties you might need (header, color, etc.)
-// }
+import { MaplyticsAttributionControl } from "./attribution";
 
 export class MaplyticsVisual implements IVisual {
 
@@ -120,6 +113,8 @@ export class MaplyticsVisual implements IVisual {
     private basemap: Basemap;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
+
+    private customAttributionControl: MaplyticsAttributionControl;
 
     // for basemap state management
     private currentBasemapType: string = "";
@@ -189,9 +184,6 @@ export class MaplyticsVisual implements IVisual {
         this.legendContainer.setAttribute("id", "legendContainer");
         this.legendContainer.style.position = "absolute";
         this.legendContainer.style.zIndex = "1000";
-        this.legendContainer.style.bottom = "40px";
-        this.legendContainer.style.left = "10px";
-        this.legendContainer.style.borderRadius = "4px";
         this.legendContainer.style.display = "none"; // Hidden by default
 
         this.legendContainer.style.pointerEvents = 'none';
@@ -212,7 +204,7 @@ export class MaplyticsVisual implements IVisual {
             layers: [this.basemapLayer],
             view: this.mapView,
             controls: defaultControls({
-                attribution: true, // Ensure attribution control is enabled
+                attribution: false, // Ensure attribution control is enabled
                 attributionOptions: {
                     collapsible: false, // Keep the attribution always visible
                 },
@@ -260,6 +252,67 @@ export class MaplyticsVisual implements IVisual {
         const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
 
+        //update legend container
+        this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
+        this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
+        this.legendContainer.style.border = `${this.mapToolsOptions.legendBorderWidth}px solid ${this.mapToolsOptions.legendBorderColor}`;
+        this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
+        this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;
+
+        // // Reset all positioning properties
+        // this.legendContainer.style.top = 'auto';
+        // this.legendContainer.style.right = 'auto';
+        // this.legendContainer.style.bottom = 'auto';
+        // this.legendContainer.style.left = 'auto';
+
+        // // Set new position
+        // if (this.mapToolsOptions.legendPosition === 'top-right') {
+        //     this.legendContainer.style.top = '10px';
+        //     this.legendContainer.style.right = '10px';
+        // } else if (this.mapToolsOptions.legendPosition === 'top-left') {
+        //     this.legendContainer.style.top = '10px';
+        //     this.legendContainer.style.left = '10px';
+        // } else if (this.mapToolsOptions.legendPosition === 'bottom-right') {
+        //     this.legendContainer.style.bottom = '10px';
+        //     this.legendContainer.style.right = '10px';
+        // } else { // bottom-left (default)
+        //     this.legendContainer.style.bottom = '10px';
+        //     this.legendContainer.style.left = '10px';
+        // }
+
+        // Reset all positioning properties first
+        this.legendContainer.style.top = 'auto';
+        this.legendContainer.style.right = 'auto';
+        this.legendContainer.style.bottom = 'auto';
+        this.legendContainer.style.left = 'auto';
+        this.legendContainer.style.transform = 'none'; // Reset any previous transforms
+
+        // Set new position
+        if (this.mapToolsOptions.legendPosition === 'top-right') {
+            this.legendContainer.style.top = '10px';
+            this.legendContainer.style.right = '10px';
+        } else if (this.mapToolsOptions.legendPosition === 'top-left') {
+            this.legendContainer.style.top = '10px';
+            this.legendContainer.style.left = '10px';
+        } else if (this.mapToolsOptions.legendPosition === 'bottom-right') {
+            this.legendContainer.style.bottom = '10px';
+            this.legendContainer.style.right = '10px';
+        } else if (this.mapToolsOptions.legendPosition === 'top-center') {
+            this.legendContainer.style.top = '10px';
+            this.legendContainer.style.left = '50%';
+            this.legendContainer.style.transform = 'translateX(-50%)';
+        } else if (this.mapToolsOptions.legendPosition === 'bottom-center') {
+            this.legendContainer.style.bottom = '10px';
+            this.legendContainer.style.left = '50%';
+            this.legendContainer.style.transform = 'translateX(-50%)';
+        } else { // bottom-left (default)
+            this.legendContainer.style.bottom = '10px';
+            this.legendContainer.style.left = '10px';
+        }
+
+
+        //this.spinner.style.display = 'block';  // Show spinner while loading data
+
         this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
 
         const dataView = options.dataViews[0];
@@ -291,6 +344,8 @@ export class MaplyticsVisual implements IVisual {
             dataView.categorical,
             circleOptions
         );
+
+        //this.spinner.style.display = 'none'; // Hide spinner after rendering
 
         if (this.mapToolsOptions.lockMapExtent) {
 
@@ -378,26 +433,28 @@ export class MaplyticsVisual implements IVisual {
             this.basemapLayer = this.basemap.getBasemap(basemapOptions);
             newLayer = this.basemapLayer;
 
-        } else if (basemapOptions.selectedBasemap === "none" && newAttribution) {
-            // Create a dummy layer with the custom attribution.
-            newLayer = new TileLayer({
-                source: new XYZ({
-                    url: '', // No URL since we don't want to load any tiles
-                    tileLoadFunction: () => { }, // Empty function to prevent tile loading
-                    attributions: newAttribution, // Set your custom attribution here
-                }),
-                visible: true,
-            });
+        } else if (basemapOptions.selectedBasemap === "none") {
 
-
+            this.map.removeLayer(this.basemapLayer);
+            this.map.removeLayer(this.mapboxVectorLayer);
         }
 
-        // If a new layer (or dummy layer) is created, update its attribution and add it to the map.
+        // Remove the previous attribution control, if it exists.
+        if (this.customAttributionControl) {
+            this.map.removeControl(this.customAttributionControl);
+        }
+
+        // Create and add the new attribution control.
+        this.customAttributionControl = new MaplyticsAttributionControl({ attribution: newAttribution });
+        this.map.addControl(this.customAttributionControl);
+
+        // Update the new layer’s attribution if a new layer was created.
         if (newLayer) {
             newLayer.getSource()?.setAttributions(newAttribution);
             this.map.getLayers().setAt(0, newLayer);
         }
     }
+
 
     private renderCircleLayer(categorical: any, circleOptions: CircleOptions) {
 
@@ -831,8 +888,15 @@ export class MaplyticsVisual implements IVisual {
         const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
         return {
 
-            lockMapExtent: maptoolsSettings.lockMapExtent.value,
-            showZoomControl: maptoolsSettings.showZoomControl.value,
+            lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,
+            showZoomControl: maptoolsSettings.mapToolsSettingsGroup.showZoomControl.value,
+            legendPosition: maptoolsSettings.legendContainerSettingsGroup.legendPosition.value.value.toString(),
+            legendBorderWidth: maptoolsSettings.legendContainerSettingsGroup.legendBorderWidth.value,
+            legendBorderColor: maptoolsSettings.legendContainerSettingsGroup.legendBorderColor.value.value,
+            legendBackgroundColor: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundColor.value.value,
+            legendBackgroundOpacity: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundOpacity.value / 100,
+            legendBorderRadius: maptoolsSettings.legendContainerSettingsGroup.legendBorderRadius.value,
+            legendBottomMargin: maptoolsSettings.legendContainerSettingsGroup.legendBottomMargin.value,
         };
     }
 
@@ -841,19 +905,19 @@ export class MaplyticsVisual implements IVisual {
             this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
         return {
             layerControl: circleSettings.topLevelSlice.value,
-            color: circleSettings.proportionalCirclesColor.value.value,
-            minRadius: circleSettings.proportionalCirclesMinimumRadius.value,
-            maxRadius: circleSettings.proportionalCirclesMaximumRadius.value,
-            strokeColor: circleSettings.proportionalCirclesStrokeColor.value.value,
-            strokeWidth: circleSettings.proportionalCirclesStrokeWidth.value,
-            layerOpacity: circleSettings.proportionalCirclesLayerOpacity.value / 100,
-            showLegend: circleSettings.showLegend.value,
-            legendTitle: circleSettings.legendTitle.value,
-            legendTitleColor: circleSettings.legendTitleColor.value.value,
-            legendItemsColor: circleSettings.legendItemsColor.value.value,
-            legendBackgroundColor: circleSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: circleSettings.legendBackgroundOpacity.value,
-            legendBottomMargin: circleSettings.legendBottomMargin.value,
+            color: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesColor.value.value,
+            minRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
+            maxRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMaximumRadius.value,
+            strokeColor: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeColor.value.value,
+            strokeWidth: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeWidth.value,
+            layerOpacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesLayerOpacity.value / 100,
+            showLegend: circleSettings.proportionalCircleLegendSettingsGroup.showLegend.value,
+            legendTitle: circleSettings.proportionalCircleLegendSettingsGroup.legendTitle.value,
+            legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,
+            leaderLineStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineStrokeWidth.value,
+            leaderLineColor: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineColor.value.value,
+            labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value
+
         };
     }
 
@@ -888,9 +952,7 @@ export class MaplyticsVisual implements IVisual {
             legendOrientation: choroplethLegendSettings.legendOrientation.value.value.toString(),
             legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value.toString(),
             legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
-            legendBackgroundColor: choroplethLegendSettings.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: choroplethLegendSettings.legendBackgroundOpacity.value,
+            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value
         };
     }
 

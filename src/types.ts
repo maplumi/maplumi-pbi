@@ -43,10 +43,9 @@ export interface CircleOptions {
     showLegend: boolean; 
     legendTitle: string;
     legendTitleColor: string;
-    legendItemsColor:string;
-    legendBackgroundOpacity:number;
-    legendBackgroundColor: string;
-    legendBottomMargin: number;
+    leaderLineColor:string;
+    leaderLineStrokeWidth:number;
+    labelTextColor:string;
 }
 
 export interface CircleLayerOptions  extends LayerOptions{
@@ -113,8 +112,7 @@ export interface ChoroplethOptions {
     legendTitleAlignment: string;
     legendTitleColor: string;
     legendLabelsColor: string;
-    legendBackgroundOpacity:number;
-    legendBackgroundColor: string
+    
 }
 
 
@@ -132,4 +130,12 @@ export interface HeatmapOptions {
 export interface MapToolsOptions {
     lockMapExtent: boolean;
     showZoomControl: boolean;
+    legendPosition: string;
+    legendBorderWidth: number;
+    legendBorderRadius: number;
+    legendBorderColor: string;
+    legendBackgroundColor: string;
+    legendBackgroundOpacity: number;
+    legendBottomMargin: number;
+
 }

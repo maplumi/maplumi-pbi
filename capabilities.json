@@ -262,17 +262,12 @@
             }
           }
         },
-        "legendItemsColor": {
+        "leaderLineStrokeWidth": {
           "type": {
-            "fill": {
-              "solid": {
-                "color": true
-              }
-            }
+            "numeric": true
           }
-        }
-        ,
-        "legendBackgroundColor": {
+        },
+        "leaderLineColor": {
           "type": {
             "fill": {
               "solid": {
@@ -281,14 +276,13 @@
             }
           }
         },
-        "legendBackgroundOpacity": {
+        "labelTextColor": {
           "type": {
-            "numeric": true
-          }
-        },
-        "legendBottomMargin": {
-          "type": {
-            "numeric": true
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
           }
         }
       }
@@ -300,12 +294,12 @@
             "bool": true
           }
         },
-        "locationPcodeNameId":{
+        "locationPcodeNameId": {
           "type": {
             "text": true
           }
         },
-        "topoJSON_geoJSON_FileUrl":{
+        "topoJSON_geoJSON_FileUrl": {
           "type": {
             "text": true
           }
@@ -428,6 +422,44 @@
           "type": {
             "enumeration": []
           }
+        }
+      }
+    },
+    "mapToolsVisualCardSettings": {
+      "properties": {
+        "lockMapExtent": {
+          "type": {
+            "bool": true
+          }
+        },
+        "showZoomControl": {
+          "type": {
+            "bool": true
+          }
+        },
+        "legendPosition": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "legendBorderWidth": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "legendBorderRadius": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "legendBorderColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "legendBackgroundColor": {
           "type": {
@@ -442,20 +474,10 @@
           "type": {
             "numeric": true
           }
-        }
-      }
-    },
-    "mapToolsVisualCardSettings":{
-      "properties": {
-
-        "lockMapExtent": {
-          "type": {
-            "bool": true
-          }
         },
-        "showZoomControl": {
+        "legendBottomMargin": {
           "type": {
-            "bool": true
+            "numeric": true
           }
         }
       }
@@ -491,8 +513,7 @@
         "https://*.blob.core.windows.net",
         "https://*.github.io",
         "https://*.cloudfront.net",
-        "https://*.r2.dev"      
-        
+        "https://*.r2.dev"
       ]
     },
     {
