@@ -82,7 +82,8 @@ import * as d3 from "d3";
 import * as turf from "@turf/turf";
 
 import * as util from "./utils"
-import * as legend from "./legend";
+
+import { LegendManager } from "./legend";
 import { Extent } from "ol/extent";
 
 
@@ -108,8 +109,8 @@ export class MaplyticsVisual implements IVisual {
     private svgContainer: HTMLElement;
 
     private loaderContainer: HTMLElement;
-    private circleLegendContainer: HTMLElement;
-    private choroplethLegendContainer: HTMLElement;
+    private legendContainer: HTMLElement;
+    private legendManager: LegendManager;
 
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -183,45 +184,21 @@ export class MaplyticsVisual implements IVisual {
 
         this.container.appendChild(this.loaderContainer);
 
-        // Ensure the circle legend container is also appended to the same parent
-        this.circleLegendContainer = document.createElement("div");
-        this.circleLegendContainer.setAttribute("id", "circleLegend");
-        this.circleLegendContainer.style.position = "absolute";
-        this.circleLegendContainer.style.zIndex = "1000";
-        this.circleLegendContainer.style.bottom = "40px";
-        this.circleLegendContainer.style.left = "10px";
-        this.circleLegendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)";
-        this.circleLegendContainer.style.borderRadius = "4px";
-        this.circleLegendContainer.style.display = "none"; // Hidden by default
+        //legend container
+        this.legendContainer = document.createElement("div");
+        this.legendContainer.setAttribute("id", "legendContainer");
+        this.legendContainer.style.position = "absolute";
+        this.legendContainer.style.zIndex = "1000";
+        this.legendContainer.style.bottom = "40px";
+        this.legendContainer.style.left = "10px";
+        this.legendContainer.style.borderRadius = "4px";
+        this.legendContainer.style.display = "none"; // Hidden by default
 
-        const circleLegendTitle = document.createElement("h4");
-        circleLegendTitle.textContent = "Legend";
+        this.legendContainer.style.pointerEvents = 'none';
 
-        this.circleLegendContainer.appendChild(circleLegendTitle);
+        this.container.appendChild(this.legendContainer);
 
-        this.circleLegendContainer.style.pointerEvents = 'none';
-
-        this.container.appendChild(this.circleLegendContainer);
-
-
-        // Ensure the choropleth legend container is also appended to the same parent
-        this.choroplethLegendContainer = document.createElement("div");
-        this.choroplethLegendContainer.setAttribute("id", "choroplethLegend");
-        this.choroplethLegendContainer.style.position = "absolute";
-        this.choroplethLegendContainer.style.zIndex = "1000";
-        this.choroplethLegendContainer.style.top = "10px";
-        this.choroplethLegendContainer.style.right = "10px";
-        this.choroplethLegendContainer.style.backgroundColor = "rgba(255, 255, 255, 0.5)";
-        this.choroplethLegendContainer.style.display = "none"; // Hidden by default
-
-        const legendTitle = document.createElement("h4");
-        legendTitle.textContent = "Legend";
-
-        this.choroplethLegendContainer.appendChild(legendTitle);
-
-        this.choroplethLegendContainer.style.pointerEvents = 'none';
-
-        this.container.appendChild(this.choroplethLegendContainer);
+        this.legendManager = new LegendManager(this.legendContainer);
 
         // create map view
         this.mapView = new View({
@@ -409,7 +386,7 @@ export class MaplyticsVisual implements IVisual {
                     tileLoadFunction: () => { }, // Empty function to prevent tile loading
                     attributions: newAttribution, // Set your custom attribution here
                 }),
-                visible: false, // Keep the layer invisible
+                visible: true,
             });
 
 
@@ -425,6 +402,8 @@ export class MaplyticsVisual implements IVisual {
     private renderCircleLayer(categorical: any, circleOptions: CircleOptions) {
 
         if (!circleOptions.layerControl) return; // Early exit if layer is off
+
+        this.legendContainer.style.display = "block";
 
         let longitudes: number[] | undefined;
         let latitudes: number[] | undefined;
@@ -528,25 +507,26 @@ export class MaplyticsVisual implements IVisual {
                 // Render legend if proportional circles are used
                 if (circleOptions.showLegend) {
 
+                    this.legendContainer.style.display = "block";
+
                     let radii: number[] | undefined;
 
                     if (circleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
 
                         radii = circleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
 
-                        legend.createProportionalCircleLegend(
-                            this.circleLegendContainer,
+                        this.legendManager.createProportionalCircleLegend(                            
                             circleSizeValues,
                             radii,
                             circleOptions
                         );
 
+                        this.legendManager.showLegend('circle');
+
                     }
 
-                } else {
-
-                    this.circleLegendContainer.style.display = "none"; // Hide the legend
                 }
+                
 
             }
 
@@ -559,6 +539,8 @@ export class MaplyticsVisual implements IVisual {
         if (!choroplethOptions.layerControl) return; // Early exit
 
         this.svgOverlay.style.display = 'flex';
+
+        this.legendContainer.style.display = "block";
 
         console.log('Rendering choropleth...');
 
@@ -688,8 +670,6 @@ export class MaplyticsVisual implements IVisual {
 
         this.map.addLayer(this.choroplethLayer);
 
-        //this.addChoroplethLayerEvents(this.map, this.choroplethLayer);
-
         this.mapExtent = this.choroplethLayer.getFeaturesExtent();
 
         this.map.getView().fit(this.mapExtent, this.fitMapOptions);
@@ -699,17 +679,21 @@ export class MaplyticsVisual implements IVisual {
         // Update the legend
         if (choroplethOptions.showLegend) {
 
-            legend.createChoroplethLegend(
-                this.choroplethLegendContainer,
+            this.legendContainer.style.display = "block";
+
+            this.legendManager.createChoroplethLegend(
                 colorValues,
                 classBreaks,
                 colorScale,
-                choroplethOptions                
+                choroplethOptions
             );
 
-        } else {
+            this.legendManager.showLegend('choropleth');
 
-            this.choroplethLegendContainer.style.display = "none"; // Hide the legend
+        }
+        else {
+
+            this.legendManager.hideLegend('choropleth');
         }
 
     }
@@ -1003,13 +987,15 @@ export class MaplyticsVisual implements IVisual {
 
     private cleanupLayers() {
         if (this.circleLayer) {
-            this.circleLegendContainer.style.display = "none"; // Hide the legend
+            this.legendManager.clearContainer(this.legendManager.getCircleLegendContainer());
+            // this.legendContainer.style.display = "none"; // Hide the legend
             this.map.removeLayer(this.circleLayer);
             this.circleLayer.setActive(false); // Ensure no further renders
             this.circleLayer = null;
         }
         if (this.choroplethLayer) {
-            this.choroplethLegendContainer.style.display = "none"; // Hide the legend
+            this.legendManager.clearContainer(this.legendManager.getChoroplethLegendContainer());
+            // this.legendContainer.style.display = "none"; // Hide the legend
             this.map.removeLayer(this.choroplethLayer);
             this.choroplethLayer.setActive(false); // Ensure no further renders
             this.choroplethLayer = null;
