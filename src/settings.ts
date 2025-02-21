@@ -47,6 +47,7 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         items: [
             { value: "openstreetmap", displayName: "OpenStreetMap" },
             { value: "mapbox", displayName: "Mapbox" },
+            { value: "maptiler", displayName: "MapTiler" },
             { value: "none", displayName: "No Basemap" }
         ]
     });
@@ -75,12 +76,12 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "Enter Access Token" // Placeholder text
     });
 
-    mapboxBaseUrl: formattingSettings.TextInput = new TextInput({
-        name: "mapboxBaseUrl",
-        displayName: "Mapbox Base URL",
-        value: "https://api.mapbox.com",
-        placeholder: "https://api.mapbox.com" // Placeholder text
-    });
+    // mapboxBaseUrl: formattingSettings.TextInput = new TextInput({
+    //     name: "mapboxBaseUrl",
+    //     displayName: "Mapbox Base URL",
+    //     value: "https://api.mapbox.com",
+    //     placeholder: "https://api.mapbox.com" // Placeholder text
+    // });
 
     mapboxStyle: DropDown = new DropDown({
 
@@ -114,8 +115,52 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
 
     name: string = "mapBoxSettingsGroup";
     displayName: string = "Mapbox Settings";
-    collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyle, this.mapboxCustomStyleUrl, this.mapboxBaseUrl, this.declutterLabels];
+    collapsible: boolean = true;
+    slices: formattingSettings.Slice[] = [this.mapboxAccessToken, this.mapboxStyle, this.mapboxCustomStyleUrl, this.declutterLabels];
+
+}
+
+class maptilerSettingsGroup extends formattingSettings.SimpleCard {
+
+    maptilerApiKey: formattingSettings.TextInput = new TextInput({
+        name: "maptilerApiKey",
+        displayName: "API Key",
+        value: "",
+        placeholder: "Enter API Key" // Placeholder text
+    });
+
+    maptilerStyle: DropDown = new DropDown({
+
+        name: "maptilerStyle",
+        displayName: "Select Map Style",
+        value: {
+            value: "dataviz", 
+            displayName: "Dataviz"
+        },
+        items: [
+            { value: "aquarelle", displayName: "Aquarelle" },
+            { value: "backdrop", displayName: "Backdrop" },
+            { value: "basic", displayName: "Basic" },
+            { value: "bright", displayName: "Bright" },
+            { value: "dataviz", displayName: "Dataviz" },
+            { value: "landscape", displayName: "Landscape" },
+            { value: "ocean", displayName: "Ocean" },
+            { value: "openstreetmap", displayName: "OpenStreetMap" },
+            { value: "outdoor", displayName: "Outdoor" },
+            { value: "satellite", displayName: "Satellite" },
+            { value: "streets", displayName: "Streets" },
+            { value: "toner", displayName: "Toner" },
+            { value: "topo", displayName: "Topo" },
+            { value: "winter", displayName: "Winter" }
+        ]
+
+    });
+
+   
+    name: string = "maptilerSettingsGroup";
+    displayName: string = "Maptiler Settings";
+    collapsible: boolean = true;
+    slices: formattingSettings.Slice[] = [this.maptilerApiKey, this.maptilerStyle ];
 
 }
 
@@ -123,10 +168,11 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
 
     public basemapSelectSettingsGroup: basemapSelectSettingsGroup = new basemapSelectSettingsGroup();
     public mapBoxSettingsGroup: mapBoxSettingsGroup = new mapBoxSettingsGroup();
+    public maptilerSettingsGroup: maptilerSettingsGroup = new maptilerSettingsGroup();
 
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
-    groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup];
+    groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup, this.maptilerSettingsGroup];
 
 }
 

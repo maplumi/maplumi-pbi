@@ -45,7 +45,7 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 import { MaplyticsVisualFormattingSettingsModel } from "./settings";
 
-import { Basemap } from "./basemap";
+import { getBasemap } from "./basemap";
 
 import "ol/ol.css";
 import Map from "ol/Map";
@@ -110,9 +110,12 @@ export class MaplyticsVisual implements IVisual {
 
     private map: Map;
     private mapView: View;
-    private basemap: Basemap;
+    private basemap: TileLayer | MapboxVectorLayer;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
+
+    private maptilerVectorLayer: TileLayer;
+    private customXYZLayer: TileLayer;
 
     private customAttributionControl: MaplyticsAttributionControl;
 
@@ -120,6 +123,7 @@ export class MaplyticsVisual implements IVisual {
     private currentBasemapType: string = "";
     private currentAttribution: string = "";
     private currentMapboxStyle: string = '';
+    private currentMaptilerStyle: string = '';
 
     private mapToolsOptions: MapToolsOptions;
 
@@ -153,8 +157,8 @@ export class MaplyticsVisual implements IVisual {
         this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);
         this.selectionManager = this.host.createSelectionManager();
 
-        this.basemap = new Basemap();
-        this.basemapLayer = this.basemap.getDefaultBasemap();
+        //this.basemap = new Basemap();
+        //this.basemapLayer = this.basemap.getDefaultBasemap();
 
         this.container = options.element;
 
@@ -201,7 +205,7 @@ export class MaplyticsVisual implements IVisual {
         // Initialize the map
         this.map = new Map({
             target: this.container,
-            layers: [this.basemapLayer],
+            layers: [],
             view: this.mapView,
             controls: defaultControls({
                 attribution: false, // Ensure attribution control is enabled
@@ -371,12 +375,76 @@ export class MaplyticsVisual implements IVisual {
         }
     }
 
-    private updateBasemap(basemapOptions: BasemapOptions): void {
+    // private updateBasemap(basemapOptions: BasemapOptions): void {
 
+    //     // Dictionary of default attributions.
+    //     const defaultAttributions: Record<string, string> = {
+    //         mapbox: "© Mapbox © OpenStreetMap",
+    //         openstreetmap: "© OpenStreetMap",
+    //         none: ""
+    //     };
+
+    //     // Compute the effective attribution.
+    //     const defaultAttribution = defaultAttributions[basemapOptions.selectedBasemap] || "";
+    //     const newAttribution = basemapOptions.customMapAttribution
+    //         ? `${basemapOptions.customMapAttribution} ${defaultAttribution}`
+    //         : defaultAttribution;
+
+    //     const mapboxStyleChanged = basemapOptions.mapboxStyle !== this.currentMapboxStyle;
+    //     const basemapTypeChanged = basemapOptions.selectedBasemap !== this.currentBasemapType;
+    //     const attributionChanged = newAttribution !== this.currentAttribution;
+
+    //     if (!basemapTypeChanged && !mapboxStyleChanged && !attributionChanged) {
+    //         return;
+    //     }
+
+    //     this.currentBasemapType = basemapOptions.selectedBasemap;
+    //     this.currentMapboxStyle = basemapOptions.mapboxStyle;
+    //     this.currentAttribution = newAttribution;
+
+    //     let newLayer: any = null;
+
+    //     if (basemapOptions.selectedBasemap === "mapbox") {
+
+    //         // Create a Mapbox vector layer.
+    //         this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
+    //         newLayer = this.mapboxVectorLayer;
+
+    //     } else if (basemapOptions.selectedBasemap === "openstreetmap") {
+
+    //         // Create or retrieve the OpenStreetMap layer.
+    //         this.basemapLayer = this.basemap.getBasemap(basemapOptions);
+    //         newLayer = this.basemapLayer;
+
+    //     } else if (basemapOptions.selectedBasemap === "none") {
+
+    //         this.map.removeLayer(this.basemapLayer);
+    //         this.map.removeLayer(this.mapboxVectorLayer);
+    //     }
+
+    //     // Remove the previous attribution control, if it exists.
+    //     if (this.customAttributionControl) {
+    //         this.map.removeControl(this.customAttributionControl);
+    //     }
+
+    //     // Create and add the new attribution control.
+    //     this.customAttributionControl = new MaplyticsAttributionControl({ attribution: newAttribution });
+    //     this.map.addControl(this.customAttributionControl);
+
+    //     // Update the new layer’s attribution if a new layer was created.
+    //     if (newLayer) {
+    //         newLayer.getSource()?.setAttributions(newAttribution);
+    //         this.map.getLayers().setAt(0, newLayer);
+    //     }
+    // }
+
+
+    private updateBasemap(basemapOptions: BasemapOptions): void {
         // Dictionary of default attributions.
         const defaultAttributions: Record<string, string> = {
             mapbox: "© Mapbox © OpenStreetMap",
             openstreetmap: "© OpenStreetMap",
+            maptiler: "© MapTiler",
             none: ""
         };
 
@@ -387,36 +455,22 @@ export class MaplyticsVisual implements IVisual {
             : defaultAttribution;
 
         const mapboxStyleChanged = basemapOptions.mapboxStyle !== this.currentMapboxStyle;
+        const maptilerStyleChanged = basemapOptions.maptilerStyle !== this.currentMaptilerStyle;
         const basemapTypeChanged = basemapOptions.selectedBasemap !== this.currentBasemapType;
         const attributionChanged = newAttribution !== this.currentAttribution;
 
-        if (!basemapTypeChanged && !mapboxStyleChanged && !attributionChanged) {
+        if (!basemapTypeChanged && !mapboxStyleChanged && !maptilerStyleChanged && !attributionChanged) {
             return;
         }
 
         this.currentBasemapType = basemapOptions.selectedBasemap;
         this.currentMapboxStyle = basemapOptions.mapboxStyle;
+        this.currentMaptilerStyle = basemapOptions.maptilerStyle;
         this.currentAttribution = newAttribution;
 
         let newLayer: any = null;
 
-        if (basemapOptions.selectedBasemap === "mapbox") {
-
-            // Create a Mapbox vector layer.
-            this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
-            newLayer = this.mapboxVectorLayer;
-
-        } else if (basemapOptions.selectedBasemap === "openstreetmap") {
-
-            // Create or retrieve the OpenStreetMap layer.
-            this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-            newLayer = this.basemapLayer;
-
-        } else if (basemapOptions.selectedBasemap === "none") {
-
-            this.map.removeLayer(this.basemapLayer);
-            this.map.removeLayer(this.mapboxVectorLayer);
-        }
+        newLayer = getBasemap(basemapOptions);
 
         // Remove the previous attribution control, if it exists.
         if (this.customAttributionControl) {
@@ -432,6 +486,7 @@ export class MaplyticsVisual implements IVisual {
             newLayer.getSource()?.setAttributions(newAttribution);
             this.map.getLayers().setAt(0, newLayer);
         }
+
     }
 
 
@@ -857,9 +912,10 @@ export class MaplyticsVisual implements IVisual {
             customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
             mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
             mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            mapboxBaseUrl: basemapSettings.mapBoxSettingsGroup.mapboxBaseUrl.value.toString(),
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),           
             declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+            maptilerApiKey: basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString(),
+            maptilerStyle: basemapSettings.maptilerSettingsGroup.maptilerStyle.value.value.toString()
         };
     }
 

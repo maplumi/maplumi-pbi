@@ -25,31 +25,37 @@ export interface GeoJSON {
 export interface BasemapOptions {
     selectedBasemap: string;
     customMapAttribution: string;
-    mapboxCustomStyleUrl: string;    
+
+    mapboxCustomStyleUrl: string;
     mapboxStyle: string;
     mapboxAccessToken: string;
-    mapboxBaseUrl: string;
+  
     declutterLabels: boolean;
+
+    maptilerStyle: string;
+    maptilerApiKey: string;
+    
+    
 }
 
 export interface CircleOptions {
-    layerControl: boolean; 
-    color: string; 
-    minRadius: number; 
-    maxRadius: number; 
-    strokeColor: string; 
-    strokeWidth: number; 
-    layerOpacity: number; 
-    showLegend: boolean; 
+    layerControl: boolean;
+    color: string;
+    minRadius: number;
+    maxRadius: number;
+    strokeColor: string;
+    strokeWidth: number;
+    layerOpacity: number;
+    showLegend: boolean;
     legendTitle: string;
     legendTitleColor: string;
-    leaderLineColor:string;
-    leaderLineStrokeWidth:number;
-    labelTextColor:string;
+    leaderLineColor: string;
+    leaderLineStrokeWidth: number;
+    labelTextColor: string;
 }
 
-export interface CircleLayerOptions  extends LayerOptions{
-    
+export interface CircleLayerOptions extends LayerOptions {
+
     longitudes: number[];
     latitudes: number[];
     circleOptions: CircleOptions;
@@ -61,7 +67,7 @@ export interface CircleLayerOptions  extends LayerOptions{
     svg: any;
     svgContainer: HTMLElement;
     zIndex: number;
-    dataPoints?: Array<{ 
+    dataPoints?: Array<{
         longitude: number;
         latitude: number;
         tooltip: VisualTooltipDataItem[];
@@ -69,62 +75,62 @@ export interface CircleLayerOptions  extends LayerOptions{
     }>;
     tooltipServiceWrapper: ITooltipServiceWrapper;
     selectionManager: powerbi.extensibility.ISelectionManager;
-  }
+}
 
-  export interface ChoroplethLayerOptions extends LayerOptions {
-    geojson: any; 
+export interface ChoroplethLayerOptions extends LayerOptions {
+    geojson: any;
     strokeColor: string;
     strokeWidth: number;
     fillOpacity: number;
-    colorScale: (value: any) => string; 
-    dataKey: string; 
-    svg: any; 
+    colorScale: (value: any) => string;
+    dataKey: string;
+    svg: any;
     svgContainer: HTMLElement;
     zIndex?: number;
     categoryValues: string[];
     measureValues: number[];
-  }
-  
+}
+
 
 export interface ChoroplethOptions {
-    layerControl: boolean; 
-   
-    locationPcodeNameId: string,    
+    layerControl: boolean;
+
+    locationPcodeNameId: string,
     topoJSON_geoJSON_FileUrl: string,
 
     classifyData: boolean;
     usePredefinedColorRamp: boolean;
     invertColorRamp: boolean;
     colorRamp: string;
-    midColor: string; 
-    classes: number; 
-    classificationMethod: string; 
-    minColor: string; 
-    maxColor: string; 
-    strokeColor: string; 
-    strokeWidth: number; 
-    layerOpacity: number; 
-    
-    showLegend: boolean; 
+    midColor: string;
+    classes: number;
+    classificationMethod: string;
+    minColor: string;
+    maxColor: string;
+    strokeColor: string;
+    strokeWidth: number;
+    layerOpacity: number;
+
+    showLegend: boolean;
     legendLabelPosition: string;
     legendOrientation: string;
     legendTitle: string;
     legendTitleAlignment: string;
     legendTitleColor: string;
     legendLabelsColor: string;
-    
+
 }
 
 
 
 
 export interface HeatmapOptions {
-    layerControl: boolean; 
-    radius: number; 
-    blur: number; 
-    maxZoom: number; 
-    layerOpacity: number; 
-    showLegend: boolean; 
+    layerControl: boolean;
+    radius: number;
+    blur: number;
+    maxZoom: number;
+    layerOpacity: number;
+    showLegend: boolean;
 }
 
 export interface MapToolsOptions {

@@ -181,11 +181,6 @@
             "text": true
           }
         },
-        "mapboxBaseUrl": {
-          "type": {
-            "text": true
-          }
-        },
         "mapboxStyle": {
           "type": {
             "enumeration": []
@@ -194,6 +189,16 @@
         "declutterLabels": {
           "type": {
             "bool": true
+          }
+        },
+        "maptilerApiKey":{
+          "type": {
+            "text": true
+          }
+        },
+        "maptilerStyle":{
+          "type": { 
+            "enumeration": []
           }
         }
       }
@@ -505,6 +510,7 @@
         "https://*.arcgisonline.com",
         "https://*.arcgis.com",
         "https://*.mapbox.com",
+        "https://api.maptiler.com",
         "https://*.humdata.org",
         "https://*.itos.uga.edu",
         "https://*.githubusercontent.com",
