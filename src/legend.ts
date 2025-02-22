@@ -32,14 +32,6 @@ export class LegendManager {
         // Set basic visibility
         this.circleLegendContainer.style.display = "flex";
 
-        // const opacity = circleOptions.legendBackgroundOpacity / 100;
-        // const bgColor = circleOptions.legendBackgroundColor;
-        // const bottomMargin = `${circleOptions.legendBottomMargin}px`;
-        // const legendBbgColor = util.hexToRgba(bgColor, opacity);
-
-        // circleLegendItemsContainer.style.backgroundColor = legendBbgColor;
-        // circleLegendItemsContainer.style.bottom = bottomMargin;
-
         circleLegendItemsContainer.style.display = "flex";
         circleLegendItemsContainer.style.flexDirection = "column";
         circleLegendItemsContainer.style.alignItems = "flex-start";

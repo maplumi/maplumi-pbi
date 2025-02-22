@@ -442,6 +442,12 @@
             "bool": true
           }
         },
+        "lockedExtent": {
+          "type": { "text": true }
+        },
+        "lockedZoom": {
+          "type": { "numeric": true }
+        },
         "legendPosition": {
           "type": {
             "enumeration": []

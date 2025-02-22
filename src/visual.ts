@@ -110,6 +110,7 @@ export class MaplyticsVisual implements IVisual {
 
     private map: Map;
     private mapView: View;
+
     private basemap: TileLayer | MapboxVectorLayer;
     private basemapLayer: TileLayer;
     private mapboxVectorLayer: MapboxVectorLayer;
@@ -119,7 +120,6 @@ export class MaplyticsVisual implements IVisual {
 
     private customAttributionControl: MaplyticsAttributionControl;
 
-    // for basemap state management
     private currentBasemapType: string = "";
     private currentAttribution: string = "";
     private currentMapboxStyle: string = '';
@@ -138,8 +138,14 @@ export class MaplyticsVisual implements IVisual {
     private fitMapOptions: any;
 
     private lockedView: View | null = null;
+
+    private currentView: View | null = null;
+    private currentExtent: Extent | null = null;
+    private currentZoom: number | null = null;
+
     private originalInteractions: Interaction[] = [];
-    private originalControls: Control[] = [];
+    private originalControls: Collection<Control> = new Collection<Control>([]);
+    private mapControls: Collection<Control> = new Collection<Control>([]);
 
     private memoryCache: Record<string, { data: any; timestamp: number }>;
 
@@ -156,9 +162,6 @@ export class MaplyticsVisual implements IVisual {
 
         this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);
         this.selectionManager = this.host.createSelectionManager();
-
-        //this.basemap = new Basemap();
-        //this.basemapLayer = this.basemap.getDefaultBasemap();
 
         this.container = options.element;
 
@@ -202,17 +205,19 @@ export class MaplyticsVisual implements IVisual {
             zoom: 2
         });
 
+        this.mapControls = defaultControls({
+            attribution: false, // Ensure attribution control is enabled
+            attributionOptions: {
+                collapsible: false, // Keep the attribution always visible
+            },
+        });
+
         // Initialize the map
         this.map = new Map({
             target: this.container,
             layers: [],
             view: this.mapView,
-            controls: defaultControls({
-                attribution: false, // Ensure attribution control is enabled
-                attributionOptions: {
-                    collapsible: false, // Keep the attribution always visible
-                },
-            }),
+            controls: this.mapControls
         });
 
         // Fit map options
@@ -238,8 +243,6 @@ export class MaplyticsVisual implements IVisual {
         this.svg = d3.select(this.svgOverlay);
         this.svgContainer = document.createElement('div'); // svg node container      
     }
-
-
 
     update(options: VisualUpdateOptions) {
 
@@ -307,11 +310,59 @@ export class MaplyticsVisual implements IVisual {
             return;
         }
 
+        // Check for valid dataViews and objects
+        // if (!options.dataViews?.[0]?.metadata?.objects) {
+        //     return;
+        // }
+
+        // this.currentView = this.map.getView();
+        // this.currentExtent = this.currentView.calculateExtent(this.map.getSize());
+        // this.currentZoom = this.currentView.getZoom();
+
+        // // Persisist map extent and zoom properties for enabling locked state
+        // this.host.persistProperties({
+        //     replace: [{
+        //         objectName: "mapToolsVisualCardSettings",
+        //         selector: null,
+        //         properties: {
+        //             lockedExtent: JSON.stringify(this.currentExtent),
+        //             lockedZoom: this.currentZoom
+        //         }
+        //     }]
+        // });
+
+        // const objects = options.dataViews[0].metadata.objects as any;
+        // const lockedExtent = objects.mapToolsVisualCardSettings?.lockedExtent as string;
+        // const lockedZoom = objects.mapToolsVisualCardSettings?.lockedZoom as number;
+
+        // // Apply locked state ONLY if toggle is on
+        // if (this.mapToolsOptions.lockMapExtent) {
+
+        //     const extent = JSON.parse(lockedExtent);
+
+        //     this.lockedView = new View({
+        //         extent: extent,
+        //         zoom: lockedZoom,
+        //         minZoom: lockedZoom,
+        //         maxZoom: lockedZoom
+        //     });
+
+        //     this.map.setView(this.lockedView);
+
+        //     //this.lockMapToCurrentExtent();
+
+        // } else {
+
+        //     this.unlockMap();
+
+        // }
+
+
         this.choroplethDisplayed = choroplethOptions.layerControl;
 
         this.updateBasemap(basemapOptions);
 
-        // Handle layers
+        // draw choropleth
         this.handleLayer(
             choroplethOptions.layerControl,
             'choropleth-group',
@@ -320,30 +371,16 @@ export class MaplyticsVisual implements IVisual {
             choroplethOptions
         );
 
+        // draw proportional circles
         this.handleLayer(
             circleOptions.layerControl,
             'circles-group',
             this.renderCircleLayer,
             dataView.categorical,
             circleOptions
-        );
+        );        
 
         //this.spinner.style.display = 'none'; // Hide spinner after rendering
-
-        if (this.mapToolsOptions.lockMapExtent) {
-
-            this.lockMapToCurrentExtent();
-
-        } else {
-
-            this.unlockMap();
-
-            // Ensure the view is reset before fitting
-            setTimeout(() => {
-                this.map.getView().fit(this.mapExtent, this.fitMapOptions);
-            }, 0);
-        }
-
 
         // Optional: Clear entire SVG if all layers are off
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
@@ -375,71 +412,9 @@ export class MaplyticsVisual implements IVisual {
         }
     }
 
-    // private updateBasemap(basemapOptions: BasemapOptions): void {
-
-    //     // Dictionary of default attributions.
-    //     const defaultAttributions: Record<string, string> = {
-    //         mapbox: "© Mapbox © OpenStreetMap",
-    //         openstreetmap: "© OpenStreetMap",
-    //         none: ""
-    //     };
-
-    //     // Compute the effective attribution.
-    //     const defaultAttribution = defaultAttributions[basemapOptions.selectedBasemap] || "";
-    //     const newAttribution = basemapOptions.customMapAttribution
-    //         ? `${basemapOptions.customMapAttribution} ${defaultAttribution}`
-    //         : defaultAttribution;
-
-    //     const mapboxStyleChanged = basemapOptions.mapboxStyle !== this.currentMapboxStyle;
-    //     const basemapTypeChanged = basemapOptions.selectedBasemap !== this.currentBasemapType;
-    //     const attributionChanged = newAttribution !== this.currentAttribution;
-
-    //     if (!basemapTypeChanged && !mapboxStyleChanged && !attributionChanged) {
-    //         return;
-    //     }
-
-    //     this.currentBasemapType = basemapOptions.selectedBasemap;
-    //     this.currentMapboxStyle = basemapOptions.mapboxStyle;
-    //     this.currentAttribution = newAttribution;
-
-    //     let newLayer: any = null;
-
-    //     if (basemapOptions.selectedBasemap === "mapbox") {
-
-    //         // Create a Mapbox vector layer.
-    //         this.mapboxVectorLayer = this.basemap.getMapboxBasemap(basemapOptions);
-    //         newLayer = this.mapboxVectorLayer;
-
-    //     } else if (basemapOptions.selectedBasemap === "openstreetmap") {
-
-    //         // Create or retrieve the OpenStreetMap layer.
-    //         this.basemapLayer = this.basemap.getBasemap(basemapOptions);
-    //         newLayer = this.basemapLayer;
-
-    //     } else if (basemapOptions.selectedBasemap === "none") {
-
-    //         this.map.removeLayer(this.basemapLayer);
-    //         this.map.removeLayer(this.mapboxVectorLayer);
-    //     }
-
-    //     // Remove the previous attribution control, if it exists.
-    //     if (this.customAttributionControl) {
-    //         this.map.removeControl(this.customAttributionControl);
-    //     }
-
-    //     // Create and add the new attribution control.
-    //     this.customAttributionControl = new MaplyticsAttributionControl({ attribution: newAttribution });
-    //     this.map.addControl(this.customAttributionControl);
-
-    //     // Update the new layer’s attribution if a new layer was created.
-    //     if (newLayer) {
-    //         newLayer.getSource()?.setAttributions(newAttribution);
-    //         this.map.getLayers().setAt(0, newLayer);
-    //     }
-    // }
-
 
     private updateBasemap(basemapOptions: BasemapOptions): void {
+
         // Dictionary of default attributions.
         const defaultAttributions: Record<string, string> = {
             mapbox: "© Mapbox © OpenStreetMap",
@@ -912,7 +887,7 @@ export class MaplyticsVisual implements IVisual {
             customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
             mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
             mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),           
+            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
             declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
             maptilerApiKey: basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString(),
             maptilerStyle: basemapSettings.maptilerSettingsGroup.maptilerStyle.value.value.toString()
@@ -1013,88 +988,21 @@ export class MaplyticsVisual implements IVisual {
         );
     }
 
-    private lockMapToCurrentExtent() {
-        const currentView = this.map.getView();
-        const currentExtent = currentView.calculateExtent(this.map.getSize());
-        const currentResolution = currentView.getResolution();
-
-        if (!currentResolution) {
-            console.error("Unable to calculate current resolution.");
-            return;
-        }
-
-        // Backup original controls
-        this.originalControls = this.map.getControls().getArray();
-
-        // Remove all controls (including zoom buttons)
-        this.originalControls.forEach(control => {
-            this.map.removeControl(control);
-        });
-
-        // Backup and clear interactions
-        this.originalInteractions = this.map.getInteractions().getArray();
-        this.map.getInteractions().clear();
-
-        // Add back non-zoom interactions (e.g., drag pan)
-        this.originalInteractions.forEach(interaction => {
-            if (!this.isZoomInteraction(interaction)) {
-                this.map.addInteraction(interaction);
-            }
-        });
-
-        // Create and set the locked view
-        this.lockedView = new View({
-            projection: currentView.getProjection(),
-            center: currentView.getCenter(),
-            extent: currentExtent,
-            resolution: currentResolution,
-            minResolution: currentResolution,
-            maxResolution: currentResolution,
-            constrainOnlyCenter: true,
-            enableRotation: false
-        });
-
-        this.map.setView(this.lockedView);
-    }
-
-
-
-    private isZoomInteraction(interaction: Interaction): boolean {
-        return interaction instanceof DragZoom ||
-            interaction instanceof MouseWheelZoom ||
-            interaction instanceof PinchZoom ||
-            interaction instanceof DoubleClickZoom;
-    }
-
     private unlockMap() {
+
         if (!this.map || !this.lockedView) return;
 
-        // Restore controls
-        this.originalControls.forEach(control => this.map.addControl(control));
+        // Restore original controls/interactions
+        // this.originalControls.forEach(control => this.map.addControl(control));
+        // this.map.getInteractions().extend(this.originalInteractions);
 
-        // Restore interactions
-        this.map.getInteractions().clear();
-        this.originalInteractions.forEach(interaction =>
-            this.map.addInteraction(interaction)
-        );
+        this.map.setView(this.mapView);
+        this.lockedView = null;  //reset lockedView
 
-        // Create completely unrestricted view
-        const freeView = new View({
-            projection: this.lockedView.getProjection(),
-            center: this.lockedView.getCenter(),
-            zoom: this.lockedView.getZoom(),
-            extent: undefined,
-            minResolution: undefined,
-            maxResolution: undefined,
-            constrainResolution: false
-        });
-
-        this.map.setView(freeView);
-        this.lockedView = null;
-
-        // Force view refresh
-        this.map.updateSize();
-        this.map.render();
+        // Optionally fit to data extent
+        setTimeout(() => {
+            this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+        }, 0);
     }
 
     private cleanupLayers() {
@@ -1122,6 +1030,5 @@ export class MaplyticsVisual implements IVisual {
     }
 
 }
-
 
 

@@ -136,6 +136,10 @@ export interface HeatmapOptions {
 export interface MapToolsOptions {
     lockMapExtent: boolean;
     showZoomControl: boolean;
+
+    //currentZoom: number;
+    //currentExtent: any;
+
     legendPosition: string;
     legendBorderWidth: number;
     legendBorderRadius: number;

@@ -76,13 +76,6 @@ class mapBoxSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "Enter Access Token" // Placeholder text
     });
 
-    // mapboxBaseUrl: formattingSettings.TextInput = new TextInput({
-    //     name: "mapboxBaseUrl",
-    //     displayName: "Mapbox Base URL",
-    //     value: "https://api.mapbox.com",
-    //     placeholder: "https://api.mapbox.com" // Placeholder text
-    // });
-
     mapboxStyle: DropDown = new DropDown({
 
         name: "mapboxStyle",
@@ -747,11 +740,4 @@ export class MaplyticsVisualFormattingSettingsModel extends FormattingSettingsMo
     cards = [this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings, this.MapToolsVisualCardSettings];
 
 }
-
-
-
-
-
-
-
 
