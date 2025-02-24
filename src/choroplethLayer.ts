@@ -116,10 +116,12 @@ export class ChoroplethLayer extends Layer {
 
         // Manually reorder to ensure circles are on top
         const choroplethGroupNode = choroplethGroup.node();
-        const circlesGroupNode = this.svg.select('#circles-group').node();
-
-        if (choroplethGroupNode && circlesGroupNode) {
-            choroplethGroupNode.parentNode.appendChild(circlesGroupNode);
+        const circles1GroupNode = this.svg.select('#circles-group-1').node();
+        const circles2GroupNode = this.svg.select('#circles-group-2').node();
+        
+        if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
+            choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
+            choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
         }
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());

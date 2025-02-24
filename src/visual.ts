@@ -374,10 +374,11 @@ export class MaplyticsVisual implements IVisual {
         // draw proportional circles
         this.handleLayer(
             circleOptions.layerControl,
-            'circles-group',
+            'circles-group-1',
             this.renderCircleLayer,
             dataView.categorical,
-            circleOptions
+            circleOptions,
+            ['circles-group-2']
         );        
 
         //this.spinner.style.display = 'none'; // Hide spinner after rendering
@@ -393,14 +394,24 @@ export class MaplyticsVisual implements IVisual {
     }
 
     // Helper function to handle layer visibility and rendering
-    private handleLayer(shouldRender: boolean, groupId: string, renderFunction: (data: any, options: any) => void,
+    private handleLayer(
+        shouldRender: boolean, 
+        groupId: string, 
+        renderFunction: (data: any, options: any) => void,
         data: any,
-        options: any
+        options: any,
+        relatedGroupIds: string[] = []
     ) {
-        const group = this.svg.select(`#${groupId}`);
+        const group = this.svg.select(`#${groupId}`);       
 
         // Always clean up before re-rendering to avoid duplication
         group.selectAll("*").remove();  // Clear children, not the group itself
+
+        if (relatedGroupIds.length > 0) {
+            relatedGroupIds.forEach((id) => {
+                this.svg.select(`#${id}`).remove();
+            });
+        }
 
         if (shouldRender) {
             renderFunction.call(this, data, options);

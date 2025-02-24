@@ -57,8 +57,8 @@ export class CircleLayer extends Layer {
         const resolution = frameState.viewState.resolution;
         const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
 
-        this.svg.select('#circles-group').remove();
-        this.svg.select('#circles2-group').remove();
+        this.svg.select('#circles-group-1').remove();
+        this.svg.select('#circles-group-2').remove();
         this.svg.attr('width', width).attr('height', height);
 
         const scale = 6378137 / resolution;
@@ -72,8 +72,8 @@ export class CircleLayer extends Layer {
         const circleScale = (value: number) => minRadius +
             ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
 
-        const circles1Group = this.svg.append('g').attr('id', 'circles-group');
-        const circles2Group = this.svg.append('g').attr('id', 'circles2-group');
+        const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
+        const circles2Group = this.svg.append('g').attr('id', 'circles-group-2');
 
         // Clickable background to clear selection
         const clickableRect = this.svg.selectAll('#clickable-bg').data([null]);
@@ -208,10 +208,11 @@ export class CircleLayer extends Layer {
             }
         });
 
-        // Reorder groups if necessary
+        // Reorder groups to ensure circles are above choropleth
         const choroplethGroupNode = this.svg.select('#choropleth-group').node();
         const circles1GroupNode = circles1Group.node();
         const circles2GroupNode = circles2Group.node();
+
         if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
             choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
             choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
