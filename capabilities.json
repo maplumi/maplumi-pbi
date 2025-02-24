@@ -210,7 +210,16 @@
             "bool": true
           }
         },
-        "proportionalCirclesColor": {
+        "proportionalCircles1Color": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "proportionalCircles2Color": {
           "type": {
             "fill": {
               "solid": {
@@ -243,7 +252,12 @@
             "numeric": true
           }
         },
-        "proportionalCirclesLayerOpacity": {
+        "proportionalCircles1LayerOpacity": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "proportionalCircles2LayerOpacity": {
           "type": {
             "numeric": true
           }

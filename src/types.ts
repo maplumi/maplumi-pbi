@@ -40,12 +40,14 @@ export interface BasemapOptions {
 
 export interface CircleOptions {
     layerControl: boolean;
-    color: string;
+    color1: string;
+    color2: string;
     minRadius: number;
     maxRadius: number;
     strokeColor: string;
     strokeWidth: number;
-    layerOpacity: number;
+    layer1Opacity: number;
+    layer2Opacity: number;
     showLegend: boolean;
     legendTitle: string;
     legendTitleColor: string;

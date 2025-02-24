@@ -14,6 +14,7 @@ export class LegendManager {
     createProportionalCircleLegend(
         sizeValues: number[],
         radii: number[],
+        numberofCircleCategories: number,
         circleOptions: CircleOptions,
         formatTemplate: string = "{:.0f}"
     ) {
@@ -74,10 +75,21 @@ export class LegendManager {
             circle.setAttribute("cx", centerX.toString());
             circle.setAttribute("cy", currentY.toString());
             circle.setAttribute("r", item.radius.toString());
-            circle.setAttribute("stroke", circleOptions.strokeColor);
             circle.setAttribute("stroke-width", circleOptions.strokeWidth.toString());
-            circle.setAttribute("fill", circleOptions.color);
-            circle.setAttribute("fill-opacity", circleOptions.layerOpacity.toString());
+
+            // Remove fill if circleValues are more than one
+            if (numberofCircleCategories === 1) {
+
+                circle.setAttribute("stroke", circleOptions.strokeColor);
+                circle.setAttribute("fill", circleOptions.color1);
+                circle.setAttribute("fill-opacity", circleOptions.layer1Opacity.toString());
+
+            } else {
+                
+                circle.setAttribute("stroke", circleOptions.leaderLineColor);
+                circle.setAttribute("fill", "none"); // Remove fill
+            }
+
 
             svg.appendChild(circle);
 

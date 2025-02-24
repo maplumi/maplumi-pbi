@@ -599,6 +599,7 @@ export class MaplyticsVisual implements IVisual {
                         this.legendManager.createProportionalCircleLegend(
                             combinedCircleSizeValues,
                             radii,
+                            circleSizeValuesObjects.length,
                             circleOptions
                         );
 
@@ -915,12 +916,14 @@ export class MaplyticsVisual implements IVisual {
             this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
         return {
             layerControl: circleSettings.topLevelSlice.value,
-            color: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesColor.value.value,
+            color1: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1Color.value.value,
+            color2: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2Color.value.value,
             minRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
             maxRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMaximumRadius.value,
             strokeColor: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeColor.value.value,
             strokeWidth: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeWidth.value,
-            layerOpacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesLayerOpacity.value / 100,
+            layer1Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1LayerOpacity.value / 100,
+            layer2Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2LayerOpacity.value / 100,
             showLegend: circleSettings.proportionalCircleLegendSettingsGroup.showLegend.value,
             legendTitle: circleSettings.proportionalCircleLegendSettingsGroup.legendTitle.value,
             legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,

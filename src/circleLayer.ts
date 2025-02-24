@@ -31,10 +31,10 @@ export class CircleLayer extends Layer {
                 tooltip: d.tooltip?.map(t => ({
                     displayName: t.displayName,
                     value: t.value !== null ? t.value.toString() : "N/A"
-                })), 
+                })),
                 selectionId: d.selectionId
             },
-        })) || [];        
+        })) || [];
 
         this.changed(); // Trigger re-render
 
@@ -65,7 +65,7 @@ export class CircleLayer extends Layer {
         const d3Projection = geoMercator().scale(scale).center(center).translate([width / 2, height / 2]);
 
         const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions } = this.options;
-        const { minRadius, color, layerOpacity, strokeColor, strokeWidth } = circleOptions;
+        const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth } = circleOptions;
 
         const minSize = Math.min(...combinedCircleSizeValues);
         const maxSize = Math.max(...combinedCircleSizeValues);
@@ -87,6 +87,14 @@ export class CircleLayer extends Layer {
             .on('click', (event: MouseEvent) => {
                 this.options.selectionManager.clear().then(() => {
                     this.selectedIds = []; // Clear stored selections
+
+                    // Explicitly update opacity for circles after clearing selection
+                    this.svg.selectAll('g#circles1Group circle')
+                        .attr('fill-opacity', layer1Opacity);
+
+                    this.svg.selectAll('g#circles2Group circle')
+                        .attr('fill-opacity', layer2Opacity);
+
                     this.changed(); // Trigger re-render to update opacity
                 });
                 //event.stopPropagation();
@@ -108,7 +116,7 @@ export class CircleLayer extends Layer {
                     .attr('cx', x)
                     .attr('cy', y)
                     .attr('r', radius1)
-                    .attr('fill', color)
+                    .attr('fill', color1)
                     .attr('stroke', strokeColor)
                     .attr('stroke-width', strokeWidth)
                     .datum(feature.properties.selectionId)
@@ -116,28 +124,75 @@ export class CircleLayer extends Layer {
                     .style('pointer-events', 'all')
                     .attr('fill-opacity', (d: any) => { // Set opacity based on selection
                         if (this.selectedIds.length === 0) {
-                            return layerOpacity;
+                            return layer1Opacity;
                         } else {
-                            return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layerOpacity : layerOpacity / 2; // Dim unselected circles
+                            return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layer1Opacity : layer1Opacity / 2; // Dim unselected circles
                         }
                     });
 
 
+                if (feature.properties.tooltip) {
+                    this.options.tooltipServiceWrapper.addTooltip(
+                        circle1,
+                        () => feature.properties.tooltip,
+                        () => feature.properties.selectionId,
+                        true
+                    );
+
+
+                }
+
+                circle1.on('click', (event: MouseEvent) => {
+                    const selectionId = feature.properties.selectionId;
+                    const nativeEvent = event;
+
+                    this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
+                        .then((selectedIds: powerbi.visuals.ISelectionId[]) => {
+                            this.selectedIds = selectedIds; // Update selected IDs
+                            console.log('Selected IDs:', this.selectedIds);
+                            this.changed(); // Trigger re-render to apply new opacity
+                        });
+                    //event.stopPropagation();
+                });
+
+                if (circle2SizeValues.length > 0) {
+
+                    // Draw circles in circles2Group
+                    const circle2 = circles2Group.append('circle')
+                        .attr('cx', x)
+                        .attr('cy', y)
+                        .attr('r', radius2)
+                        .attr('fill', color2)
+                        .attr('stroke', strokeColor)
+                        .attr('stroke-width', strokeWidth)
+                        .datum(feature.properties.selectionId)
+                        .style('cursor', 'pointer')
+                        .style('pointer-events', 'all')
+                        .attr('fill-opacity', (d: any) => { // Set opacity based on selection
+                            if (this.selectedIds.length === 0) {
+                                return layer2Opacity;
+                            } else {
+                                return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layer2Opacity : layer2Opacity / 2; // Dim unselected circles
+                            }
+                        });
+
+
                     if (feature.properties.tooltip) {
+
+
                         this.options.tooltipServiceWrapper.addTooltip(
-                            circle1,
+                            circle2,
                             () => feature.properties.tooltip,
                             () => feature.properties.selectionId,
                             true
                         );
-    
-                        
                     }
-    
-                    circle1.on('click', (event: MouseEvent) => {
+
+
+                    circle2.on('click', (event: MouseEvent) => {
                         const selectionId = feature.properties.selectionId;
                         const nativeEvent = event;
-    
+
                         this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                             .then((selectedIds: powerbi.visuals.ISelectionId[]) => {
                                 this.selectedIds = selectedIds; // Update selected IDs
@@ -147,56 +202,9 @@ export class CircleLayer extends Layer {
                         //event.stopPropagation();
                     });
 
-                if (circle2SizeValues.length > 0) {
-
-                    // Draw circles in circles2Group
-                    const circle2 = circles2Group.append('circle')
-                        .attr('cx', x)
-                        .attr('cy', y)
-                        .attr('r', radius2)
-                        .attr('fill', 'red')
-                        .attr('stroke', strokeColor)
-                        .attr('stroke-width', strokeWidth)
-                        .datum(feature.properties.selectionId)
-                        .style('cursor', 'pointer')
-                        .style('pointer-events', 'all')
-                        .attr('fill-opacity', (d: any) => { // Set opacity based on selection
-                            if (this.selectedIds.length === 0) {
-                                return layerOpacity;
-                            } else {
-                                return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layerOpacity : layerOpacity / 2; // Dim unselected circles
-                            }
-                        });
+                }
 
 
-                        if (feature.properties.tooltip) {
-                           
-        
-                            this.options.tooltipServiceWrapper.addTooltip(
-                                circle2,
-                                () => feature.properties.tooltip,
-                                () => feature.properties.selectionId,
-                                true
-                            );
-                        }
-
-
-                        circle2.on('click', (event: MouseEvent) => {
-                            const selectionId = feature.properties.selectionId;
-                            const nativeEvent = event;
-        
-                            this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
-                                .then((selectedIds: powerbi.visuals.ISelectionId[]) => {
-                                    this.selectedIds = selectedIds; // Update selected IDs
-                                    console.log('Selected IDs:', this.selectedIds);
-                                    this.changed(); // Trigger re-render to apply new opacity
-                                });
-                            //event.stopPropagation();
-                        });
-
-                }               
-
-                
             }
         });
 

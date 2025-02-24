@@ -26,11 +26,9 @@
 
 "use strict";
 
-
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 
-import FormattingSettingsCard = formattingSettings.SimpleCard;
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
 import DropDown = formattingSettings.ItemDropdown;
@@ -169,14 +167,18 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
 
 }
 
-
 class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
     // Proportional circle styling options
-    proportionalCirclesColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "proportionalCirclesColor",
-        displayName: "Color",
+    proportionalCircles1Color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "proportionalCircles1Color",
+        displayName: "Circels 1 Color",
         value: { value: "#f58220" } // Default color
+    });
+    proportionalCircles2Color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "proportionalCircles2Color",
+        displayName: "Circles 2 Color",
+        value: { value: "#ffc800" } // Default color
     });
 
     proportionalCirclesMinimumRadius: formattingSettings.NumUpDown = new formattingSettings.Slider({
@@ -225,9 +227,26 @@ class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleC
         value: 1, // Default size
     });
 
-    proportionalCirclesLayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
-        name: "proportionalCirclesLayerOpacity",
-        displayName: "Layer Opacity",
+    proportionalCircles1LayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "proportionalCircles1LayerOpacity",
+        displayName: "Circles 1 Opacity",
+        value: 100,//default value
+        options: // optional input value validator  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    proportionalCircles2LayerOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "proportionalCircles2LayerOpacity",
+        displayName: "Circles 2 Opacity",
         value: 100,//default value
         options: // optional input value validator  
         {
@@ -246,12 +265,14 @@ class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleC
     displayName: string = "Display";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
-        this.proportionalCirclesColor,
+        this.proportionalCircles1Color,
+        this.proportionalCircles2Color,
         this.proportionalCirclesMinimumRadius,
         this.proportionalCirclesMaximumRadius,
         this.proportionalCirclesStrokeColor,
         this.proportionalCirclesStrokeWidth,
-        this.proportionalCirclesLayerOpacity
+        this.proportionalCircles1LayerOpacity,
+        this.proportionalCircles2LayerOpacity
     ];
 
 }
@@ -320,7 +341,7 @@ class proportionalCirclesVisualCardSettings extends formattingSettings.Composite
 
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "proportionalCirclesVisualCardSettings";
-    displayName: string = "Circles";
+    displayName: string = "Scaled Circles";
     groups: formattingSettings.Group[] = [this.proportalCirclesDisplaySettingsGroup, this.proportionalCircleLegendSettingsGroup];
 
 }
@@ -574,7 +595,6 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
     ];
 }
 
-
 class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
 
     showLayerControl: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
@@ -712,7 +732,6 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
 
 }
 
-
 class mapToolsVisualCardSettings extends formattingSettings.CompositeCard {
 
     public mapToolsSettingsGroup: mapToolsSettingsGroup = new mapToolsSettingsGroup();
@@ -720,7 +739,7 @@ class mapToolsVisualCardSettings extends formattingSettings.CompositeCard {
 
 
     name: string = "mapToolsVisualCardSettings";
-    displayName: string = "Tools";
+    displayName: string = "General Controls";
     groups: formattingSettings.Group[] = [this.mapToolsSettingsGroup, this.legendContainerSettingsGroup];
 
 }
@@ -740,4 +759,3 @@ export class MaplyticsVisualFormattingSettingsModel extends FormattingSettingsMo
     cards = [this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings, this.MapToolsVisualCardSettings];
 
 }
-
