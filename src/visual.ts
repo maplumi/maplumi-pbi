@@ -28,7 +28,6 @@
 import powerbi from "powerbi-visuals-api";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import "./../style/visual.less";
-import { constants } from "./constants";
 
 import { createTooltipServiceWrapper, TooltipEventArgs, ITooltipServiceWrapper, TooltipEnabledDataPoint } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionBuilder = powerbi.visuals.ISelectionIdBuilder;
@@ -73,7 +72,7 @@ import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
 import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types";
-import { ColorRampGenerator } from "./colors";
+import { ColorRampService } from "./services/ColorRampService";
 
 import { CircleLayer } from "./circleLayer";
 import { ChoroplethLayer } from "./choroplethLayer";
@@ -83,9 +82,11 @@ import * as turf from "@turf/turf";
 
 import * as util from "./utils"
 
-import { LegendManager } from "./legend";
+import { LegendService } from "./services/LegendService";
+
 import { Extent } from "ol/extent";
 import { MaplyticsAttributionControl } from "./attribution";
+import { MapConfig } from "./config/MapConfig";
 
 export class MaplyticsVisual implements IVisual {
 
@@ -103,7 +104,10 @@ export class MaplyticsVisual implements IVisual {
 
     private spinner: HTMLElement;
     private legendContainer: HTMLElement;
-    private legendManager: LegendManager;
+
+    private colorRampService: ColorRampService;
+    private legendService: LegendService;
+ 
 
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -130,7 +134,6 @@ export class MaplyticsVisual implements IVisual {
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
 
-    private colorRampGenerator: ColorRampGenerator;
     private isDataLoading: boolean = false;
 
     private mapExtent: Extent | undefined;
@@ -197,7 +200,7 @@ export class MaplyticsVisual implements IVisual {
 
         this.container.appendChild(this.legendContainer);
 
-        this.legendManager = new LegendManager(this.legendContainer);
+        this.legendService = new LegendService(this.legendContainer);
 
         // create map view
         this.mapView = new View({
@@ -221,11 +224,7 @@ export class MaplyticsVisual implements IVisual {
         });
 
         // Fit map options
-        this.fitMapOptions = {
-            padding: [40, 40, 40, 40],
-            duration: 1000,
-            easing: easeOut,
-        };
+        this.fitMapOptions = MapConfig.MAP.FIT_OPTIONS;
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -299,7 +298,7 @@ export class MaplyticsVisual implements IVisual {
 
         //this.spinner.style.display = 'block';  // Show spinner while loading data
 
-        this.colorRampGenerator = new ColorRampGenerator(choroplethOptions.colorRamp);
+        this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
 
         const dataView = options.dataViews[0];
 
@@ -607,14 +606,14 @@ export class MaplyticsVisual implements IVisual {
 
                         radii = combinedCircleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
 
-                        this.legendManager.createProportionalCircleLegend(
+                        this.legendService.createProportionalCircleLegend(
                             combinedCircleSizeValues,
                             radii,
                             circleSizeValuesObjects.length,
                             circleOptions
                         );
 
-                        this.legendManager.showLegend('circle');
+                        this.legendService.showLegend('circle');
 
                     }
 
@@ -676,7 +675,7 @@ export class MaplyticsVisual implements IVisual {
 
             util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey,
                 this.abortController.signal as AbortSignal,
-                constants.CACHE_EXPIRY_MS)
+                MapConfig.CACHE.EXPIRY_MS)
                 .then((data: any) => {
 
                     // Check if layer is still enabled after async operation
@@ -774,19 +773,19 @@ export class MaplyticsVisual implements IVisual {
 
             this.legendContainer.style.display = "block";
 
-            this.legendManager.createChoroplethLegend(
+            this.legendService.createChoroplethLegend(
                 colorValues,
                 classBreaks,
                 colorScale,
                 choroplethOptions
             );
 
-            this.legendManager.showLegend('choropleth');
+            this.legendService.showLegend('choropleth');
 
         }
         else {
 
-            this.legendManager.hideLegend('choropleth');
+            this.legendService.hideLegend('choropleth');
         }
 
     }
@@ -861,14 +860,14 @@ export class MaplyticsVisual implements IVisual {
     ): any {
         if (choroplethOptions.usePredefinedColorRamp) {
             if (choroplethOptions.invertColorRamp) {
-                this.colorRampGenerator.invertRamp();
+                this.colorRampService.invertRamp();
             } else {
-                this.colorRampGenerator = new ColorRampGenerator(
+                this.colorRampService = new ColorRampService(
                     choroplethOptions.colorRamp
                 );
             }
 
-            return this.colorRampGenerator.generateColorRamp(
+            return this.colorRampService.generateColorRamp(
                 classBreaks,
                 choroplethOptions.classes
             );
@@ -1021,14 +1020,14 @@ export class MaplyticsVisual implements IVisual {
 
     private cleanupLayers() {
         if (this.circleLayer) {
-            this.legendManager.clearContainer(this.legendManager.getCircleLegendContainer());
+            this.legendService.clearContainer(this.legendService.getCircleLegendContainer());
             // this.legendContainer.style.display = "none"; // Hide the legend
             this.map.removeLayer(this.circleLayer);
             this.circleLayer.setActive(false); // Ensure no further renders
             this.circleLayer = null;
         }
         if (this.choroplethLayer) {
-            this.legendManager.clearContainer(this.legendManager.getChoroplethLegendContainer());
+            this.legendService.clearContainer(this.legendService.getChoroplethLegendContainer());
             // this.legendContainer.style.display = "none"; // Hide the legend
             this.map.removeLayer(this.choroplethLayer);
             this.choroplethLayer.setActive(false); // Ensure no further renders

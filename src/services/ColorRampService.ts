@@ -2,7 +2,14 @@ import * as chroma from "chroma-js";
 
 type ColorRamp = string[];
 
-export class ColorRampGenerator {
+export class ColorRampService {
+
+  // Constructor accepts a color ramp name
+  constructor(rampName: string) {
+    // Default to blue ramp if invalid name is provided
+    this.currentRamp = ColorRampService.colorRamps[rampName] || ColorRampService.colorRamps['blue'];
+  }
+
   // Define the available color ramps
   private static colorRamps: { [key: string]: string[] } = {
 
@@ -60,11 +67,7 @@ export class ColorRampGenerator {
   // Property to hold the current color ramp
   private currentRamp: ColorRamp;
 
-  // Constructor accepts a color ramp name
-  constructor(rampName: string) {
-    // Default to blue ramp if invalid name is provided
-    this.currentRamp = ColorRampGenerator.colorRamps[rampName] || ColorRampGenerator.colorRamps['blue'];
-  }
+
 
   // Method to get the current color ramp
   public getColorRamp(): string[] {
@@ -83,7 +86,7 @@ export class ColorRampGenerator {
     const scale = chroma.scale(this.currentRamp).mode('lab').domain(classBreaks);
 
     // Generate `n` colors and return them
-    return scale.colors(numberOfClasses); 
+    return scale.colors(numberOfClasses);
   }
 
 

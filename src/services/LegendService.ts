@@ -1,8 +1,9 @@
 
-import { ChoroplethOptions, CircleOptions } from "./types";
-import * as util from "./utils";
+import { ChoroplethOptions, CircleOptions } from "../types";
+import * as util from "../utils";
 
-export class LegendManager {
+export class LegendService {
+    
     private mainContainer: HTMLElement;
     private circleLegendContainer: HTMLElement | null = null;
     private choroplethLegendContainer: HTMLElement | null = null;

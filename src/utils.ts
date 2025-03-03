@@ -96,7 +96,7 @@ export function isValidTopoJson(data: any): boolean {
 
 // Debounce function
 export function debounce(func: Function, delay: number) {
-    let timeoutId: number | undefined;
+    let timeoutId: NodeJS.Timeout | undefined;
     return function (this: any, ...args: any[]) {
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
