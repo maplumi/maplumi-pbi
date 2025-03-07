@@ -15,15 +15,12 @@
     },
     "files": [
         "./src/visual.ts",
-        "./src/settings.ts",
-        "./src/types.ts",
-        "./src/basemap.ts",
-       
+        "./src/settings.ts",      
         "src/circleLayer.ts",
         "src/choroplethLayer.ts",
         "src/services/LegendService.ts",
-        "./src/utils.ts",
-        "./src/attribution.ts",
+        "src/utils/utils.ts",
+        "src/utils/attribution.ts",
         "./src/services/DataService.ts",
         "./src/services/MapService.ts",
         "./src/services/CacheService.ts",
@@ -32,11 +29,7 @@
         "./src/services/ColorRampService.ts",
         "./src/config/MapConfig.ts",
         "./src/types/index.ts",
-        "./src/events/EventManager.ts"
-        
-       
-        
-        
+        "./src/events/EventManager.ts"     
        
     ]
 }

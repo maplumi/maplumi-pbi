@@ -44,8 +44,8 @@ export interface LayerOptions extends OlLayerOptions {
     svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
     svgContainer: HTMLElement;
     zIndex: number;
-    tooltipServiceWrapper: ITooltipServiceWrapper;
-    selectionManager: ISelectionManager;
+    // tooltipServiceWrapper: ITooltipServiceWrapper;
+    // selectionManager: ISelectionManager;
 }
 
 
@@ -216,7 +216,9 @@ export interface ChoroplethOptions {
 
     classifyData: boolean;
     usePredefinedColorRamp: boolean;
+
     invertColorRamp: boolean;
+    colorMode: string;
     colorRamp: string;
     midColor: string;
     classes: number;

@@ -449,6 +449,23 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         value: false
     });
 
+    colorMode: DropDown = new DropDown({
+        name: "colorMode",
+        displayName: "Color Mode",
+        value: {
+            value: "lab",  //default value
+            displayName: "Lab"
+        },
+        items: [
+            { value: "lab", displayName: "LAB" },
+            { value: "rgb", displayName: "RGB" },
+            { value: "hsl", displayName: "HSL" },
+            { value: "hsv", displayName: "HSV" },
+            { value: "lch", displayName: "LCH" }          
+           
+        ]
+    });
+
     minColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "minColor",
         displayName: "Minimum Color",
@@ -502,6 +519,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.usePredefinedColorRamp,
         this.colorRamp,
         this.invertColorRamp,
+        this.colorMode,
         this.minColor,
         this.midColor,
         this.maxColor,

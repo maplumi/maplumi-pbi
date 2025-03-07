@@ -4,7 +4,7 @@ import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { MapConfig } from "../config/MapConfig";
 import { MapState } from "../types/index";
-import { MaplyticsAttributionControl } from "../attribution";
+import { MaplyticsAttributionControl } from "../utils/attribution";
 import TileLayer from "ol/layer/Tile";
 import { MapboxVectorLayer } from "ol-mapbox-style";
 import { BasemapOptions } from "../types/index";

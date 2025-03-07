@@ -1,6 +1,6 @@
 
-import { ChoroplethOptions, CircleOptions } from "../types";
-import * as util from "../utils";
+import { ChoroplethOptions, CircleOptions } from "../types/index";
+import * as util from "../utils/utils";
 
 export class LegendService {
     

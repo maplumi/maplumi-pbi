@@ -2,19 +2,22 @@ import { FeatureCollection } from "geojson";
 import * as turf from "@turf/turf";
 import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
-//import { MapData } from "../types";
+import * as topojson from 'topojson-client';
+import { ColorRampService } from "./ColorRampService";
+import { ChoroplethOptions } from "../types/index";
+import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 export class DataService {
-    
-    private colorRampGenerator: any; // Replace with proper type
 
-    constructor(colorRampGenerator: any) {
-        this.colorRampGenerator = colorRampGenerator;
+    private colorRampService: ColorRampService;
+
+    constructor(colorRampService: any) {
+        this.colorRampService = colorRampService;
     }
 
     public processGeoData(data: any, pcodeKey: string, validPCodes: string[]): FeatureCollection {
         // Handle topojson if needed
-        let geojson: FeatureCollection = this.isTopoJSON(data) 
+        let geojson: FeatureCollection = this.isTopoJSON(data)
             ? this.convertTopoJSONToGeoJSON(data)
             : data as FeatureCollection;
 
@@ -31,7 +34,24 @@ export class DataService {
         };
     }
 
+    public extractTooltips(categorical: any): VisualTooltipDataItem[][] {
+        // Assuming tooltip fields are in the 'values' collection
+        const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
+        const tooltips: VisualTooltipDataItem[][] = [];
+
+        for (let i = 0; i < categorical.categories[0].values.length; i++) {
+            const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => ({
+                displayName: field.source.displayName,
+                value: field.values[i]
+            }));
+            tooltips.push(tooltipItems);
+        }
+
+        return tooltips;
+    }
+
     public getClassBreaks(values: number[], options: any): number[] {
+
         const uniqueValues = new Set(values);
         const numValues = uniqueValues.size;
 
@@ -61,12 +81,14 @@ export class DataService {
         }
     }
 
-    public getColorScale(classBreaks: number[], options: any): string[] {
+    public getColorScale(classBreaks: number[], options: ChoroplethOptions): string[] {
+
         if (options.usePredefinedColorRamp) {
+
             if (options.invertColorRamp) {
-                this.colorRampGenerator.invertRamp();
+                this.colorRampService.invertRamp();
             }
-            return this.colorRampGenerator.generateColorRamp(
+            return this.colorRampService.generateColorRamp(
                 classBreaks,
                 options.classes
             );
@@ -74,7 +96,7 @@ export class DataService {
 
         return chroma
             .scale([options.minColor, options.midColor, options.maxColor])
-            .mode("lab")
+            .mode(options.colorMode)
             .domain(classBreaks)
             .colors(options.classes);
     }
@@ -99,11 +121,29 @@ export class DataService {
     }
 
     private isTopoJSON(data: any): boolean {
-        return data.type === "Topology" && data.objects;
+        return data.type === "Topology" && data.objects && Array.isArray(data.arcs);
+    }
+    
+    private convertTopoJSONToGeoJSON(topology: any): FeatureCollection {
+
+        if (!topology || typeof topology !== "object") {
+            throw new Error("Invalid TopoJSON object provided.");
+        }
+
+        if (!topology.objects || typeof topology.objects !== "object") {
+            throw new Error("Invalid or missing 'objects' property in TopoJSON.");
+        }
+
+        const layerNames = Object.keys(topology.objects);
+
+        if (layerNames.length !== 1) {
+            throw new Error(
+                `Expected a single layer in TopoJSON, but found ${layerNames.length}.`
+            );
+        }
+
+        const layerName = layerNames[0]; // Extract the name of the single layer
+        return topojson.feature(topology, topology.objects[layerName]);
     }
 
-    private convertTopoJSONToGeoJSON(topology: any): FeatureCollection {
-        // Implementation needed based on your topoJSON conversion logic
-        return {} as FeatureCollection;
-    }
 } 

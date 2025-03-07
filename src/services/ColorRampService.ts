@@ -10,7 +10,7 @@ export class ColorRampService {
     this.currentRamp = ColorRampService.colorRamps[rampName] || ColorRampService.colorRamps['blue'];
   }
 
-  // Define the available color ramps
+  // Available color ramps
   private static colorRamps: { [key: string]: string[] } = {
 
     blue: [

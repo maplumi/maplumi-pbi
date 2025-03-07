@@ -44,8 +44,6 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 import { MaplyticsVisualFormattingSettingsModel } from "./settings";
 
-import { getBasemap } from "./basemap";
-
 import "ol/ol.css";
 import Map from "ol/Map";
 import View from "ol/View";
@@ -71,8 +69,8 @@ import { MapboxVectorLayer } from "ol-mapbox-style";
 import * as chroma from "chroma-js"; // Import chroma module
 import * as ss from "simple-statistics";
 
-import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types";
-import { ColorRampService } from "./services/ColorRampService";
+import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
+
 
 import { CircleLayer } from "./circleLayer";
 import { ChoroplethLayer } from "./choroplethLayer";
@@ -80,13 +78,17 @@ import { ChoroplethLayer } from "./choroplethLayer";
 import * as d3 from "d3";
 import * as turf from "@turf/turf";
 
-import * as util from "./utils"
+import * as util from "./utils/utils"
 
 import { LegendService } from "./services/LegendService";
+import { MapService } from "./services/MapService";
+import { DataService } from "./services/DataService";
+import { ColorRampService } from "./services/ColorRampService";
 
 import { Extent } from "ol/extent";
-import { MaplyticsAttributionControl } from "./attribution";
+import { MaplyticsAttributionControl } from "./utils/attribution";
 import { MapConfig } from "./config/MapConfig";
+
 
 export class MaplyticsVisual implements IVisual {
 
@@ -107,7 +109,9 @@ export class MaplyticsVisual implements IVisual {
 
     private colorRampService: ColorRampService;
     private legendService: LegendService;
- 
+    private mapService: MapService;
+    private dataService: DataService;
+
 
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -138,7 +142,6 @@ export class MaplyticsVisual implements IVisual {
 
     private mapExtent: Extent | undefined;
     private choroplethDisplayed: boolean = false;
-    private fitMapOptions: any;
 
     private lockedView: View | null = null;
 
@@ -201,30 +204,11 @@ export class MaplyticsVisual implements IVisual {
         this.container.appendChild(this.legendContainer);
 
         this.legendService = new LegendService(this.legendContainer);
+        this.mapService = new MapService(this.container);
 
-        // create map view
-        this.mapView = new View({
-            center: fromLonLat([0, 0]), // Center the map at the origin
-            zoom: 2
-        });
 
-        this.mapControls = defaultControls({
-            attribution: false, // Ensure attribution control is enabled
-            attributionOptions: {
-                collapsible: false, // Keep the attribution always visible
-            },
-        });
+        this.map = this.mapService.getMap();
 
-        // Initialize the map
-        this.map = new Map({
-            target: this.container,
-            layers: [],
-            view: this.mapView,
-            controls: this.mapControls
-        });
-
-        // Fit map options
-        this.fitMapOptions = MapConfig.MAP.FIT_OPTIONS;
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -299,6 +283,7 @@ export class MaplyticsVisual implements IVisual {
         //this.spinner.style.display = 'block';  // Show spinner while loading data
 
         this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
+        this.dataService = new DataService(this.colorRampService);
 
         const dataView = options.dataViews[0];
 
@@ -309,57 +294,10 @@ export class MaplyticsVisual implements IVisual {
             return;
         }
 
-        // Check for valid dataViews and objects
-        // if (!options.dataViews?.[0]?.metadata?.objects) {
-        //     return;
-        // }
-
-        // this.currentView = this.map.getView();
-        // this.currentExtent = this.currentView.calculateExtent(this.map.getSize());
-        // this.currentZoom = this.currentView.getZoom();
-
-        // // Persisist map extent and zoom properties for enabling locked state
-        // this.host.persistProperties({
-        //     replace: [{
-        //         objectName: "mapToolsVisualCardSettings",
-        //         selector: null,
-        //         properties: {
-        //             lockedExtent: JSON.stringify(this.currentExtent),
-        //             lockedZoom: this.currentZoom
-        //         }
-        //     }]
-        // });
-
-        // const objects = options.dataViews[0].metadata.objects as any;
-        // const lockedExtent = objects.mapToolsVisualCardSettings?.lockedExtent as string;
-        // const lockedZoom = objects.mapToolsVisualCardSettings?.lockedZoom as number;
-
-        // // Apply locked state ONLY if toggle is on
-        // if (this.mapToolsOptions.lockMapExtent) {
-
-        //     const extent = JSON.parse(lockedExtent);
-
-        //     this.lockedView = new View({
-        //         extent: extent,
-        //         zoom: lockedZoom,
-        //         minZoom: lockedZoom,
-        //         maxZoom: lockedZoom
-        //     });
-
-        //     this.map.setView(this.lockedView);
-
-        //     //this.lockMapToCurrentExtent();
-
-        // } else {
-
-        //     this.unlockMap();
-
-        // }
-
 
         this.choroplethDisplayed = choroplethOptions.layerControl;
 
-        this.updateBasemap(basemapOptions);
+        this.mapService.updateBasemap(basemapOptions);
 
         // draw choropleth
         this.handleLayer(
@@ -378,7 +316,7 @@ export class MaplyticsVisual implements IVisual {
             dataView.categorical,
             circleOptions,
             ['circles-group-2']
-        );        
+        );
 
         //this.spinner.style.display = 'none'; // Hide spinner after rendering
 
@@ -394,14 +332,14 @@ export class MaplyticsVisual implements IVisual {
 
     // Helper function to handle layer visibility and rendering
     private handleLayer(
-        shouldRender: boolean, 
-        groupId: string, 
+        shouldRender: boolean,
+        groupId: string,
         renderFunction: (data: any, options: any) => void,
         data: any,
         options: any,
         relatedGroupIds: string[] = []
     ) {
-        const group = this.svg.select(`#${groupId}`);       
+        const group = this.svg.select(`#${groupId}`);
 
         // Always clean up before re-rendering to avoid duplication
         group.selectAll("*").remove();  // Clear children, not the group itself
@@ -420,58 +358,6 @@ export class MaplyticsVisual implements IVisual {
         if (!shouldRender) {
             this.cleanupLayers();
         }
-    }
-
-
-    private updateBasemap(basemapOptions: BasemapOptions): void {
-
-        // Dictionary of default attributions.
-        const defaultAttributions: Record<string, string> = {
-            mapbox: "© Mapbox © OpenStreetMap",
-            openstreetmap: "© OpenStreetMap",
-            maptiler: "© MapTiler",
-            none: ""
-        };
-
-        // Compute the effective attribution.
-        const defaultAttribution = defaultAttributions[basemapOptions.selectedBasemap] || "";
-        const newAttribution = basemapOptions.customMapAttribution
-            ? `${basemapOptions.customMapAttribution} ${defaultAttribution}`
-            : defaultAttribution;
-
-        const mapboxStyleChanged = basemapOptions.mapboxStyle !== this.currentMapboxStyle;
-        const maptilerStyleChanged = basemapOptions.maptilerStyle !== this.currentMaptilerStyle;
-        const basemapTypeChanged = basemapOptions.selectedBasemap !== this.currentBasemapType;
-        const attributionChanged = newAttribution !== this.currentAttribution;
-
-        if (!basemapTypeChanged && !mapboxStyleChanged && !maptilerStyleChanged && !attributionChanged) {
-            return;
-        }
-
-        this.currentBasemapType = basemapOptions.selectedBasemap;
-        this.currentMapboxStyle = basemapOptions.mapboxStyle;
-        this.currentMaptilerStyle = basemapOptions.maptilerStyle;
-        this.currentAttribution = newAttribution;
-
-        let newLayer: any = null;
-
-        newLayer = getBasemap(basemapOptions);
-
-        // Remove the previous attribution control, if it exists.
-        if (this.customAttributionControl) {
-            this.map.removeControl(this.customAttributionControl);
-        }
-
-        // Create and add the new attribution control.
-        this.customAttributionControl = new MaplyticsAttributionControl({ attribution: newAttribution });
-        this.map.addControl(this.customAttributionControl);
-
-        // Update the new layer’s attribution if a new layer was created.
-        if (newLayer) {
-            newLayer.getSource()?.setAttributions(newAttribution);
-            this.map.getLayers().setAt(0, newLayer);
-        }
-
     }
 
 
@@ -515,7 +401,7 @@ export class MaplyticsVisual implements IVisual {
             latitudes = latCategory.values as number[];
 
             // Extract tooltips
-            const tooltips = this.extractTooltips(categorical);
+            const tooltips = this.dataService.extractTooltips(categorical);
 
             // Create data points for each circle
             const dataPoints = longitudes.map((lon, i) => {
@@ -592,7 +478,7 @@ export class MaplyticsVisual implements IVisual {
 
                     this.mapExtent = this.circleLayer.getFeaturesExtent();
 
-                    this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+                    this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
                 }
 
                 // Render legend if proportional circles are used
@@ -681,26 +567,9 @@ export class MaplyticsVisual implements IVisual {
                     // Check if layer is still enabled after async operation
                     if (!choroplethOptions.layerControl) return;
 
-                    // handle topojson
-                    let geojson: FeatureCollection = {
-                        type: "FeatureCollection",
-                        features: []
-                    };
+                    const processedGeoData = this.dataService.processGeoData(data, choroplethOptions.locationPcodeNameId, AdminPCodeNameIDCategory.values);
 
-                    if (util.isTopoJSON(data)) {
-
-                        geojson = util.convertSingleLayerTopoJSONToGeoJSON(data);
-
-                    } else {
-
-                        geojson = data as FeatureCollection;
-                    }
-
-                    const turfOptions = { tolerance: 0.01, highQuality: false };
-
-                    const simplifiedGeo: FeatureCollection = turf.simplify(geojson, turfOptions);
-
-                    this.renderChoropleth(simplifiedGeo, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
+                    this.renderChoropleth(processedGeoData, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
                 });
 
         } catch (error) {
@@ -727,10 +596,10 @@ export class MaplyticsVisual implements IVisual {
         }
 
         const colorValues: number[] = measure.values;
-        const classBreaks = this.getClassBreaks(colorValues, choroplethOptions);
+        const classBreaks = this.dataService.getClassBreaks(colorValues, choroplethOptions);
         //console.log('classBreaks', classBreaks);
 
-        const colorScale = this.getColorScale(classBreaks, choroplethOptions);
+        const colorScale = this.dataService.getColorScale(classBreaks, choroplethOptions);
         //console.log('colorScale', colorScale);
 
         const pcodeKey = choroplethOptions.locationPcodeNameId;
@@ -749,7 +618,7 @@ export class MaplyticsVisual implements IVisual {
             strokeColor: choroplethOptions.strokeColor,
             strokeWidth: choroplethOptions.strokeWidth,
             fillOpacity: choroplethOptions.layerOpacity,
-            colorScale: (value: any) => this.getColorFromClassBreaks(value, classBreaks, colorScale),
+            colorScale: (value: any) => this.dataService.getColorFromClassBreaks(value, classBreaks, colorScale),
             dataKey: pcodeKey,
             svg: this.svg,
             svgContainer: this.svgContainer,
@@ -764,7 +633,7 @@ export class MaplyticsVisual implements IVisual {
 
         this.mapExtent = this.choroplethLayer.getFeaturesExtent();
 
-        this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+        this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
 
         //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
 
@@ -788,107 +657,6 @@ export class MaplyticsVisual implements IVisual {
             this.legendService.hideLegend('choropleth');
         }
 
-    }
-
-    private getColorFromClassBreaks(
-        value: number,
-        classBreaks: number[],
-        colorScale: string[]
-    ): string {
-
-        if (value < classBreaks[0]) return colorScale[0];
-
-        if (value > classBreaks[classBreaks.length - 1]) return colorScale[colorScale.length - 1];
-
-        for (let i = 0; i < classBreaks.length - 1; i++) {
-
-            if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
-                return colorScale[i];
-            }
-        }
-
-        return "#009edb"; // Default color
-    }
-
-    private getClassBreaks(
-        colorValues: number[],
-        choroplethOptions: ChoroplethOptions
-    ): number[] {
-        const numValues = new Set(colorValues).size; // Get the number of unique values
-
-        if (choroplethOptions.classifyData) {
-            // Adjust the number of classes if it exceeds the number of unique values
-            const adjustedClasses = Math.min(choroplethOptions.classes, numValues);
-
-            if (numValues <= 2) {
-                // Handle cases with less than or equal to two unique values
-                return Array.from(new Set(colorValues)).sort((a, b) => a - b);
-            } else {
-                // More than two unique values: Use the existing classification methods
-                if (choroplethOptions.classificationMethod === "j") {
-                    return ss.jenks(colorValues, adjustedClasses); // Use adjustedClasses
-                }
-                if (choroplethOptions.classificationMethod === "k") {
-                    const clusters = ss.ckmeans(colorValues, adjustedClasses);
-
-                    // Extract the maximum value from each cluster
-                    const maxValues = clusters.map((cluster) => Math.max(...cluster));
-
-                    // Sort the maximum values in ascending order
-                    maxValues.sort((a, b) => a - b);
-
-                    // Construct the class breaks array
-                    const classBreaks = [Math.min(...colorValues), ...maxValues];
-
-                    return classBreaks;
-                } else {
-                    return chroma.limits(
-                        colorValues,
-                        choroplethOptions.classificationMethod as "q" | "e" | "l",
-                        adjustedClasses
-                    ); // Use adjustedClasses
-                }
-            }
-        } else {
-            return Array.from(new Set(colorValues)).sort((a, b) => a - b);
-        }
-    }
-
-    private getColorScale(
-        classBreaks: any[],
-        choroplethOptions: ChoroplethOptions
-    ): any {
-        if (choroplethOptions.usePredefinedColorRamp) {
-            if (choroplethOptions.invertColorRamp) {
-                this.colorRampService.invertRamp();
-            } else {
-                this.colorRampService = new ColorRampService(
-                    choroplethOptions.colorRamp
-                );
-            }
-
-            return this.colorRampService.generateColorRamp(
-                classBreaks,
-                choroplethOptions.classes
-            );
-        } else {
-            return chroma
-                .scale([
-                    choroplethOptions.minColor,
-                    choroplethOptions.midColor,
-                    choroplethOptions.maxColor,
-                ])
-                .mode("lab")
-                .domain(classBreaks)
-                .colors(choroplethOptions.classes);
-        }
-    }
-
-    private getFormattingSettings(options: VisualUpdateOptions) {
-        return this.formattingSettingsService.populateFormattingSettingsModel(
-            MaplyticsVisualFormattingSettingsModel,
-            options.dataViews[0]
-        );
     }
 
     private getBasemapOptions(): BasemapOptions {
@@ -960,6 +728,7 @@ export class MaplyticsVisual implements IVisual {
             classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
+            colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
             colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
             midColor: choroplethDisplaySettings.midColor.value.value,
             classes: choroplethClassificationSettings.numClasses.value,
@@ -979,28 +748,6 @@ export class MaplyticsVisual implements IVisual {
         };
     }
 
-    private extractTooltips(categorical: any): VisualTooltipDataItem[][] {
-        // Assuming tooltip fields are in the 'values' collection
-        const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
-        const tooltips: VisualTooltipDataItem[][] = [];
-
-        for (let i = 0; i < categorical.categories[0].values.length; i++) {
-            const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => ({
-                displayName: field.source.displayName,
-                value: field.values[i]
-            }));
-            tooltips.push(tooltipItems);
-        }
-
-        return tooltips;
-    }
-
-    public getFormattingModel(): powerbi.visuals.FormattingModel {
-        return this.formattingSettingsService.buildFormattingModel(
-            this.visualFormattingSettingsModel
-        );
-    }
-
     private unlockMap() {
 
         if (!this.map || !this.lockedView) return;
@@ -1014,7 +761,7 @@ export class MaplyticsVisual implements IVisual {
 
         // Optionally fit to data extent
         setTimeout(() => {
-            this.map.getView().fit(this.mapExtent, this.fitMapOptions);
+            this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
         }, 0);
     }
 
@@ -1040,6 +787,19 @@ export class MaplyticsVisual implements IVisual {
         this.map.setTarget(null);
         this.svg.selectAll('*').remove();
 
+    }
+
+    private getFormattingSettings(options: VisualUpdateOptions) {
+        return this.formattingSettingsService.populateFormattingSettingsModel(
+            MaplyticsVisualFormattingSettingsModel,
+            options.dataViews[0]
+        );
+    }
+
+    public getFormattingModel(): powerbi.visuals.FormattingModel {
+        return this.formattingSettingsService.buildFormattingModel(
+            this.visualFormattingSettingsModel
+        );
     }
 
 }

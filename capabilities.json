@@ -353,6 +353,11 @@
             "bool": true
           }
         },
+        "colorMode": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "minColor": {
           "type": {
             "fill": {
