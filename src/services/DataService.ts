@@ -7,6 +7,11 @@ import { ColorRampService } from "./ColorRampService";
 import { ChoroplethOptions } from "../types/index";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
+/**
+ * Service class responsible for processing and transforming geographic and statistical data
+ * for visualization on maps. Handles data classification, tooltip generation, and geometry processing.
+ */
+
 export class DataService {
 
     private colorRampService: ColorRampService;
@@ -15,7 +20,16 @@ export class DataService {
         this.colorRampService = colorRampService;
     }
 
+    /**
+     * Processes geographic data by converting TopoJSON to GeoJSON if needed, simplifying geometries,
+     * and filtering features based on valid PCodes.
+     * @param data Raw geographic data in either TopoJSON or GeoJSON format
+     * @param pcodeKey The property key used to identify PCodes in the features
+     * @param validPCodes Array of valid PCodes to filter features by
+     * @returns Processed GeoJSON FeatureCollection with simplified and filtered features
+     */
     public processGeoData(data: any, pcodeKey: string, validPCodes: string[]): FeatureCollection {
+
         // Handle topojson if needed
         let geojson: FeatureCollection = this.isTopoJSON(data)
             ? this.convertTopoJSONToGeoJSON(data)
@@ -34,6 +48,11 @@ export class DataService {
         };
     }
 
+    /**
+     * Extracts tooltip data from PowerBI categorical data format
+     * @param categorical PowerBI categorical data containing values and categories
+     * @returns Array of tooltip items arrays, where each inner array contains tooltip items for a feature
+     */
     public extractTooltips(categorical: any): VisualTooltipDataItem[][] {
         // Assuming tooltip fields are in the 'values' collection
         const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
@@ -50,6 +69,20 @@ export class DataService {
         return tooltips;
     }
 
+    /**
+     * Calculates class breaks for choropleth map data classification
+     * @param values Array of numeric values to be classified
+     * @param options Classification options object containing:
+     *   - classifyData: boolean - Whether to classify the data or use unique values
+     *   - classes: number - Number of desired classes/breaks
+     *   - classificationMethod: string - Classification method to use:
+     *     - "j": Jenks natural breaks
+     *     - "k": K-means clustering
+     *     - "q": Quantile
+     *     - "e": Equal interval
+     *     - "l": Linear
+     * @returns Array of break points that define the class intervals
+     */
     public getClassBreaks(values: number[], options: any): number[] {
 
         const uniqueValues = new Set(values);
@@ -81,6 +114,20 @@ export class DataService {
         }
     }
 
+    /**
+     * Generates a color scale based on class breaks and choropleth options
+     * @param classBreaks Array of numeric break points that define class intervals
+     * @param options Choropleth options object containing:
+     *   - usePredefinedColorRamp: boolean - Whether to use predefined color ramp
+     *   - invertColorRamp: boolean - Whether to invert the color ramp order
+     *   - classes: number - Number of color classes to generate
+     *   - minColor: string - Starting color for custom gradient
+     *   - midColor: string - Middle color for custom gradient
+     *   - maxColor: string - Ending color for custom gradient
+     *   - colorMode: string - Color interpolation mode (e.g. 'lch', 'lab', 'rgb')
+     * @returns Array of color strings representing the generated color scale
+     */
+
     public getColorScale(classBreaks: number[], options: ChoroplethOptions): string[] {
 
         if (options.usePredefinedColorRamp) {
@@ -101,6 +148,14 @@ export class DataService {
             .colors(options.classes);
     }
 
+
+    /**
+     * Gets the color from the color scale based on the value and class breaks
+     * @param value The value to get the color for
+     * @param classBreaks The class breaks to use for the color scale
+     * @param colorScale The color scale to use for the color
+     * @returns The color from the color scale
+     */
     public getColorFromClassBreaks(
         value: number,
         classBreaks: number[],
@@ -120,10 +175,22 @@ export class DataService {
         return "#009edb"; // Default color
     }
 
+
+    /**
+     * Checks if the provided data is in TopoJSON format
+     * @param data Data to check format of
+     * @returns boolean indicating if data is TopoJSON
+     */
     private isTopoJSON(data: any): boolean {
         return data.type === "Topology" && data.objects && Array.isArray(data.arcs);
     }
-    
+
+
+    /**
+     * Converts TopoJSON data to GeoJSON format
+     * @param topology TopoJSON data to convert
+     * @returns GeoJSON FeatureCollection
+     */
     private convertTopoJSONToGeoJSON(topology: any): FeatureCollection {
 
         if (!topology || typeof topology !== "object") {
