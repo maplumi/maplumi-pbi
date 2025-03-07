@@ -27,9 +27,11 @@
         "./src/services/LayerService.ts",
         "src/services/LegendService.ts",
         "./src/services/ColorRampService.ts",
-        "./src/config/MapConfig.ts",
+        "./src/config/MapConfig.ts",        
+        "./src/events/EventManager.ts",
+        
         "./src/types/index.ts",
-        "./src/events/EventManager.ts"     
-       
+        "./src/types/simple-statistics.d.ts",
+        "./src/types/chroma-js.d.ts"
     ]
 }
