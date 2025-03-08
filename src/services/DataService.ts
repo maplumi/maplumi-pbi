@@ -54,19 +54,140 @@ export class DataService {
      * @returns Array of tooltip items arrays, where each inner array contains tooltip items for a feature
      */
     public extractTooltips(categorical: any): VisualTooltipDataItem[][] {
-        // Assuming tooltip fields are in the 'values' collection
-        const tooltipFields = categorical.values.filter(v => v.source.roles["Tooltips"]);
+        
+        // Get all fields that have the Tooltips role
+        const tooltipFields = categorical.values
+            .filter(v => v.source.roles["Tooltips"])
+            // Sort by the original order in Power BI
+            .sort((a, b) => {
+                const aIndex = a.source.index || 0;
+                const bIndex = b.source.index || 0;
+                return aIndex - bIndex;
+            });
+
         const tooltips: VisualTooltipDataItem[][] = [];
 
         for (let i = 0; i < categorical.categories[0].values.length; i++) {
-            const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => ({
-                displayName: field.source.displayName,
-                value: field.values[i]
-            }));
+            const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => {
+                const value = field.values[i];
+                const format = field.source.format;
+                
+                // Create tooltip item with original formatting
+                const tooltipItem: VisualTooltipDataItem = {
+                    displayName: field.source.displayName,
+                    value: this.formatValue(value, format)
+                };
+
+                // Add color if specified in Power BI
+                if (field.source.color) {
+                    tooltipItem.color = field.source.color;
+                }
+
+                return tooltipItem;
+            });
             tooltips.push(tooltipItems);
         }
 
         return tooltips;
+    }
+
+    /**
+     * Formats a value according to Power BI formatting rules
+     * @param value The value to format
+     * @param format The Power BI format string
+     * @returns Formatted string value
+     */
+    private formatValue(value: any, format?: string): string {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        // If no format specified, use default conversion
+        if (!format) {
+            return this.convertToString(value);
+        }
+
+        // Handle Date objects with format
+        if (value instanceof Date) {
+            try {
+                // Use Power BI's date format if available
+                return value.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch {
+                return value.toLocaleDateString();
+            }
+        }
+
+        // Handle numbers with format
+        if (typeof value === 'number') {
+            try {
+                // Use Power BI's number format if available
+                return value.toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                    useGrouping: true
+                });
+            } catch {
+                return this.convertToString(value);
+            }
+        }
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+            return value.map(v => this.formatValue(v, format)).join(', ');
+        }
+
+        // Handle objects
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+
+        // Default case: convert to string
+        return String(value);
+    }
+
+    /**
+     * Converts any value to a string representation (fallback method)
+     * @param value The value to convert
+     * @returns String representation of the value
+     */
+    private convertToString(value: any): string {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        // Handle Date objects
+        if (value instanceof Date) {
+            return value.toLocaleDateString();
+        }
+
+        // Handle numbers
+        if (typeof value === 'number') {
+            // Check if it's an integer
+            if (Number.isInteger(value)) {
+                return value.toString();
+            }
+            // For floating point numbers, limit decimal places
+            return value.toFixed(2);
+        }
+
+        // Handle arrays
+        if (Array.isArray(value)) {
+            return value.map(v => this.convertToString(v)).join(', ');
+        }
+
+        // Handle objects
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
+        }
+
+        // Default case: convert to string
+        return String(value);
     }
 
     /**
