@@ -85,6 +85,14 @@ export interface ChoroplethLayerOptions extends LayerOptions {
     zIndex: number;
     categoryValues: string[];
     measureValues: number[];
+    selectionManager: ISelectionManager;
+    tooltipServiceWrapper: ITooltipServiceWrapper;
+    dataPoints?: Array<{
+        pcode: string;
+        value: number;
+        tooltip: VisualTooltipDataItem[];
+        selectionId: ISelectionId;
+    }>;
 }
 
 export interface EventData {

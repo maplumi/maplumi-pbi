@@ -513,11 +513,10 @@ export class MaplyticsVisual implements IVisual {
     }
 
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
-
+        
         if (!choroplethOptions.layerControl) return; // Early exit
 
         this.svgOverlay.style.display = 'flex';
-
         this.legendContainer.style.display = "block";
 
         console.log('Rendering choropleth...');
@@ -541,48 +540,13 @@ export class MaplyticsVisual implements IVisual {
             (c) => c.source?.roles && c.source.roles["Color"]
         );
 
-        //console.log('colorMeasure', colorMeasure);
-
         if (!colorMeasure) {
             console.warn("Color Measure not found.");
             return;
         }
 
-        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
-        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
-
-        // Cancel previous fetch
-        if (this.abortController) {
-            this.abortController.abort();
-        }
-        this.abortController = new AbortController();
-
-        try {
-
-            util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey,
-                this.abortController.signal as AbortSignal,
-                MapConfig.CACHE.EXPIRY_MS)
-                .then((data: any) => {
-
-                    // Check if layer is still enabled after async operation
-                    if (!choroplethOptions.layerControl) return;
-
-                    const processedGeoData = this.dataService.processGeoData(data, choroplethOptions.locationPcodeNameId, AdminPCodeNameIDCategory.values);
-
-                    this.renderChoropleth(processedGeoData, AdminPCodeNameIDCategory, colorMeasure, choroplethOptions);
-                });
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        }
-
-
-    }
-
-    private renderChoropleth(geodata: any, category: any, measure: any, choroplethOptions: ChoroplethOptions) {
-
         // Get PCodes (this is the category/feature identifier)
-        const pCodes = category.values as string[];
+        const pCodes = AdminPCodeNameIDCategory.values as string[];
         if (!pCodes || pCodes.length === 0) {
             console.warn("No PCodes found. Exiting...");
             return;
@@ -595,68 +559,101 @@ export class MaplyticsVisual implements IVisual {
             return;
         }
 
-        const colorValues: number[] = measure.values;
+        const colorValues: number[] = colorMeasure.values;
         const classBreaks = this.dataService.getClassBreaks(colorValues, choroplethOptions);
-        //console.log('classBreaks', classBreaks);
-
         const colorScale = this.dataService.getColorScale(classBreaks, choroplethOptions);
-        //console.log('colorScale', colorScale);
-
         const pcodeKey = choroplethOptions.locationPcodeNameId;
 
-        // Filter GeoJSON features based on valid PCodes
-        const filteredGeoData = {
-            ...geodata,
-            features: geodata.features.filter((feature: any) =>
-                validPCodes.includes(feature.properties[pcodeKey])
-            )
-        };
+        // Extract tooltips
+        const tooltips = this.dataService.extractTooltips(categorical);
 
-        const choroplethLayerOptions: ChoroplethLayerOptions = {
+        // Create data points for each feature
+        const dataPoints = pCodes.map((pcode, i) => {
+            const selectionId = this.host.createSelectionIdBuilder()
+                .withCategory(AdminPCodeNameIDCategory, i)
+                .withMeasure(colorMeasure.source.queryName)
+                .createSelectionId();
 
-            geojson: filteredGeoData,
-            strokeColor: choroplethOptions.strokeColor,
-            strokeWidth: choroplethOptions.strokeWidth,
-            fillOpacity: choroplethOptions.layerOpacity,
-            colorScale: (value: any) => this.dataService.getColorFromClassBreaks(value, classBreaks, colorScale),
-            dataKey: pcodeKey,
-            svg: this.svg,
-            svgContainer: this.svgContainer,
-            zIndex: 5,
-            categoryValues: category.values,
-            measureValues: measure.values,
+            return {
+                pcode: pcode,
+                value: colorValues[i],
+                tooltip: tooltips[i],
+                selectionId: selectionId
+            };
+        });
+
+        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
+        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
+
+        // Cancel previous fetch
+        if (this.abortController) {
+            this.abortController.abort();
         }
+        this.abortController = new AbortController();
 
-        this.choroplethLayer = new ChoroplethLayer(choroplethLayerOptions);
+        try {
+            util.fetchAndCacheJsonGeoDataAsync(serviceUrl, this.memoryCache, cacheKey,
+                this.abortController.signal as AbortSignal,
+                MapConfig.CACHE.EXPIRY_MS)
+                .then((data: any) => {
+                    // Check if layer is still enabled after async operation
+                    if (!choroplethOptions.layerControl) return;
 
-        this.map.addLayer(this.choroplethLayer);
+                    const processedGeoData = this.dataService.processGeoData(data, choroplethOptions.locationPcodeNameId, AdminPCodeNameIDCategory.values);
 
-        this.mapExtent = this.choroplethLayer.getFeaturesExtent();
+                    // Filter GeoJSON features based on valid PCodes
+                    const filteredGeoData = {
+                        ...processedGeoData,
+                        features: processedGeoData.features.filter((feature: any) =>
+                            validPCodes.includes(feature.properties[pcodeKey])
+                        )
+                    };
 
-        this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
+                    const choroplethLayerOptions: ChoroplethLayerOptions = {
+                        geojson: filteredGeoData,
+                        strokeColor: choroplethOptions.strokeColor,
+                        strokeWidth: choroplethOptions.strokeWidth,
+                        fillOpacity: choroplethOptions.layerOpacity,
+                        colorScale: (value: any) => this.dataService.getColorFromClassBreaks(value, classBreaks, colorScale),
+                        dataKey: pcodeKey,
+                        svg: this.svg,
+                        svgContainer: this.svgContainer,
+                        zIndex: 5,
+                        categoryValues: AdminPCodeNameIDCategory.values,
+                        measureValues: colorMeasure.values,
+                        tooltipServiceWrapper: this.tooltipServiceWrapper,
+                        selectionManager: this.selectionManager,
+                        dataPoints: dataPoints // Add dataPoints to the options
+                    }
 
-        //const svg = this.choroplethLayer.getSvg(); // Get the SVG element
+                    this.choroplethLayer = new ChoroplethLayer(choroplethLayerOptions);
 
-        // Update the legend
-        if (choroplethOptions.showLegend) {
+                    this.map.addLayer(this.choroplethLayer);
 
-            this.legendContainer.style.display = "block";
+                    this.mapExtent = this.choroplethLayer.getFeaturesExtent();
 
-            this.legendService.createChoroplethLegend(
-                colorValues,
-                classBreaks,
-                colorScale,
-                choroplethOptions
-            );
+                    this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
 
-            this.legendService.showLegend('choropleth');
+                    // Update the legend
+                    if (choroplethOptions.showLegend) {
+                        this.legendContainer.style.display = "block";
 
+                        this.legendService.createChoroplethLegend(
+                            colorValues,
+                            classBreaks,
+                            colorScale,
+                            choroplethOptions
+                        );
+
+                        this.legendService.showLegend('choropleth');
+                    } else {
+                        this.legendService.hideLegend('choropleth');
+                    }
+                });
+
+        } catch (error) {
+            console.error("Error fetching data:", error);
         }
-        else {
-
-            this.legendService.hideLegend('choropleth');
-        }
-
     }
 
     private getBasemapOptions(): BasemapOptions {
