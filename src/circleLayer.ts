@@ -1,4 +1,3 @@
-
 import { Layer } from 'ol/layer.js';
 import { FrameState } from 'ol/Map';
 import { State } from 'ol/source/Source';
@@ -12,7 +11,7 @@ export class CircleLayer extends Layer {
     private svg: any;
     private features: GeoJSONFeature[];
     public options: CircleLayerOptions;
-    private selectedIds: powerbi.visuals.ISelectionId[] = []; // Track selected IDs
+    private selectedIds: powerbi.extensibility.ISelectionId[] = [];
     private isActive: boolean = true;
 
     constructor(options: CircleLayerOptions) {
@@ -123,7 +122,8 @@ export class CircleLayer extends Layer {
                         if (this.selectedIds.length === 0) {
                             return layer1Opacity;
                         } else {
-                            return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layer1Opacity : layer1Opacity / 2; // Dim unselected circles
+                            return this.selectedIds.some(selectedId => 
+                                selectedId === d) ? layer1Opacity : layer1Opacity / 2; // Dim unselected circles
                         }
                     });
 
@@ -144,7 +144,7 @@ export class CircleLayer extends Layer {
                     const nativeEvent = event;
 
                     this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
-                        .then((selectedIds: powerbi.visuals.ISelectionId[]) => {
+                        .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                             this.selectedIds = selectedIds; // Update selected IDs
                             console.log('Selected IDs:', this.selectedIds);
                             this.changed(); // Trigger re-render to apply new opacity
@@ -169,7 +169,8 @@ export class CircleLayer extends Layer {
                             if (this.selectedIds.length === 0) {
                                 return layer2Opacity;
                             } else {
-                                return this.selectedIds.some(selectedId => selectedId.equals(d)) ? layer2Opacity : layer2Opacity / 2; // Dim unselected circles
+                                return this.selectedIds.some(selectedId => 
+                                    selectedId === d) ? layer2Opacity : layer2Opacity / 2; // Dim unselected circles
                             }
                         });
 
@@ -191,7 +192,7 @@ export class CircleLayer extends Layer {
                         const nativeEvent = event;
 
                         this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
-                            .then((selectedIds: powerbi.visuals.ISelectionId[]) => {
+                            .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                 this.selectedIds = selectedIds; // Update selected IDs
                                 console.log('Selected IDs:', this.selectedIds);
                                 this.changed(); // Trigger re-render to apply new opacity
@@ -250,6 +251,10 @@ export class CircleLayer extends Layer {
 
         const extent = [minX, minY, maxX, maxY];
         return transformExtent(extent, 'EPSG:4326', 'EPSG:3857'); // Transform to map projection
+    }
+
+    setSelectedIds(selectionIds: powerbi.extensibility.ISelectionId[]) {
+        this.selectedIds = selectionIds;
     }
 
 }

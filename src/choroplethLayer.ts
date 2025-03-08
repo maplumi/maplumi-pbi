@@ -19,7 +19,7 @@ export class ChoroplethLayer extends Layer {
     public valueLookup: { [key: string]: number };
     private spatialIndex: any;
     private d3Path: any;
-    private selectedIds: ISelectionId[] = [];
+    private selectedIds: powerbi.extensibility.ISelectionId[] = [];
     private isActive: boolean = true;
 
     constructor(options: ChoroplethLayerOptions) {
@@ -122,7 +122,7 @@ export class ChoroplethLayer extends Layer {
                         return this.options.fillOpacity;
                     } else {
                         return this.selectedIds.some(selectedId => 
-                            selectedId.equals(dataPoint?.selectionId)) 
+                            selectedId === dataPoint?.selectionId) 
                             ? this.options.fillOpacity 
                             : this.options.fillOpacity / 2;
                     }
@@ -185,5 +185,9 @@ export class ChoroplethLayer extends Layer {
         const maxCoords = fromLonLat(bounds[1], 'EPSG:3857');
         const extent = [...minCoords, ...maxCoords];
         return extent;
+    }
+
+    setSelectedIds(selectionIds: powerbi.extensibility.ISelectionId[]) {
+        this.selectedIds = selectionIds;
     }
 }

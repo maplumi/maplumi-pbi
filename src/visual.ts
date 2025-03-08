@@ -99,7 +99,7 @@ export class MaplyticsVisual implements IVisual {
     private tooltipServiceWrapper: ITooltipServiceWrapper;
 
     private selectionManager: ISelectionManager;
-    private selectedIds: powerbi.visuals.ISelectionId[] = []; // Track selections
+    private selectedIds: powerbi.extensibility.ISelectionId[] = []; // Track selections
 
     private container: HTMLElement;
     private svgContainer: HTMLElement;
@@ -225,6 +225,22 @@ export class MaplyticsVisual implements IVisual {
 
         this.svg = d3.select(this.svgOverlay);
         this.svgContainer = document.createElement('div'); // svg node container      
+
+        // Subscribe to selection changes
+        this.selectionManager.registerOnSelectCallback(() => {
+            const selectionIds = this.selectionManager.getSelectionIds();
+            this.selectedIds = selectionIds;
+            
+            // Update both layers if they exist
+            if (this.circleLayer) {
+                this.circleLayer.setSelectedIds(selectionIds);
+                this.circleLayer.changed();
+            }
+            if (this.choroplethLayer) {
+                this.choroplethLayer.setSelectedIds(selectionIds);
+                this.choroplethLayer.changed();
+            }
+        });
     }
 
     update(options: VisualUpdateOptions) {
