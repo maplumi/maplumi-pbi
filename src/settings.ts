@@ -370,11 +370,6 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
 
-    classifyData: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "classifyData",
-        displayName: "Classify Data",
-        value: true
-    });
 
     numClasses: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "numClasses",
@@ -395,6 +390,7 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
             { value: "l", displayName: "Logarithmic" },
             { value: "k", displayName: "K-means" },
             { value: "j", displayName: "Jenks Natural Breaks" },
+            { value: "u", displayName: "Unclassified" }
         ]
     });
 
@@ -402,7 +398,7 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
     name: string = "choroplethClassificationSettingsGroup";
     displayName: string = "Classification";
     slices: formattingSettings.Slice[] = [
-        this.classifyData,
+        
         this.classificationMethod,
         this.numClasses
     ];

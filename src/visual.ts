@@ -589,7 +589,6 @@ export class MaplyticsVisual implements IVisual {
                 .withCategory(AdminPCodeNameIDCategory, i)
                 .withMeasure(colorMeasure.source.queryName)
                 .createSelectionId();
-
             return {
                 pcode: pcode,
                 value: colorValues[i],
@@ -738,7 +737,6 @@ export class MaplyticsVisual implements IVisual {
             locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
 
-            classifyData: choroplethClassificationSettings.classifyData.value,
             usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
             colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),

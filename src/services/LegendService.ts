@@ -1,4 +1,3 @@
-
 import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as util from "../utils/utils";
 
@@ -161,12 +160,21 @@ export class LegendService {
         formatTemplate: string = "{:.0f}",
         gapSize: number = 2.5
     ) {
+        // Skip legend creation for unclassified/unique values
+        if (options.classificationMethod === "u") {
+            if (this.choroplethLegendContainer) {
+                this.choroplethLegendContainer.style.display = "none";
+            }
+            return;
+        }
+
         // Clear or create container
         if (!this.choroplethLegendContainer) {
             this.choroplethLegendContainer = document.createElement("div");
             this.mainContainer.appendChild(this.choroplethLegendContainer);
         } else {
             this.clearContainer(this.choroplethLegendContainer);
+            this.choroplethLegendContainer.style.display = "flex";
         }
 
         // Create legend items container
@@ -194,7 +202,7 @@ export class LegendService {
 
         // Collect all labels and calculate max width
         const allLabels = [];
-        if (options.classifyData) {
+        if (options.classificationMethod !== "u") {
             for (let i = 0; i < classBreaks.length - 1; i++) {
                 allLabels.push(`${util.formatValue(classBreaks[i], formatTemplate)} - ${util.formatValue(classBreaks[i + 1], formatTemplate)}`);
             }
@@ -237,7 +245,7 @@ export class LegendService {
         itemsContainer.style.alignItems = "flex-start";
 
         // Create legend items
-        const colors = options.classifyData
+        const colors = options.classificationMethod !== "u"
             ? classBreaks.slice(0, -1).map((_, i) => colorScale[i])
             : uniqueColorValues.map((_, i) => colorScale[i]);
 

@@ -323,11 +323,6 @@
             "text": true
           }
         },
-        "classifyData": {
-          "type": {
-            "bool": true
-          }
-        },
         "numClasses": {
           "type": {
             "numeric": true

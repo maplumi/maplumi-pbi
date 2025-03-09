@@ -209,9 +209,10 @@ export class DataService {
         const uniqueValues = new Set(values);
         const numValues = uniqueValues.size;
 
-        if (!options.classifyData) {
+        // Handle unclassified/unique values case first
+        if (options.classificationMethod === "u") {
             return Array.from(uniqueValues).sort((a, b) => a - b);
-        }
+        }     
 
         const adjustedClasses = Math.min(options.classes, numValues);
 
@@ -250,15 +251,19 @@ export class DataService {
      */
 
     public getColorScale(classBreaks: number[], options: ChoroplethOptions): string[] {
+        // For unclassified/unique values, use the number of unique values as classes
+        const numClasses = options.classificationMethod === "u" 
+            ? classBreaks.length 
+            : options.classes;
 
         if (options.usePredefinedColorRamp) {
-
             if (options.invertColorRamp) {
                 this.colorRampService.invertRamp();
             }
             return this.colorRampService.generateColorRamp(
                 classBreaks,
-                options.classes
+                numClasses,
+                options.colorMode
             );
         }
 
@@ -266,7 +271,7 @@ export class DataService {
             .scale([options.minColor, options.midColor, options.maxColor])
             .mode(options.colorMode)
             .domain(classBreaks)
-            .colors(options.classes);
+            .colors(numClasses);
     }
 
 
@@ -280,8 +285,16 @@ export class DataService {
     public getColorFromClassBreaks(
         value: number,
         classBreaks: number[],
-        colorScale: string[]
+        colorScale: string[],
+        options?: ChoroplethOptions
     ): string {
+        // For unclassified/unique values, find exact match
+        if (options?.classificationMethod === "u") {
+            const index = classBreaks.indexOf(value);
+            return index !== -1 ? colorScale[index] : "#009edb"; // Default color if no match
+        }
+
+        // For classified values, use range-based logic
         if (value < classBreaks[0]) return colorScale[0];
         if (value > classBreaks[classBreaks.length - 1]) {
             return colorScale[colorScale.length - 1];
