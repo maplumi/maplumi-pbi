@@ -762,7 +762,7 @@ class mapToolsVisualCardSettings extends formattingSettings.CompositeCard {
 * visual settings model class
 *
 */
-export class MaplyticsVisualFormattingSettingsModel extends FormattingSettingsModel {
+export class MaplumiVisualFormattingSettingsModel extends FormattingSettingsModel {
 
     // Create formatting settings model formatting cards
     BasemapVisualCardSettings = new basemapVisualCardSettings();

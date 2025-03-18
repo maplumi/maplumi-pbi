@@ -42,7 +42,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import PrimitiveValue = powerbi.PrimitiveValue;
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
-import { MaplyticsVisualFormattingSettingsModel } from "./settings";
+import { MaplumiVisualFormattingSettingsModel } from "./settings";
 
 import "ol/ol.css";
 import Map from "ol/Map";
@@ -90,11 +90,11 @@ import { MaplyticsAttributionControl } from "./utils/attribution";
 import { MapConfig } from "./config/MapConfig";
 
 
-export class MaplyticsVisual implements IVisual {
+export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
     private formattingSettingsService: FormattingSettingsService;
-    private visualFormattingSettingsModel: MaplyticsVisualFormattingSettingsModel;
+    private visualFormattingSettingsModel: MaplumiVisualFormattingSettingsModel;
 
     private tooltipServiceWrapper: ITooltipServiceWrapper;
 
@@ -164,7 +164,7 @@ export class MaplyticsVisual implements IVisual {
         this.memoryCache = {};
 
         this.formattingSettingsService = new FormattingSettingsService();
-        this.visualFormattingSettingsModel = new MaplyticsVisualFormattingSettingsModel();
+        this.visualFormattingSettingsModel = new MaplumiVisualFormattingSettingsModel();
 
         this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService);
         this.selectionManager = this.host.createSelectionManager();
@@ -802,7 +802,7 @@ export class MaplyticsVisual implements IVisual {
 
     private getFormattingSettings(options: VisualUpdateOptions) {
         return this.formattingSettingsService.populateFormattingSettingsModel(
-            MaplyticsVisualFormattingSettingsModel,
+            MaplumiVisualFormattingSettingsModel,
             options.dataViews[0]
         );
     }
