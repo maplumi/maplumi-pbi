@@ -1,1 +1,1 @@
-Maplytics Power BI Map Visual
+Maplumi Power BI Map Visual
