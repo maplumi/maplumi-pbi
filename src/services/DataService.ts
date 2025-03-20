@@ -35,14 +35,10 @@ export class DataService {
             ? this.convertTopoJSONToGeoJSON(data)
             : data as FeatureCollection;
 
-        // Simplify geometry
-        const turfOptions = { tolerance: 0.01, highQuality: false };
-        const simplifiedGeo = turf.simplify(geojson, turfOptions);
-
         // Filter features based on valid PCodes
         return {
-            ...simplifiedGeo,
-            features: simplifiedGeo.features.filter(feature =>
+            ...geojson,
+            features: geojson.features.filter(feature =>
                 validPCodes.includes(feature.properties[pcodeKey])
             )
         };
