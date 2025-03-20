@@ -616,16 +616,8 @@ export class MaplumiVisual implements IVisual {
 
                     const processedGeoData = this.dataService.processGeoData(data, choroplethOptions.locationPcodeNameId, AdminPCodeNameIDCategory.values);
 
-                    // Filter GeoJSON features based on valid PCodes
-                    const filteredGeoData = {
-                        ...processedGeoData,
-                        features: processedGeoData.features.filter((feature: any) =>
-                            validPCodes.includes(feature.properties[pcodeKey])
-                        )
-                    };
-
                     const choroplethLayerOptions: ChoroplethLayerOptions = {
-                        geojson: filteredGeoData,
+                        geojson: processedGeoData,
                         strokeColor: choroplethOptions.strokeColor,
                         strokeWidth: choroplethOptions.strokeWidth,
                         fillOpacity: choroplethOptions.layerOpacity,
