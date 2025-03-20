@@ -1,6 +1,3 @@
-import { fromLonLat, toLonLat, transformExtent } from "ol/proj";
-import { Extent, getCenter, getWidth } from 'ol/extent.js';
-import * as topojson from 'topojson-client';
 
 // Helper function to validate GeoJSON data
 export function isValidGeoJson(data: any): boolean {
@@ -331,7 +328,6 @@ export async function fetchAndCacheJsonGeoDataAsync(
     signal: AbortSignal,
     maxAge: number = 3600000
 ): Promise<any> {
-
 
     if (await isCacheExpired(cache, cacheKey, maxAge)) {
 
