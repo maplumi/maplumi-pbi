@@ -29,132 +29,50 @@ import powerbi from "powerbi-visuals-api";
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import "./../style/visual.less";
 
-import { createTooltipServiceWrapper, TooltipEventArgs, ITooltipServiceWrapper, TooltipEnabledDataPoint } from "powerbi-visuals-utils-tooltiputils";
-import ISelectionBuilder = powerbi.visuals.ISelectionIdBuilder;
+import { createTooltipServiceWrapper, ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
-
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 
-import PrimitiveValue = powerbi.PrimitiveValue;
-import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
-
-import { MaplumiVisualFormattingSettingsModel } from "./settings";
-
-import "ol/ol.css";
+import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
-import View from "ol/View";
-
-import { Interaction, DragZoom, MouseWheelZoom, PinchZoom, DoubleClickZoom } from 'ol/interaction';
-import Collection from 'ol/Collection';
-import Control from 'ol/control/Control';
-
-import { fromLonLat, toLonLat } from 'ol/proj.js';
-
-import { FeatureCollection } from "geojson";
-
-import TileLayer from "ol/layer/Tile";
-
-import XYZ from "ol/source/XYZ";
-
-import { easeOut } from "ol/easing";
-
-import { defaults as defaultControls } from "ol/control";
-
-import { MapboxVectorLayer } from "ol-mapbox-style";
-
-import * as chroma from "chroma-js"; // Import chroma module
-import * as ss from "simple-statistics";
-
 import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
-
-
 import { CircleLayer } from "./circleLayer";
 import { ChoroplethLayer } from "./choroplethLayer";
-
 import * as d3 from "d3";
-import * as turf from "@turf/turf";
-
 import * as util from "./utils/utils"
-
 import { LegendService } from "./services/LegendService";
 import { MapService } from "./services/MapService";
 import { DataService } from "./services/DataService";
 import { ColorRampService } from "./services/ColorRampService";
-
 import { Extent } from "ol/extent";
-import { MaplyticsAttributionControl } from "./utils/attribution";
 import { MapConfig } from "./config/MapConfig";
-
-
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
     private formattingSettingsService: FormattingSettingsService;
     private visualFormattingSettingsModel: MaplumiVisualFormattingSettingsModel;
-
     private tooltipServiceWrapper: ITooltipServiceWrapper;
-
     private selectionManager: ISelectionManager;
-    private selectedIds: powerbi.extensibility.ISelectionId[] = []; // Track selections
-
     private container: HTMLElement;
     private svgContainer: HTMLElement;
-
-    private spinner: HTMLElement;
     private legendContainer: HTMLElement;
-
     private colorRampService: ColorRampService;
     private legendService: LegendService;
     private mapService: MapService;
     private dataService: DataService;
-
-
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
-
     private map: Map;
-    private mapView: View;
-
-    private basemap: TileLayer | MapboxVectorLayer;
-    private basemapLayer: TileLayer;
-    private mapboxVectorLayer: MapboxVectorLayer;
-
-    private maptilerVectorLayer: TileLayer;
-    private customXYZLayer: TileLayer;
-
-    private customAttributionControl: MaplyticsAttributionControl;
-
-    private currentBasemapType: string = "";
-    private currentAttribution: string = "";
-    private currentMapboxStyle: string = '';
-    private currentMaptilerStyle: string = '';
-
     private mapToolsOptions: MapToolsOptions;
-
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
-
-    private isDataLoading: boolean = false;
-
     private mapExtent: Extent | undefined;
     private choroplethDisplayed: boolean = false;
-
-    private lockedView: View | null = null;
-
-    private currentView: View | null = null;
-    private currentExtent: Extent | null = null;
-    private currentZoom: number | null = null;
-
-    private originalInteractions: Interaction[] = [];
-    private originalControls: Collection<Control> = new Collection<Control>([]);
-    private mapControls: Collection<Control> = new Collection<Control>([]);
-
     private memoryCache: Record<string, { data: any; timestamp: number }>;
-
     private abortController: AbortController | null = null;
 
     constructor(options: VisualConstructorOptions) {
@@ -171,27 +89,6 @@ export class MaplumiVisual implements IVisual {
 
         this.container = options.element;
 
-        // create loader/spinner element
-        this.spinner = document.createElement('div');
-        this.spinner.setAttribute('id', 'spinner');
-        this.spinner.classList.add('loader');
-        this.spinner.style.border = '8px solid #f3f3f3';
-        this.spinner.style.borderRadius = '50%';
-        this.spinner.style.borderTop = '8px solid #3498db';
-        this.spinner.style.width = '40px';
-        this.spinner.style.height = '40px';
-        this.spinner.style.animation = 'spin 2s linear infinite';
-        this.spinner.style.position = 'absolute';
-        this.spinner.style.top = '50%';
-        this.spinner.style.left = '50%';
-        this.spinner.style.transform = 'translate(-50%, -50%)';
-        this.spinner.style.zIndex = '1000';
-        this.spinner.style.display = 'none'; // Initially hidden
-
-        this.spinner.style.pointerEvents = 'none';
-
-        this.container.appendChild(this.spinner);
-
         //legend container
         this.legendContainer = document.createElement("div");
         this.legendContainer.setAttribute("id", "legendContainer");
@@ -206,9 +103,7 @@ export class MaplumiVisual implements IVisual {
         this.legendService = new LegendService(this.legendContainer);
         this.mapService = new MapService(this.container);
 
-
         this.map = this.mapService.getMap();
-
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -228,9 +123,9 @@ export class MaplumiVisual implements IVisual {
 
         // Subscribe to selection changes
         this.selectionManager.registerOnSelectCallback(() => {
+
             const selectionIds = this.selectionManager.getSelectionIds();
-            this.selectedIds = selectionIds;
-            
+
             // Update both layers if they exist
             if (this.circleLayer) {
                 this.circleLayer.setSelectedIds(selectionIds);
@@ -258,45 +153,8 @@ export class MaplumiVisual implements IVisual {
         const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
 
-        //update legend container
-        this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
-        this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
-        this.legendContainer.style.border = `${this.mapToolsOptions.legendBorderWidth}px solid ${this.mapToolsOptions.legendBorderColor}`;
-        this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
-        this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;
-
-        // Reset all positioning properties first
-        this.legendContainer.style.top = 'auto';
-        this.legendContainer.style.right = 'auto';
-        this.legendContainer.style.bottom = 'auto';
-        this.legendContainer.style.left = 'auto';
-        this.legendContainer.style.transform = 'none'; // Reset any previous transforms
-
-        // Set new position
-        if (this.mapToolsOptions.legendPosition === 'top-right') {
-            this.legendContainer.style.top = '10px';
-            this.legendContainer.style.right = '10px';
-        } else if (this.mapToolsOptions.legendPosition === 'top-left') {
-            this.legendContainer.style.top = '10px';
-            this.legendContainer.style.left = '10px';
-        } else if (this.mapToolsOptions.legendPosition === 'bottom-right') {
-            this.legendContainer.style.bottom = '10px';
-            this.legendContainer.style.right = '10px';
-        } else if (this.mapToolsOptions.legendPosition === 'top-center') {
-            this.legendContainer.style.top = '10px';
-            this.legendContainer.style.left = '50%';
-            this.legendContainer.style.transform = 'translateX(-50%)';
-        } else if (this.mapToolsOptions.legendPosition === 'bottom-center') {
-            this.legendContainer.style.bottom = '10px';
-            this.legendContainer.style.left = '50%';
-            this.legendContainer.style.transform = 'translateX(-50%)';
-        } else { // bottom-left (default)
-            this.legendContainer.style.bottom = '10px';
-            this.legendContainer.style.left = '10px';
-        }
-
-
-        //this.spinner.style.display = 'block';  // Show spinner while loading data
+        // Update Legend Container
+        this.updateLegendContainer();
 
         this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
         this.dataService = new DataService(this.colorRampService);
@@ -305,11 +163,10 @@ export class MaplumiVisual implements IVisual {
 
         // Check data validity
         if (!dataView || !dataView.categorical) {
-            console.log("No categorical data found.");
 
+            console.log("No categorical data found.");
             return;
         }
-
 
         this.choroplethDisplayed = choroplethOptions.layerControl;
 
@@ -334,9 +191,7 @@ export class MaplumiVisual implements IVisual {
             ['circles-group-2']
         );
 
-        //this.spinner.style.display = 'none'; // Hide spinner after rendering
-
-        // Optional: Clear entire SVG if all layers are off
+        // Clear entire SVG if all layers are off
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
             this.svg.selectAll('*').remove();
         }
@@ -376,7 +231,6 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
-
     private renderCircleLayer(categorical: any, circleOptions: CircleOptions) {
 
         if (!circleOptions.layerControl) return; // Early exit if layer is off
@@ -397,7 +251,6 @@ export class MaplumiVisual implements IVisual {
 
             const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
             const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
-            //const circleSizeValuesMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
 
             const circleSizeValuesObjects = categorical?.values
                 ?.filter((c) => c.source?.roles?.Size) || [];
@@ -529,7 +382,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {
-        
+
         if (!choroplethOptions.layerControl) return; // Early exit
 
         this.svgOverlay.style.display = 'flex';
@@ -663,6 +516,52 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
+    private updateLegendContainer(): void {
+        // Update legend container styles
+        this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
+        this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
+        this.legendContainer.style.border = `${this.mapToolsOptions.legendBorderWidth}px solid ${this.mapToolsOptions.legendBorderColor}`;
+        this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
+        this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;
+
+        // Reset all positioning properties first
+        this.legendContainer.style.top = 'auto';
+        this.legendContainer.style.right = 'auto';
+        this.legendContainer.style.bottom = 'auto';
+        this.legendContainer.style.left = 'auto';
+        this.legendContainer.style.transform = 'none'; // Reset any previous transforms
+
+        // Set new position
+        switch (this.mapToolsOptions.legendPosition) {
+            case 'top-right':
+                this.legendContainer.style.top = '10px';
+                this.legendContainer.style.right = '10px';
+                break;
+            case 'top-left':
+                this.legendContainer.style.top = '10px';
+                this.legendContainer.style.left = '10px';
+                break;
+            case 'bottom-right':
+                this.legendContainer.style.bottom = '10px';
+                this.legendContainer.style.right = '10px';
+                break;
+            case 'top-center':
+                this.legendContainer.style.top = '10px';
+                this.legendContainer.style.left = '50%';
+                this.legendContainer.style.transform = 'translateX(-50%)';
+                break;
+            case 'bottom-center':
+                this.legendContainer.style.bottom = '10px';
+                this.legendContainer.style.left = '50%';
+                this.legendContainer.style.transform = 'translateX(-50%)';
+                break;
+            default: // bottom-left (default)
+                this.legendContainer.style.bottom = '10px';
+                this.legendContainer.style.left = '10px';
+                break;
+        }
+    }
+
     private getBasemapOptions(): BasemapOptions {
         const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
         return {
@@ -751,22 +650,6 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private unlockMap() {
-
-        if (!this.map || !this.lockedView) return;
-
-        // Restore original controls/interactions
-        // this.originalControls.forEach(control => this.map.addControl(control));
-        // this.map.getInteractions().extend(this.originalInteractions);
-
-        this.map.setView(this.mapView);
-        this.lockedView = null;  //reset lockedView
-
-        // Optionally fit to data extent
-        setTimeout(() => {
-            this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
-        }, 0);
-    }
 
     private cleanupLayers() {
         if (this.circleLayer) {
