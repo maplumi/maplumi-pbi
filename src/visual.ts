@@ -39,7 +39,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
-import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
+import { BasemapOptions, ChoroplethLayerOptions, ChoroplethOptions, CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
 import { CircleLayer } from "./circleLayer";
 import { ChoroplethLayer } from "./choroplethLayer";
 import * as d3 from "d3";
@@ -231,154 +231,182 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
-    private renderCircleLayer(categorical: any, circleOptions: CircleOptions) {
-
+    private renderCircleLayer(categorical: any, circleOptions: CircleOptions): void {
         if (!circleOptions.layerControl) return; // Early exit if layer is off
 
         this.legendContainer.style.display = "block";
+        this.svgOverlay.style.display = "block";
 
-        let longitudes: number[] | undefined;
-        let latitudes: number[] | undefined;
-        let circle1SizeValues: number[] | undefined;
-        let circle2SizeValues: number[] | undefined;
-        let minCircleSizeValue: number | undefined;
-        let maxCircleSizeValue: number | undefined;
-        let circleScale: number | undefined;
+        const { longitudes, latitudes, circleSizeValuesObjects } = this.extractCircleData(categorical);
+        if (!longitudes || !latitudes) return;
 
-        if (circleOptions.layerControl) {
+        const combinedCircleSizeValues = this.combineCircleSizeValues(circleSizeValuesObjects);
+        const { minCircleSizeValue, maxCircleSizeValue, circleScale } = this.calculateCircleScale(
+            combinedCircleSizeValues,
+            circleOptions
+        );
 
-            this.svgOverlay.style.display = 'block';
+        const dataPoints = this.createCircleDataPoints(longitudes, latitudes, circleSizeValuesObjects, categorical);
 
-            const lonCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Longitude"]);
-            const latCategory = categorical?.categories?.find((c) => c.source?.roles && c.source.roles["Latitude"]);
-
-            const circleSizeValuesObjects = categorical?.values
-                ?.filter((c) => c.source?.roles?.Size) || [];
-
-            const combinedCircleSizeValues = [
-                ...(circleSizeValuesObjects[0]?.values || []),
-                ...(circleSizeValuesObjects[1]?.values || [])
-            ].map(Number); // Ensure all elements are numbers
-
-
-            if (!lonCategory || !latCategory) {
-                console.warn("Both Longitude and Latitude roles must be assigned.");
-                return;
-            }
-
-            longitudes = lonCategory.values as number[];
-            latitudes = latCategory.values as number[];
-
-            // Extract tooltips
-            const tooltips = this.dataService.extractTooltips(categorical);
-
-            // Create data points for each circle
-            const dataPoints = longitudes.map((lon, i) => {
-
-                // Ensure all relevant data roles (category, measure, etc.) are included
-                const selectionId = this.host.createSelectionIdBuilder()
-                    .withCategory(lonCategory, i) // Use the actual category variable
-                    .withMeasure(circleSizeValuesObjects[0]?.source?.queryName) // Include measure roles if needed
-                    .withMeasure(circleSizeValuesObjects[1]?.source?.queryName)
-                    .createSelectionId();
-
-                return {
-                    longitude: lon,
-                    latitude: latitudes[i],
-                    //size1Value: circle1SizeValues?.[i] || circleOptions.minRadius,
-                    tooltip: tooltips[i],
-                    selectionId: selectionId, // Include selection ID
-                };
-            });
-
-
-            if (longitudes.length !== latitudes.length) {
-
-                console.warn("Longitude and Latitude have different lengths.");
-
-            } else {
-
-                // Handle Circle Size Measure or default size
-                //const CircleSizeMeasure = categorical?.values?.find((c) => c.source?.roles && c.source.roles["Size"]);
-
-                circle1SizeValues = circleSizeValuesObjects[0]?.values as number[];
-                circle2SizeValues = circleSizeValuesObjects[1]?.values as number[];
-
-                minCircleSizeValue = Math.min(...combinedCircleSizeValues);
-                maxCircleSizeValue = Math.max(...combinedCircleSizeValues);
-                circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
-
-                const circleLayerOptions: CircleLayerOptions = {
-
-                    // Required properties for the CircleLayer
-                    longitudes: longitudes,
-                    latitudes: latitudes,
-
-                    // Circle customization options
-                    circleOptions: circleOptions,
-                    combinedCircleSizeValues: combinedCircleSizeValues,
-
-                    // Optional properties for proportional circles
-                    circle1SizeValues: circle1SizeValues,
-                    circle2SizeValues: circle2SizeValues,
-                    minCircleSizeValue: minCircleSizeValue,
-                    circleScale: circleScale,
-                    svg: this.svg,
-                    svgContainer: this.svgContainer,
-                    zIndex: 5,
-
-                    dataPoints: dataPoints,
-                    tooltipServiceWrapper: this.tooltipServiceWrapper, // Pass the wrapper
-                    selectionManager: this.selectionManager,
-
-                };
-
-                // Remove existing CircleLayer if it exists
-                if (this.circleLayer) {
-                    this.map.removeLayer(this.circleLayer);
-                }
-
-                // Create new CircleLayer
-                this.circleLayer = new CircleLayer(circleLayerOptions);
-
-                this.map.addLayer(this.circleLayer);
-
-                if (!this.choroplethDisplayed) {
-
-                    this.mapExtent = this.circleLayer.getFeaturesExtent();
-
-                    this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
-                }
-
-                // Render legend if proportional circles are used
-                if (circleOptions.showLegend) {
-
-                    this.legendContainer.style.display = "block";
-
-                    let radii: number[] | undefined;
-
-                    if (combinedCircleSizeValues.length > 0 && minCircleSizeValue !== undefined && circleScale !== undefined) {
-
-                        radii = combinedCircleSizeValues.map((value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale);
-
-                        this.legendService.createProportionalCircleLegend(
-                            combinedCircleSizeValues,
-                            radii,
-                            circleSizeValuesObjects.length,
-                            circleOptions
-                        );
-
-                        this.legendService.showLegend('circle');
-
-                    }
-
-                }
-
-
-            }
-
-
+        if (longitudes.length !== latitudes.length) {
+            console.warn("Longitude and Latitude have different lengths.");
+            return;
         }
+
+        const circleLayerOptions: CircleLayerOptions = this.createCircleLayerOptions(
+            longitudes,
+            latitudes,
+            circleOptions,
+            combinedCircleSizeValues,
+            minCircleSizeValue,
+            circleScale,
+            dataPoints,
+            circleSizeValuesObjects[0]?.values as number[],
+            circleSizeValuesObjects[1]?.values as number[]
+        );
+
+        this.updateCircleLayer(circleLayerOptions);
+
+        if (circleOptions.showLegend) {
+            this.renderCircleLegend(combinedCircleSizeValues, minCircleSizeValue, circleScale, circleOptions);
+        }
+    }
+
+    private extractCircleData(categorical: any): CircleData {
+        const lonCategory = categorical?.categories?.find((c) => c.source?.roles?.Longitude);
+        const latCategory = categorical?.categories?.find((c) => c.source?.roles?.Latitude);
+
+        if (!lonCategory || !latCategory) {
+            console.warn("Both Longitude and Latitude roles must be assigned.");
+            return { longitudes: undefined, latitudes: undefined, circleSizeValuesObjects: [] };
+        }
+
+        const circleSizeValuesObjects = categorical?.values?.filter((c) => c.source?.roles?.Size) || [];
+        return {
+            longitudes: lonCategory.values as number[],
+            latitudes: latCategory.values as number[],
+            circleSizeValuesObjects,
+        };
+    }
+
+    private combineCircleSizeValues(circleSizeValuesObjects: any[]): number[] {
+        return [
+            ...(circleSizeValuesObjects[0]?.values || []),
+            ...(circleSizeValuesObjects[1]?.values || []),
+        ].map(Number); // Ensure all elements are numbers
+    }
+
+    private calculateCircleScale(
+        combinedCircleSizeValues: number[],
+        circleOptions: CircleOptions
+    ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number } {
+        const minCircleSizeValue = Math.min(...combinedCircleSizeValues);
+        const maxCircleSizeValue = Math.max(...combinedCircleSizeValues);
+
+        let circleScale: number;
+        if (maxCircleSizeValue === minCircleSizeValue) {
+            circleScale = 0; // No scaling needed, use the minimum radius
+        } else {
+            circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
+        }
+
+        return { minCircleSizeValue, maxCircleSizeValue, circleScale };
+    }
+
+    private createCircleDataPoints(
+        longitudes: number[],
+        latitudes: number[],
+        circleSizeValuesObjects: any[],
+        categorical: any
+    ): any[] {
+        const tooltips = this.dataService.extractTooltips(categorical);
+
+        return longitudes.map((lon, i) => {
+            const selectionId = this.host
+                .createSelectionIdBuilder()
+                .withCategory(categorical.categories[0], i)
+                .withMeasure(circleSizeValuesObjects[0]?.source?.queryName)
+                .withMeasure(circleSizeValuesObjects[1]?.source?.queryName)
+                .createSelectionId();
+
+            return {
+                longitude: lon,
+                latitude: latitudes[i],
+                tooltip: tooltips[i],
+                selectionId,
+            };
+        });
+    }
+
+    private createCircleLayerOptions(
+        longitudes: number[],
+        latitudes: number[],
+        circleOptions: CircleOptions,
+        combinedCircleSizeValues: number[],
+        minCircleSizeValue: number,
+        circleScale: number,
+        dataPoints: any[],
+        circle1SizeValues?: number[],
+        circle2SizeValues?: number[]
+    ): CircleLayerOptions {
+
+
+        return {
+            longitudes,
+            latitudes,
+
+            circleOptions,
+            combinedCircleSizeValues,
+
+            circle1SizeValues,
+            circle2SizeValues,
+
+            minCircleSizeValue,
+            circleScale,
+            svg: this.svg,
+            svgContainer: this.svgContainer,
+            zIndex: 5,
+
+            dataPoints,
+            tooltipServiceWrapper: this.tooltipServiceWrapper,
+            selectionManager: this.selectionManager,
+        };
+    }
+
+    private updateCircleLayer(circleLayerOptions: CircleLayerOptions): void {
+        // Remove existing CircleLayer if it exists
+        if (this.circleLayer) {
+            this.map.removeLayer(this.circleLayer);
+        }
+
+        // Create and add the new CircleLayer
+        this.circleLayer = new CircleLayer(circleLayerOptions);
+        this.map.addLayer(this.circleLayer);
+
+        if (!this.choroplethDisplayed) {
+            this.mapExtent = this.circleLayer.getFeaturesExtent();
+            this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
+        }
+    }
+
+    private renderCircleLegend(
+        combinedCircleSizeValues: number[],
+        minCircleSizeValue: number,
+        circleScale: number,
+        circleOptions: CircleOptions
+    ): void {
+        const radii = combinedCircleSizeValues.map(
+            (value) => circleOptions.minRadius + (value - minCircleSizeValue) * circleScale
+        );
+
+        this.legendService.createProportionalCircleLegend(
+            combinedCircleSizeValues,
+            radii,
+            combinedCircleSizeValues.length,
+            circleOptions
+        );
+
+        this.legendService.showLegend("circle");
     }
 
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions) {

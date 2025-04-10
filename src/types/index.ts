@@ -48,7 +48,11 @@ export interface LayerOptions extends OlLayerOptions {
     // selectionManager: ISelectionManager;
 }
 
-
+export interface CircleData {
+    longitudes: number[] | undefined;
+    latitudes: number[] | undefined;
+    circleSizeValuesObjects: any[];
+}
 
 export interface CircleLayerOptions extends LayerOptions {
 
