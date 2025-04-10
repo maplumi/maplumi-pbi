@@ -54,6 +54,21 @@ export interface CircleData {
     circleSizeValuesObjects: any[];
 }
 
+export interface ChoroplethData {
+    AdminPCodeNameIDCategory: any;
+    colorMeasure: any;
+    pCodes: string[] | undefined;
+}
+
+export interface ChoroplethDataSet {
+    colorValues: number[];
+    classBreaks: any;
+    colorScale: any;
+    pcodeKey: string;
+    tooltips: any[];
+    dataPoints: any[];
+}
+
 export interface CircleLayerOptions extends LayerOptions {
 
     longitudes: number[];
