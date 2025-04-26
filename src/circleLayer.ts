@@ -136,7 +136,6 @@ export class CircleLayer extends Layer {
                         true
                     );
 
-
                 }
 
                 circle1.on('click', (event: MouseEvent) => {

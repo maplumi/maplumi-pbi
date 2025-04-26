@@ -303,12 +303,13 @@ export class MaplumiVisual implements IVisual {
         combinedCircleSizeValues: number[],
         circleOptions: CircleOptions
     ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number } {
+        
         const minCircleSizeValue = Math.min(...combinedCircleSizeValues);
         const maxCircleSizeValue = Math.max(...combinedCircleSizeValues);
 
         let circleScale: number;
         if (maxCircleSizeValue === minCircleSizeValue) {
-            circleScale = 0; // No scaling needed, use the minimum radius
+            circleScale = 1; // No scaling needed, use the minimum radius
         } else {
             circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
         }
@@ -412,11 +413,10 @@ export class MaplumiVisual implements IVisual {
         this.legendService.showLegend("circle");
     }
 
-
+    // *** END CIRCLE LAYER ***
 
     // **** CHOROPLETH LAYER ****
     // This function is responsible for rendering the choropleth layer on the map
-
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions): void {
         if (!choroplethOptions.layerControl) return; // Early exit if the layer is disabled
 
@@ -610,6 +610,7 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
+    // *** END CHOROPLETH LAYER ***
 
     private updateLegendContainer(): void {
         // Update legend container styles
@@ -744,6 +745,8 @@ export class MaplumiVisual implements IVisual {
             legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value
         };
     }
+
+
 
 
     private cleanupLayers() {
