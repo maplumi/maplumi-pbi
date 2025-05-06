@@ -746,9 +746,6 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-
-
-
     private cleanupLayers() {
         if (this.circleLayer) {
             this.legendService.clearContainer(this.legendService.getCircleLegendContainer());
