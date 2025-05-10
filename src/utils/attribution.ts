@@ -8,7 +8,7 @@ export class MaplyticsAttributionControl extends Control {
     const element = document.createElement('div');
     element.className = 'custom-attribution-control';
 
-    // Style the element as desired. This is just an example.
+    // Style the element 
     element.style.cssText = 'position: absolute; bottom: 0; right: 0; padding: 5px; background: rgba(255,255,255,0.7); font-size: 12px;';
     super({
       element: element,
