@@ -71,31 +71,6 @@ export class CircleLayer extends Layer {
         const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
         const circles2Group = this.svg.append('g').attr('id', 'circles-group-2');
 
-        // Clickable background to clear selection
-        // const clickableRect = this.svg.selectAll('#clickable-bg').data([null]);
-        // clickableRect.enter()
-        //     .append('rect')
-        //     .attr('id', 'clickable-bg')
-        //     .attr('width', '100%')
-        //     .attr('height', '100%')
-        //     .style('fill', 'transparent')
-        //     .style('pointer-events', 'all')
-        //     .on('click', (event: MouseEvent) => {
-        //         this.options.selectionManager.clear().then(() => {
-        //             this.selectedIds = []; // Clear stored selections
-
-        //             // Explicitly update opacity for circles after clearing selection
-        //             this.svg.selectAll('g#circles1Group circle')
-        //                 .attr('fill-opacity', layer1Opacity);
-
-        //             this.svg.selectAll('g#circles2Group circle')
-        //                 .attr('fill-opacity', layer2Opacity);
-
-        //             this.changed(); // Trigger re-render to update opacity
-        //         });
-        //         //event.stopPropagation();
-        //     });
-
         this.features.forEach((feature: GeoJSONFeature, i: number) => {
             if (!feature.geometry || feature.geometry.type !== 'Point') return;
 
