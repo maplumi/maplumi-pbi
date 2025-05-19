@@ -140,14 +140,17 @@ export class MaplumiVisual implements IVisual {
 
     update(options: VisualUpdateOptions) {
 
+        const dataView = options.dataViews[0];
+
+         // Retrieve model and settings
+        this.visualFormattingSettingsModel = this.getFormattingSettings(options);
+
         // Reset state on new update
         this.cleanupLayers();
         if (this.abortController) this.abortController.abort();
 
         this.svgOverlay.style.display = 'none';
 
-        // Retrieve model and settings
-        this.visualFormattingSettingsModel = this.getFormattingSettings(options);
         const basemapOptions = this.getBasemapOptions();
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
@@ -159,7 +162,7 @@ export class MaplumiVisual implements IVisual {
         this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
         this.dataService = new DataService(this.colorRampService);
 
-        const dataView = options.dataViews[0];
+        
 
         // Check data validity
         if (!dataView || !dataView.categorical) {
@@ -172,24 +175,28 @@ export class MaplumiVisual implements IVisual {
 
         this.mapService.updateBasemap(basemapOptions);
 
-        // draw choropleth
-        this.handleLayer(
-            choroplethOptions.layerControl,
-            'choropleth-group',
-            this.renderChoroplethLayer,
-            dataView.categorical,
-            choroplethOptions
-        );
 
-        // draw proportional circles
-        this.handleLayer(
-            circleOptions.layerControl,
-            'circles-group-1',
-            this.renderCircleLayer,
-            dataView.categorical,
-            circleOptions,
-            ['circles-group-2']
-        );
+        if(choroplethOptions.layerControl) {
+
+            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+
+        }else{
+
+            this.svg.select(`#choropleth-group`).selectAll("*").remove();
+            this.cleanupLayers();
+        }
+
+        if(circleOptions.layerControl) {
+
+            this.renderCircleLayer(dataView.categorical, circleOptions);
+
+        }else{
+
+            this.svg.select(`#circles-group-1`).selectAll("*").remove();
+            this.svg.select(`#circles-group-2`).selectAll("*").remove();
+            
+            this.cleanupLayers();
+        }
 
         // Clear entire SVG if all layers are off
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
@@ -201,41 +208,19 @@ export class MaplumiVisual implements IVisual {
 
     }
 
-    // Helper function to handle layer visibility and rendering
-    private handleLayer(
-        shouldRender: boolean,
-        groupId: string,
-        renderFunction: (data: any, options: any) => void,
-        data: any,
-        options: any,
-        relatedGroupIds: string[] = []
-    ) {
-        const group = this.svg.select(`#${groupId}`);
-
-        // Always clean up before re-rendering to avoid duplication
-        group.selectAll("*").remove();  // Clear children, not the group itself
-
-        if (relatedGroupIds.length > 0) {
-            relatedGroupIds.forEach((id) => {
-                this.svg.select(`#${id}`).remove();
-            });
-        }
-
-        if (shouldRender) {
-            renderFunction.call(this, data, options);
-        }
-
-        // Call this in handleLayer when disabling a layer
-        if (!shouldRender) {
-            this.cleanupLayers();
-        }
-    }
-
+    
     // **** CIRCLE LAYER ****
     // This function is responsible for rendering the circle layer on the map
 
     private renderCircleLayer(categorical: any, circleOptions: CircleOptions): void {
         if (!circleOptions.layerControl) return; // Early exit if layer is off
+
+        const group1 = this.svg.select(`#circles-group-1`);
+        const group2 = this.svg.select(`#circles-group-2`);
+
+        // Always clean up before re-rendering to avoid duplication
+        group1.selectAll("*").remove();  // Clear children, not the group itself
+        group2.selectAll("*").remove();
 
         this.legendContainer.style.display = "block";
         this.svgOverlay.style.display = "block";
@@ -419,6 +404,12 @@ export class MaplumiVisual implements IVisual {
     // This function is responsible for rendering the choropleth layer on the map
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions): void {
         if (!choroplethOptions.layerControl) return; // Early exit if the layer is disabled
+
+        const group = this.svg.select(`#choropleth-group`);
+       
+        // Always clean up before re-rendering to avoid duplication
+        group.selectAll("*").remove();  // Clear children, not the group itself
+       
 
         this.prepareChoroplethRendering();
 
