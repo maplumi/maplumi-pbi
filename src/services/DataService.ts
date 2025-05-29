@@ -3,7 +3,7 @@ import * as turf from "@turf/turf";
 import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
 import * as topojson from 'topojson-client';
-import { ColorRampService } from "./ColorRampService";
+import { ColorRampService } from "./colorRampService";
 import { ChoroplethOptions } from "../types/index";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
@@ -38,10 +38,10 @@ export class DataService {
         // Filter features based on valid PCodes
         return {
             ...geojson,
-            features: geojson.features
-            // features: geojson.features.filter(feature =>
-            //     validPCodes.includes(feature.properties[pcodeKey])
-            // )
+            //features: geojson.features
+            features: geojson.features.filter(feature =>
+                validPCodes.includes(feature.properties[pcodeKey])
+            )
         };
     }
 

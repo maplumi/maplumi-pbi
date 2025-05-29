@@ -44,11 +44,15 @@ import { BasemapOptions, ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptio
 import { CircleLayer } from "./layers/circleLayer";
 import { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
-import * as util from "./utils/utils"
-import { LegendService } from "./services/LegendService";
-import { MapService } from "./services/MapService";
-import { DataService } from "./services/DataService";
-import { ColorRampService } from "./services/ColorRampService";
+import * as fetch from "./utils/fetch";
+import * as attribution from "./utils/attribution";
+import * as format from "./utils/format";
+import * as geometry from "./utils/geometry";
+import * as render from "./utils/render";
+import { LegendService } from "./services/legendService";
+import { MapService } from "./services/mapService";
+import { DataService } from "./services/dataService";
+import { ColorRampService } from "./services/colorRampService";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
 export class MaplumiVisual implements IVisual {
@@ -153,7 +157,7 @@ export class MaplumiVisual implements IVisual {
 
 
         // Ensure SVG groups exist
-        if (this.svg.select("#choropleth-group").empty()) {
+        /* if (this.svg.select("#choropleth-group").empty()) {
             this.svg.append("g").attr("id", "choropleth-group");
         }
         if (this.svg.select("#circles-group-1").empty()) {
@@ -161,7 +165,7 @@ export class MaplumiVisual implements IVisual {
         }
         if (this.svg.select("#circles-group-2").empty()) {
             this.svg.append("g").attr("id", "circles-group-2");
-        }
+        } */
 
         // Hide overlay by default
         this.svgOverlay.style.display = 'none';
@@ -187,25 +191,22 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.choroplethDisplayed = choroplethOptions.layerControl;
-        this.mapService.updateBasemap(basemapOptions);
+        this.mapService.updateBasemap(basemapOptions);        
+        
+        // Ensure groups exist and clean them up first
+        this.ensureAndCleanupGroups(choroplethOptions.layerControl, circleOptions.layerControl);
 
         // Render layers based on settings
         if (choroplethOptions.layerControl) {
             this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-        } else {
-            this.svg.select("#choropleth-group").selectAll("*").remove();
         }
 
         if (circleOptions.layerControl) {
             this.renderCircleLayer(dataView.categorical, circleOptions);
-        } else {
-            this.svg.select("#circles-group-1").selectAll("*").remove();
-            this.svg.select("#circles-group-2").selectAll("*").remove();
         }
 
-        // Hide legend if both layers are off
+        // Update legend visibility
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
-            this.svg.selectAll('*').remove();
             this.legendContainer.style.display = "none";
         }
 
@@ -548,7 +549,7 @@ export class MaplumiVisual implements IVisual {
         this.abortController = new AbortController();
 
         try {
-            util.fetchAndCacheJsonGeoDataAsync(
+            fetch.getGeoDataAsync(
                 serviceUrl,
                 this.memoryCache,
                 cacheKey,
@@ -756,6 +757,40 @@ export class MaplumiVisual implements IVisual {
         this.map.setTarget(null);
         this.svg.selectAll('*').remove();
 
+    }
+
+    private ensureAndCleanupGroups(choroplethEnabled: boolean, circleEnabled: boolean): void {
+        // Create groups if they don't exist
+        if (this.svg.select("#choropleth-group").empty()) {
+            this.svg.append("g").attr("id", "choropleth-group");
+        }
+        if (this.svg.select("#circles-group-1").empty()) {
+            this.svg.append("g").attr("id", "circles-group-1");
+        }
+        if (this.svg.select("#circles-group-2").empty()) {
+            this.svg.append("g").attr("id", "circles-group-2");
+        }
+
+        // Clean up inactive layers immediately
+        if (!choroplethEnabled) {
+            this.svg.select("#choropleth-group").selectAll("*").remove();
+            if (this.choroplethLayer) {
+                this.map.removeLayer(this.choroplethLayer);
+                this.choroplethLayer = null;
+            }
+        }
+
+        if (!circleEnabled) {
+            this.svg.select("#circles-group-1").selectAll("*").remove();
+            this.svg.select("#circles-group-2").selectAll("*").remove();
+            if (this.circleLayer) {
+                this.map.removeLayer(this.circleLayer);
+                this.circleLayer = null;
+            }
+        }
+
+        // Hide SVG overlay if both layers are disabled
+        this.svgOverlay.style.display = (!choroplethEnabled && !circleEnabled) ? 'none' : 'block';
     }
 
 }

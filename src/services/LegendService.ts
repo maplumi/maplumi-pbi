@@ -1,5 +1,5 @@
 import { ChoroplethOptions, CircleOptions } from "../types/index";
-import * as util from "../utils/utils";
+import * as format from "../utils/format";
 
 export class LegendService {
     
@@ -111,7 +111,7 @@ export class LegendService {
 
             svg.appendChild(line);
 
-            const formattedLabel = util.formatValue(item.size, formatTemplate);
+            const formattedLabel = format.formatValue(item.size, formatTemplate);
 
             // Add the corresponding label (aligned to the top of the circle)
             const text = document.createElementNS(
@@ -204,11 +204,11 @@ export class LegendService {
         const allLabels = [];
         if (options.classificationMethod !== "u") {
             for (let i = 0; i < classBreaks.length - 1; i++) {
-                allLabels.push(`${util.formatValue(classBreaks[i], formatTemplate)} - ${util.formatValue(classBreaks[i + 1], formatTemplate)}`);
+                allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
             }
         } else {
             uniqueColorValues.forEach(value => {
-                allLabels.push(util.formatValue(value, formatTemplate));
+                allLabels.push(format.formatValue(value, formatTemplate));
             });
         }
 

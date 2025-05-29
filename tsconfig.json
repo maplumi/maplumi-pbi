@@ -18,17 +18,23 @@
         "./src/settings.ts",      
         "src/layers/circleLayer.ts",
         "src/layers/choroplethLayer.ts",
-        "src/services/LegendService.ts",
-        "src/utils/utils.ts",
-        "src/utils/attribution.ts",
-        "./src/services/DataService.ts",
-        "./src/services/MapService.ts",
-        "./src/services/CacheService.ts",
+        "src/services/legendService.ts",
        
-        "src/services/LegendService.ts",
-        "./src/services/ColorRampService.ts",
-        "src/config/VisualConfig.ts",        
+        "src/services/dataService.ts",
+        "src/services/mapService.ts",
+        "src/services/cacheService.ts",
+       
+        "src/services/legendService.ts",
+        "src/services/colorRampService.ts",
+        "src/config/VisualConfig.ts", 
         
+        "src/utils/fetch.ts",
+        "src/utils/attribution.ts",        
+        "src/utils/geometry.ts",
+        "src/utils/render.ts",
+        "src/utils/format.ts",
+        "src/utils/convert.ts",
+
         "./src/types/index.ts",
         "./src/types/simple-statistics.d.ts",
         "./src/types/chroma-js.d.ts"

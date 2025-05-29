@@ -2,7 +2,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
-import { MapConfig } from "../config/VisualConfig";
+import { VisualConfig } from "../config/VisualConfig";
 import { MapState } from "../types/index";
 import { MaplyticsAttributionControl } from "../utils/attribution";
 import TileLayer from "ol/layer/Tile";
@@ -29,8 +29,8 @@ export class MapService {
     private initializeMap(): void {
         
         const view = new View({
-            center: fromLonLat(MapConfig.MAP.DEFAULT_CENTER),
-            zoom: MapConfig.MAP.DEFAULT_ZOOM
+            center: fromLonLat(VisualConfig.MAP.DEFAULT_CENTER),
+            zoom: VisualConfig.MAP.DEFAULT_ZOOM
         });
 
         const controls = defaultControls({
@@ -63,7 +63,7 @@ export class MapService {
         const { selectedBasemap, customMapAttribution } = options;
 
         // Get default attribution
-        const defaultAttribution = MapConfig.BASEMAP.DEFAULT_ATTRIBUTION[selectedBasemap] || "";
+        const defaultAttribution = VisualConfig.BASEMAP.DEFAULT_ATTRIBUTION[selectedBasemap] || "";
 
         // Compute effective attribution
         const newAttribution = customMapAttribution
@@ -166,7 +166,7 @@ export class MapService {
 
     private getMaptilerBasemap = (basemapOptions: BasemapOptions): TileLayer | VectorTileLayer | MapboxVectorLayer => {
 
-        const url = `${MapConfig.MAP_BASE_URL.MAPTILER}/${basemapOptions.maptilerStyle}/tiles.json?key=${basemapOptions.maptilerApiKey}`;
+        const url = `${VisualConfig.MAP_BASE_URL.MAPTILER}/${basemapOptions.maptilerStyle}/tiles.json?key=${basemapOptions.maptilerApiKey}`;
 
         return new Tile({
             source: new TileJSON({
