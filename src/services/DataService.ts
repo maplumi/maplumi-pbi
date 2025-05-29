@@ -38,9 +38,10 @@ export class DataService {
         // Filter features based on valid PCodes
         return {
             ...geojson,
-            features: geojson.features.filter(feature =>
-                validPCodes.includes(feature.properties[pcodeKey])
-            )
+            features: geojson.features
+            // features: geojson.features.filter(feature =>
+            //     validPCodes.includes(feature.properties[pcodeKey])
+            // )
         };
     }
 

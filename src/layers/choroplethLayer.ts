@@ -103,10 +103,10 @@ export class ChoroplethLayer extends Layer {
 
         // Render features
         this.geojson.features.forEach((feature: GeoJSONFeature) => {
-            
             const pCode = feature.properties[this.options.dataKey];
             const value = this.valueLookup[pCode];
-            const fillColor = this.options.colorScale(value);
+            // Set fillColor to 'transparent' if pCode or value are not found
+            const fillColor = (pCode === undefined || value === undefined) ? 'transparent' : this.options.colorScale(value);
             const dataPoint = dataPointsLookup[pCode];
 
             const path = choroplethGroup.append('path')

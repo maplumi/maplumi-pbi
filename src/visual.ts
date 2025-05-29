@@ -151,6 +151,7 @@ export class MaplumiVisual implements IVisual {
         this.visualFormattingSettingsModel = this.formattingSettingsService
         .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel,options.dataViews[0]);
 
+
         // Ensure SVG groups exist
         if (this.svg.select("#choropleth-group").empty()) {
             this.svg.append("g").attr("id", "choropleth-group");
@@ -263,6 +264,8 @@ export class MaplumiVisual implements IVisual {
 
         if (circleOptions.showLegend) {
             this.renderCircleLegend(combinedCircleSizeValues, minCircleSizeValue, circleScale, circleOptions);
+        }else{
+             this.legendService.hideLegend("circle");
         }
     }
 

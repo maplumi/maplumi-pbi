@@ -539,12 +539,17 @@
         "https://*.blob.core.windows.net",
         "https://*.github.io",
         "https://*.cloudfront.net",
-        "https://*.r2.dev"
+        "https://*.r2.dev",
+        "https://*.datauga.com"
       ]
     },
     {
       "name": "LocalStorage",
       "essential": true
+    },
+    {
+        "name": "ExportContent",
+        "essential": true
     }
   ]
 }
