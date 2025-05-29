@@ -36,12 +36,13 @@ import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructor
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
+import IVisualEventService = powerbi.extensibility.IVisualEventService;
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
 import { BasemapOptions, ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptions, ChoroplethOptions, CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
-import { CircleLayer } from "./circleLayer";
-import { ChoroplethLayer } from "./choroplethLayer";
+import { CircleLayer } from "./layers/circleLayer";
+import { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
 import * as util from "./utils/utils"
 import { LegendService } from "./services/LegendService";
@@ -74,10 +75,12 @@ export class MaplumiVisual implements IVisual {
     private choroplethDisplayed: boolean = false;
     private memoryCache: Record<string, { data: any; timestamp: number }>;
     private abortController: AbortController | null = null;
+    private events: IVisualEventService;
 
     constructor(options: VisualConstructorOptions) {
 
         this.host = options.host;
+        this.events = options.host.eventService;
 
         this.memoryCache = {};
 
@@ -138,7 +141,9 @@ export class MaplumiVisual implements IVisual {
         });
     }
 
-    update(options: VisualUpdateOptions) {
+    public update(options: VisualUpdateOptions) {
+
+        this.events.renderingStarted(options);
 
         const dataView = options.dataViews[0];
 
@@ -205,6 +210,10 @@ export class MaplumiVisual implements IVisual {
 
         // Force the map to update its size, for example when the visual window is resized
         this.map.updateSize();
+
+         //TODO: Call events.renderingFinished() from methods that have animation e.g. map rendering
+        this.events.renderingFinished(options); 
+       
 
     }
 
@@ -649,7 +658,7 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
-    private getBasemapOptions(): BasemapOptions {
+    public getBasemapOptions(): BasemapOptions {
         const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
         return {
             selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
@@ -663,7 +672,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private getMapToolsOptions(): MapToolsOptions {
+    public getMapToolsOptions(): MapToolsOptions {
         const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
         return {
 
@@ -679,9 +688,8 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private getCircleOptions(): CircleOptions {
-        const circleSettings =
-            this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
+    public getCircleOptions(): CircleOptions {
+        const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
         return {
             layerControl: circleSettings.topLevelSlice.value,
             color1: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1Color.value.value,
@@ -702,7 +710,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private getChoroplethOptions(): ChoroplethOptions {
+    public getChoroplethOptions(): ChoroplethOptions {
         const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
         const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
         const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;

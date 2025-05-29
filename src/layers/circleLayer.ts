@@ -4,7 +4,7 @@ import { State } from 'ol/source/Source';
 import { toLonLat, transformExtent } from 'ol/proj.js';
 import { Extent } from 'ol/extent.js';
 import { geoMercator } from 'd3-geo';
-import { CircleLayerOptions, GeoJSONFeature } from './types/index';
+import { CircleLayerOptions, GeoJSONFeature } from '../types/index';
 
 export class CircleLayer extends Layer {
 

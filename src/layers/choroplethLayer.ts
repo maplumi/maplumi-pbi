@@ -1,7 +1,7 @@
 import { Layer } from 'ol/layer.js';
 import { fromLonLat, toLonLat } from 'ol/proj.js';
 import { State } from 'ol/source/Source';
-import { ChoroplethLayerOptions, GeoJSONFeature } from './types/index';
+import { ChoroplethLayerOptions, GeoJSONFeature } from '../types/index';
 import { geoBounds, geoMercator, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
