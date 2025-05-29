@@ -1,4 +1,4 @@
-import { MapConfig } from "../config/VisualConfig";
+import { VisualConfig } from "../config/VisualConfig";
 import { CacheEntry } from "../types/index";
 
 export class CacheService {
@@ -8,8 +8,8 @@ export class CacheService {
 
     constructor() {
         this.cache = new Map();
-        this.maxEntries = MapConfig.CACHE.MAX_ENTRIES;
-        this.expiryMs = MapConfig.CACHE.EXPIRY_MS;
+        this.maxEntries = VisualConfig.CACHE.MAX_ENTRIES;
+        this.expiryMs = VisualConfig.CACHE.EXPIRY_MS;
     }
 
     public async getOrFetch<T>(
