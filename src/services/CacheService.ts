@@ -1,4 +1,4 @@
-import { MapConfig } from "../config/MapConfig";
+import { MapConfig } from "../config/VisualConfig";
 import { CacheEntry } from "../types/index";
 
 export class CacheService {

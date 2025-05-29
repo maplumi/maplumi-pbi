@@ -27,7 +27,7 @@
        
         "src/services/LegendService.ts",
         "./src/services/ColorRampService.ts",
-        "./src/config/MapConfig.ts",        
+        "src/config/VisualConfig.ts",        
         
         "./src/types/index.ts",
         "./src/types/simple-statistics.d.ts",

@@ -50,7 +50,7 @@ import { MapService } from "./services/MapService";
 import { DataService } from "./services/DataService";
 import { ColorRampService } from "./services/ColorRampService";
 import { Extent } from "ol/extent";
-import { MapConfig } from "./config/MapConfig";
+import { VisualConfig } from "./config/VisualConfig";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -383,7 +383,7 @@ export class MaplumiVisual implements IVisual {
 
         if (!this.choroplethDisplayed) {
             this.mapExtent = this.circleLayer.getFeaturesExtent();
-            this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
+            this.map.getView().fit(this.mapExtent, VisualConfig.MAP.FIT_OPTIONS);
         }
     }
 
@@ -553,7 +553,7 @@ export class MaplumiVisual implements IVisual {
                 this.memoryCache,
                 cacheKey,
                 this.abortController.signal as AbortSignal,
-                MapConfig.CACHE.EXPIRY_MS
+                VisualConfig.CACHE.EXPIRY_MS
             ).then((data: any) => {
                 if (!choroplethOptions.layerControl) return; // Check if layer is still enabled
 
@@ -599,7 +599,7 @@ export class MaplumiVisual implements IVisual {
         this.map.addLayer(this.choroplethLayer);
 
         this.mapExtent = this.choroplethLayer.getFeaturesExtent();
-        this.map.getView().fit(this.mapExtent, MapConfig.MAP.FIT_OPTIONS);
+        this.map.getView().fit(this.mapExtent, VisualConfig.MAP.FIT_OPTIONS);
 
         if (choroplethOptions.showLegend) {
             this.legendContainer.style.display = "block";

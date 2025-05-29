@@ -1,6 +1,6 @@
 import { easeOut } from "ol/easing";
 
-export const MapConfig = {
+export const VisualConfig = {
     CACHE: {
         EXPIRY_MS: 3600000, // 1 hour
         MAX_ENTRIES: 100

@@ -2,7 +2,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
-import { MapConfig } from "../config/MapConfig";
+import { MapConfig } from "../config/VisualConfig";
 import { MapState } from "../types/index";
 import { MaplyticsAttributionControl } from "../utils/attribution";
 import TileLayer from "ol/layer/Tile";
