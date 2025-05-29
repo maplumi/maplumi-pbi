@@ -142,79 +142,76 @@ export class MaplumiVisual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
-
+        
         this.events.renderingStarted(options);
 
         const dataView = options.dataViews[0];
 
-         // Retrieve model and settings
-        this.visualFormattingSettingsModel = this.getFormattingSettings(options);
+        // Update formatting settings
+        this.visualFormattingSettingsModel = this.formattingSettingsService
+        .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel,options.dataViews[0]);
 
-        // Reset state on new update
-        this.cleanupLayers();
-        if (this.abortController) this.abortController.abort();
+        // Ensure SVG groups exist
+        if (this.svg.select("#choropleth-group").empty()) {
+            this.svg.append("g").attr("id", "choropleth-group");
+        }
+        if (this.svg.select("#circles-group-1").empty()) {
+            this.svg.append("g").attr("id", "circles-group-1");
+        }
+        if (this.svg.select("#circles-group-2").empty()) {
+            this.svg.append("g").attr("id", "circles-group-2");
+        }
 
+        // Hide overlay by default
         this.svgOverlay.style.display = 'none';
 
+        // Get latest options
         const basemapOptions = this.getBasemapOptions();
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
 
-        // Update Legend Container
+        // Update legend container styles
         this.updateLegendContainer();
 
         this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
         this.dataService = new DataService(this.colorRampService);
 
-        
-
-        // Check data validity
+        // If no data, clear everything and return
         if (!dataView || !dataView.categorical) {
-
-            console.log("No categorical data found.");
+            this.svg.selectAll('*').remove();
+            this.legendContainer.style.display = "none";
+            this.events.renderingFinished(options);
             return;
         }
 
         this.choroplethDisplayed = choroplethOptions.layerControl;
-
         this.mapService.updateBasemap(basemapOptions);
 
-
-        if(choroplethOptions.layerControl) {
-
+        // Render layers based on settings
+        if (choroplethOptions.layerControl) {
             this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-
-        }else{
-
-            this.svg.select(`#choropleth-group`).selectAll("*").remove();
-            this.cleanupLayers();
+        } else {
+            this.svg.select("#choropleth-group").selectAll("*").remove();
         }
 
-        if(circleOptions.layerControl) {
-
+        if (circleOptions.layerControl) {
             this.renderCircleLayer(dataView.categorical, circleOptions);
-
-        }else{
-
-            this.svg.select(`#circles-group-1`).selectAll("*").remove();
-            this.svg.select(`#circles-group-2`).selectAll("*").remove();
-            
-            this.cleanupLayers();
+        } else {
+            this.svg.select("#circles-group-1").selectAll("*").remove();
+            this.svg.select("#circles-group-2").selectAll("*").remove();
         }
 
-        // Clear entire SVG if all layers are off
+        // Hide legend if both layers are off
         if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
             this.svg.selectAll('*').remove();
+            this.legendContainer.style.display = "none";
         }
 
-        // Force the map to update its size, for example when the visual window is resized
+        // Always update map size
         this.map.updateSize();
 
-         //TODO: Call events.renderingFinished() from methods that have animation e.g. map rendering
-        this.events.renderingFinished(options); 
-       
-
+        this.events.renderingFinished(options);
     }
 
     
@@ -658,7 +655,7 @@ export class MaplumiVisual implements IVisual {
         }
     }
 
-    public getBasemapOptions(): BasemapOptions {
+    private getBasemapOptions(): BasemapOptions {
         const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
         return {
             selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
@@ -672,7 +669,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    public getMapToolsOptions(): MapToolsOptions {
+    private getMapToolsOptions(): MapToolsOptions {
         const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
         return {
 
@@ -688,7 +685,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    public getCircleOptions(): CircleOptions {
+    private getCircleOptions(): CircleOptions {
         const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
         return {
             layerControl: circleSettings.topLevelSlice.value,
@@ -710,7 +707,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    public getChoroplethOptions(): ChoroplethOptions {
+    private getChoroplethOptions(): ChoroplethOptions {
         const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
         const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
         const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
@@ -745,21 +742,10 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private cleanupLayers() {
-        if (this.circleLayer) {
-            this.legendService.clearContainer(this.legendService.getCircleLegendContainer());
-            // this.legendContainer.style.display = "none"; // Hide the legend
-            this.map.removeLayer(this.circleLayer);
-            this.circleLayer.setActive(false); // Ensure no further renders
-            this.circleLayer = null;
-        }
-        if (this.choroplethLayer) {
-            this.legendService.clearContainer(this.legendService.getChoroplethLegendContainer());
-            // this.legendContainer.style.display = "none"; // Hide the legend
-            this.map.removeLayer(this.choroplethLayer);
-            this.choroplethLayer.setActive(false); // Ensure no further renders
-            this.choroplethLayer = null;
-        }
+    public getFormattingModel(): powerbi.visuals.FormattingModel {
+        return this.formattingSettingsService.buildFormattingModel(
+            this.visualFormattingSettingsModel
+        );
     }
 
     public destroy(): void {
@@ -767,19 +753,6 @@ export class MaplumiVisual implements IVisual {
         this.map.setTarget(null);
         this.svg.selectAll('*').remove();
 
-    }
-
-    private getFormattingSettings(options: VisualUpdateOptions) {
-        return this.formattingSettingsService.populateFormattingSettingsModel(
-            MaplumiVisualFormattingSettingsModel,
-            options.dataViews[0]
-        );
-    }
-
-    public getFormattingModel(): powerbi.visuals.FormattingModel {
-        return this.formattingSettingsService.buildFormattingModel(
-            this.visualFormattingSettingsModel
-        );
     }
 
 }
