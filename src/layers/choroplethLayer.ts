@@ -6,13 +6,11 @@ import { geoBounds, geoMercator, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
 import rbush from 'rbush';
-import { ITooltipServiceWrapper } from 'powerbi-visuals-utils-tooltiputils';
-import ISelectionManager = powerbi.extensibility.ISelectionManager;
+import { simplify } from '@turf/turf';
 import ISelectionId = powerbi.visuals.ISelectionId;
-import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 export class ChoroplethLayer extends Layer {
-    
+
     private svg: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
@@ -27,7 +25,7 @@ export class ChoroplethLayer extends Layer {
 
         this.svg = options.svg;
         this.options = options;
-        this.geojson = options.geojson; 
+        this.geojson = options.geojson;
 
         // Create a lookup table for measure values
         this.valueLookup = {};
@@ -101,8 +99,14 @@ export class ChoroplethLayer extends Layer {
             return acc;
         }, {} as { [key: string]: any }) || {};
 
+        // Simplify features dynamically based on zoom level
+        const tolerance = this.getSimplificationTolerance(resolution);
+        //console.log(`Using simplification tolerance: ${tolerance} for resolution: ${resolution}`);
+        const options = { tolerance: tolerance, highQuality: false };
+        const simplifiedFeatures = simplify(this.geojson, options);
+
         // Render features
-        this.geojson.features.forEach((feature: GeoJSONFeature) => {
+        simplifiedFeatures.features.forEach((feature: GeoJSONFeature) => {
             const pCode = feature.properties[this.options.dataKey];
             const value = this.valueLookup[pCode];
             // Set fillColor to 'transparent' if pCode or value are not found
@@ -121,9 +125,9 @@ export class ChoroplethLayer extends Layer {
                     if (this.selectedIds.length === 0) {
                         return this.options.fillOpacity;
                     } else {
-                        return this.selectedIds.some(selectedId => 
-                            selectedId === dataPoint?.selectionId) 
-                            ? this.options.fillOpacity 
+                        return this.selectedIds.some(selectedId =>
+                            selectedId === dataPoint?.selectionId)
+                            ? this.options.fillOpacity
                             : this.options.fillOpacity / 2;
                     }
                 });
@@ -141,7 +145,7 @@ export class ChoroplethLayer extends Layer {
             // Add click handler for selection
             path.on('click', (event: MouseEvent) => {
                 if (!dataPoint?.selectionId) return;
-                
+
                 const nativeEvent = event;
                 this.options.selectionManager.select(dataPoint.selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                     .then((selectedIds: ISelectionId[]) => {
@@ -151,11 +155,11 @@ export class ChoroplethLayer extends Layer {
             });
         });
 
-        // Manually reorder to ensure circles are on top
+        // Re-order layers to ensure circles are on top
         const choroplethGroupNode = choroplethGroup.node();
         const circles1GroupNode = this.svg.select('#circles-group-1').node();
         const circles2GroupNode = this.svg.select('#circles-group-2').node();
-        
+
         if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
             choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
             choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
@@ -171,7 +175,7 @@ export class ChoroplethLayer extends Layer {
         return this.spatialIndex;
     }
 
-    getd3Path() {   
+    getd3Path() {
         return this.d3Path;
     }
 
@@ -189,5 +193,41 @@ export class ChoroplethLayer extends Layer {
 
     setSelectedIds(selectionIds: powerbi.extensibility.ISelectionId[]) {
         this.selectedIds = selectionIds;
+    }
+
+    private simplifyThresholds = {
+        high: 0.1,
+        high_medium: 0.05,
+        medium: 0.01,
+        low: 0.005
+    };
+
+    private getSimplificationTolerance(resolution: number): number {
+        // Get the total extent of all features
+        const bounds = geoBounds(this.geojson);
+        const width = Math.abs(bounds[1][0] - bounds[0][0]);  // longitude span
+        const height = Math.abs(bounds[1][1] - bounds[0][1]); // latitude span
+
+        // Calculate feature density factor (smaller area = less simplification needed)
+        const area = width * height;
+        const densityFactor = Math.min(1, Math.max(0.1, area / 1000));  // Normalize between 0.1 and 1
+
+        // Adjust thresholds based on feature density
+        let tolerance;
+        if (resolution > 10000) {
+            tolerance = this.simplifyThresholds.high * densityFactor;
+        } else if (resolution > 5000) {
+            tolerance = this.simplifyThresholds.high_medium * densityFactor;
+        } else if (resolution > 1000) {
+            tolerance = this.simplifyThresholds.medium * densityFactor;
+        } else {
+            tolerance = this.simplifyThresholds.low * densityFactor;
+        }
+
+        // Add feature count factor (more features = more aggressive simplification)
+        const featureCount = this.geojson.features.length;
+        const featureCountFactor = Math.min(1.5, Math.max(0.5, featureCount / 1000));
+
+        return tolerance * featureCountFactor;
     }
 }
