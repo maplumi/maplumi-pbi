@@ -196,9 +196,9 @@ export class ChoroplethLayer extends Layer {
     }
 
     private simplifyThresholds = {
-        high: 0.1,
-        high_medium: 0.05,
-        medium: 0.01,
+        high: 0.15,
+        high_medium: 0.1,
+        medium: 0.05,
         low: 0.005
     };
 
