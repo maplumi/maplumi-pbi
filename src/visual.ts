@@ -45,10 +45,6 @@ import { CircleLayer } from "./layers/circleLayer";
 import { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
 import * as fetch from "./utils/fetch";
-import * as attribution from "./utils/attribution";
-import * as format from "./utils/format";
-import * as geometry from "./utils/geometry";
-import * as render from "./utils/render";
 import { LegendService } from "./services/legendService";
 import { MapService } from "./services/mapService";
 import { DataService } from "./services/dataService";
@@ -149,14 +145,18 @@ export class MaplumiVisual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
-        
+
         this.events.renderingStarted(options);
 
         const dataView = options.dataViews[0];
 
         // Update formatting settings
         this.visualFormattingSettingsModel = this.formattingSettingsService
-        .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel,options.dataViews[0]);
+            .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel, options.dataViews[0]);
+
+        // Apply conditional display logic
+        this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
+        this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
 
 
         // Ensure SVG groups exist
@@ -194,8 +194,8 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.choroplethDisplayed = choroplethOptions.layerControl;
-        this.mapService.updateBasemap(basemapOptions);        
-        
+        this.mapService.updateBasemap(basemapOptions);
+
         // Ensure groups exist and clean them up first
         this.ensureAndCleanupGroups(choroplethOptions.layerControl, circleOptions.layerControl);
 
@@ -219,7 +219,7 @@ export class MaplumiVisual implements IVisual {
         this.events.renderingFinished(options);
     }
 
-    
+
     // **** CIRCLE LAYER ****
     // This function is responsible for rendering the circle layer on the map
 
@@ -249,7 +249,7 @@ export class MaplumiVisual implements IVisual {
 
         if (longitudes.length !== latitudes.length) {
             // Assuming 'host' is an instance of IVisualHost
-            this.host.displayWarningIcon("Longitude and Latitude have different lengths.","maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values.");
+            this.host.displayWarningIcon("Longitude and Latitude have different lengths.", "maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values.");
             console.warn("Longitude and Latitude have different lengths.");
             return;
         }
@@ -270,8 +270,8 @@ export class MaplumiVisual implements IVisual {
 
         if (circleOptions.showLegend) {
             this.renderCircleLegend(combinedCircleSizeValues, minCircleSizeValue, circleScale, circleOptions);
-        }else{
-             this.legendService.hideLegend("circle");
+        } else {
+            this.legendService.hideLegend("circle");
         }
     }
 
@@ -280,7 +280,7 @@ export class MaplumiVisual implements IVisual {
         const latCategory = categorical?.categories?.find((c) => c.source?.roles?.Latitude);
 
         if (!lonCategory || !latCategory) {
-            this.host.displayWarningIcon("Missing Longitude or Latitude roles","maplumiWarning: Both Longitude and Latitude roles must be assigned. Please check your data fields.");
+            this.host.displayWarningIcon("Missing Longitude or Latitude roles", "maplumiWarning: Both Longitude and Latitude roles must be assigned. Please check your data fields.");
             console.warn("Both Longitude and Latitude roles must be assigned.");
             return { longitudes: undefined, latitudes: undefined, circleSizeValuesObjects: [] };
         }
@@ -304,7 +304,7 @@ export class MaplumiVisual implements IVisual {
         combinedCircleSizeValues: number[],
         circleOptions: CircleOptions
     ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number } {
-        
+
         const minCircleSizeValue = Math.min(...combinedCircleSizeValues);
         const maxCircleSizeValue = Math.max(...combinedCircleSizeValues);
 
@@ -422,10 +422,10 @@ export class MaplumiVisual implements IVisual {
         if (!choroplethOptions.layerControl) return; // Early exit if the layer is disabled
 
         const group = this.svg.select(`#choropleth-group`);
-       
+
         // Always clean up before re-rendering to avoid duplication
         group.selectAll("*").remove();  // Clear children, not the group itself
-       
+
 
         this.prepareChoroplethRendering();
 
@@ -474,7 +474,7 @@ export class MaplumiVisual implements IVisual {
         );
 
         if (!AdminPCodeNameIDCategory) {
-            this.host.displayWarningIcon("Admin PCode/Name/ID not found","maplumiWarning: Admin PCode/Name/ID field is missing. Please ensure it is included in your data.");
+            this.host.displayWarningIcon("Admin PCode/Name/ID not found", "maplumiWarning: Admin PCode/Name/ID field is missing. Please ensure it is included in your data.");
             console.warn("Admin PCode/Name/ID not found.");
             return { AdminPCodeNameIDCategory: undefined, colorMeasure: undefined, pCodes: undefined };
         }
@@ -484,14 +484,14 @@ export class MaplumiVisual implements IVisual {
         );
 
         if (!colorMeasure) {
-            this.host.displayWarningIcon("Color Measure not found","maplumiWarning: Color measure field is missing. Please ensure it is included in your data.");
+            this.host.displayWarningIcon("Color Measure not found", "maplumiWarning: Color measure field is missing. Please ensure it is included in your data.");
             console.warn("Color Measure not found.");
             return { AdminPCodeNameIDCategory, colorMeasure: undefined, pCodes: undefined };
         }
 
         const pCodes = AdminPCodeNameIDCategory.values as string[];
         if (!pCodes || pCodes.length === 0) {
-            this.host.displayWarningIcon("No PCodes found","maplumiWarning: No PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
+            this.host.displayWarningIcon("No PCodes found", "maplumiWarning: No PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
             console.warn("No PCodes found. Exiting...");
             return { AdminPCodeNameIDCategory, colorMeasure, pCodes: undefined };
         }
@@ -502,7 +502,7 @@ export class MaplumiVisual implements IVisual {
     private filterValidPCodes(pCodes: string[]): string[] {
         const validPCodes = pCodes.filter((pcode) => pcode);
         if (validPCodes.length === 0) {
-            this.host.displayWarningIcon("No valid PCodes found","maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
+            this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
             console.warn("No valid PCodes found. Exiting...");
         }
         return validPCodes;
@@ -595,7 +595,7 @@ export class MaplumiVisual implements IVisual {
                 this.renderChoroplethLayerOnMap(choroplethLayerOptions, choroplethOptions, colorValues, classBreaks, colorScale);
             });
         } catch (error) {
-            this.host.displayWarningIcon("Error fetching data","maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
+            this.host.displayWarningIcon("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
             console.error("Error fetching data:", error);
         }
     }
@@ -762,6 +762,7 @@ export class MaplumiVisual implements IVisual {
             this.visualFormattingSettingsModel
         );
     }
+
 
     public destroy(): void {
 

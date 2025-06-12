@@ -125,7 +125,7 @@ class maptilerSettingsGroup extends formattingSettings.SimpleCard {
         name: "maptilerStyle",
         displayName: "Select Map Style",
         value: {
-            value: "dataviz", 
+            value: "dataviz",
             displayName: "Dataviz"
         },
         items: [
@@ -147,11 +147,11 @@ class maptilerSettingsGroup extends formattingSettings.SimpleCard {
 
     });
 
-   
+
     name: string = "maptilerSettingsGroup";
     displayName: string = "Maptiler Settings";
     collapsible: boolean = true;
-    slices: formattingSettings.Slice[] = [this.maptilerApiKey, this.maptilerStyle ];
+    slices: formattingSettings.Slice[] = [this.maptilerApiKey, this.maptilerStyle];
 
 }
 
@@ -164,6 +164,23 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
     name: string = "basemapVisualCardSettings";
     displayName: string = "Basemap";
     groups: formattingSettings.Group[] = [this.basemapSelectSettingsGroup, this.mapBoxSettingsGroup, this.maptilerSettingsGroup];
+
+    public applyConditionalDisplayRules(): void {
+
+        const selectedBasemap = this.basemapSelectSettingsGroup.selectedBasemap.value?.value;
+
+        // Show Mapbox settings only if Mapbox is selected
+        const isMapbox = selectedBasemap === "mapbox";
+        this.mapBoxSettingsGroup.visible = isMapbox;
+
+        // Show MapTiler settings only if MapTiler is selected
+        const isMaptiler = selectedBasemap === "maptiler";
+        this.maptilerSettingsGroup.visible = isMaptiler;
+
+        // Show/hide custom attribution field (you can decide its logic)
+        //this.basemapSelectSettingsGroup.customMapAttribution.visible = selectedBasemap !== "none";
+    }
+
 
 }
 
@@ -398,7 +415,7 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
     name: string = "choroplethClassificationSettingsGroup";
     displayName: string = "Classification";
     slices: formattingSettings.Slice[] = [
-        
+
         this.classificationMethod,
         this.numClasses
     ];
@@ -414,7 +431,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
     colorRamp: DropDown = new DropDown({
         name: "colorRamp",
-        displayName: "Predefined Color Ramp",
+        displayName: "Color Ramp",
         value: {
             value: "blue",  //default value
             displayName: "Blue"
@@ -435,8 +452,16 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "sdggreen", displayName: "SDG Green" },
             { value: "sdgdarkgreen", displayName: "SDG Dark Green" },
             { value: "sdgnavyblue", displayName: "SDG Navy Blue" },
-            { value: "ipc", displayName: "IPC" }
+            { value: "ipc", displayName: "IPC" },
+            { value: "custom", displayName: "Custom" } // Custom color ramp option
         ]
+    });
+
+    customColorRamp: formattingSettings.TextInput = new TextInput({
+        name: "custom_color_ramp",
+        displayName: "Custom Color Ramp",
+        value: " #e1eef9, #c7e1f5, #64beeb, #009edb", // Default value
+        placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb" // Placeholder
     });
 
     invertColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
@@ -457,8 +482,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "rgb", displayName: "RGB" },
             { value: "hsl", displayName: "HSL" },
             { value: "hsv", displayName: "HSV" },
-            { value: "lch", displayName: "LCH" }          
-           
+            { value: "lch", displayName: "LCH" }
+
         ]
     });
 
@@ -514,6 +539,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     slices: formattingSettings.Slice[] = [
         this.usePredefinedColorRamp,
         this.colorRamp,
+        this.customColorRamp,
         this.invertColorRamp,
         this.colorMode,
         this.minColor,
@@ -523,6 +549,26 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.strokeWidth,
         this.layerOpacity
     ];
+
+    public applyConditionalDisplayRules(): void {
+        const useRamp = this.usePredefinedColorRamp.value;
+        const isCustomRamp = this.colorRamp.value?.value === "custom";
+
+        // Show/hide predefined ramp settings
+        this.colorRamp.visible = useRamp;
+        this.invertColorRamp.visible = useRamp;
+        this.colorMode.visible = useRamp;
+
+        // Show custom ramp text input only if predefined ramp is selected and the choice is 'custom'
+        this.customColorRamp.visible = useRamp && isCustomRamp;
+
+        // Show manual color pickers only when useRamp is false
+        this.minColor.visible = !useRamp;
+        this.midColor.visible = !useRamp;
+        this.maxColor.visible = !useRamp;
+    }
+
+
 }
 
 class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
