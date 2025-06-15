@@ -52,9 +52,9 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
 
     customMapAttribution: formattingSettings.TextInput = new TextInput({
         name: "customMapAttribution",
-        displayName: "Custom Map Attribution",
+        displayName: "Extra Attribution",
         value: "",
-        placeholder: "Enter Custom Map Attribution" // Placeholder text
+        placeholder: "Enter Custom Attribution" // Placeholder text
     });
 
     name: string = "basemapSelectSettingsGroup";

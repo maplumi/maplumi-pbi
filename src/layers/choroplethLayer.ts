@@ -213,7 +213,7 @@ export class ChoroplethLayer extends Layer {
         const densityFactor = Math.min(1, Math.max(0.1, area / 1000));  // Normalize between 0.1 and 1
 
         // Adjust thresholds based on feature density
-        let tolerance;
+        let tolerance:number;
         if (resolution > 10000) {
             tolerance = this.simplifyThresholds.high * densityFactor;
         } else if (resolution > 5000) {
