@@ -3,6 +3,26 @@ Maplumi Power BI Map Visual
 
 Maplumi is a powerful and flexible mapping visual for Power BI that allows you to visualize geographical data in multiple ways. It combines the capabilities of both proportional circle maps and choropleth maps in a single visual, with rich customization options.
 
+This visual is perfect for:
+- Demographic analysis
+- Geographic distribution studies
+- Multi-variable spatial analysis
+- Administrative boundary visualizations
+- Location-based performance metrics
+- Humanitarian needs and response mapping:
+  - Food security classification (IPC)
+  - Severity scales visualization
+  - Population needs assessment
+  - Access constraints mapping
+  - Response coverage analysis
+  - Displacement tracking
+- Development sector analysis:
+  - SDG progress monitoring
+  - Project coverage mapping
+  - Impact assessment visualization
+  - Resource allocation analysis
+  - Beneficiary distribution mapping
+
 Key Features
 -----------
 
@@ -106,23 +126,3 @@ The following enhancements and features are being considered for future releases
 - Focus state indicators
 
 These planned enhancements will improve the visual's integration with Power BI while maintaining focus on effective data visualization and analysis within dashboards. Implementation priority will be based on user feedback and Power BI's feature updates.
-
-This visual is perfect for:
-- Demographic analysis
-- Geographic distribution studies
-- Multi-variable spatial analysis
-- Administrative boundary visualizations
-- Location-based performance metrics
-- Humanitarian response mapping:
-  - Food security classification (IPC)
-  - Severity scales visualization
-  - Population needs assessment
-  - Access constraints mapping
-  - Response coverage analysis
-  - Displacement tracking
-- Development sector analysis:
-  - SDG progress monitoring
-  - Project coverage mapping
-  - Impact assessment visualization
-  - Resource allocation analysis
-  - Beneficiary distribution mapping
