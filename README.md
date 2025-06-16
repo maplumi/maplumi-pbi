@@ -61,48 +61,51 @@ Advanced Features
 Roadmap
 -------
 
-The following enhancements and features are being considered for future releases:
+The following enhancements and features are being considered for future releases, focusing on improvements that complement Power BI's dashboard capabilities:
 
-### Enhanced Interactivity
-- Custom click actions and drill-through support
-- Floating info panels with detailed data visualization
-- Time-based animation for temporal data
-- Advanced filtering capabilities with visual query builder
+### Enhanced Dashboard Integration
+- Improved cross-filtering synchronization with other visuals
+- Bookmarks support for map states (zoom level, selected regions)
+- Custom format string support for tooltips
+- Report page tooltip integration
+- Enhanced drill-through capabilities
 
-### Advanced Visualization
-- Heat map layer support
-- Clustering for dense point data
-- Custom symbol support for point features
-- Dynamic label placement with collision detection
-- 3D visualization capabilities for elevation data
+### Visual Improvements
+- Point clustering for better handling of dense data
+- Smarter label positioning to prevent overlaps
+- Additional predefined color schemes aligned with Power BI themes
+- Smart defaults based on data type and volume
+- Multiple small multiples support
 
 ### Data Handling
-- Real-time data streaming support
-- Offline map caching
-- Support for GeoJSON and KML file imports
-- Advanced data classification methods (e.g., custom breaks)
-- Multi-measure choropleth support
+- Improved handling of large datasets
+- Additional data classification methods
+- Support for multiple measure comparisons
+- Dynamic reference lines in legends
+- Enhanced null value handling
 
 ### Performance Optimization
-- Vector tile support for faster rendering
-- Improved memory management for large datasets
-- Progressive loading for big data sets
-- WebGL rendering for enhanced performance
+- Faster initial loading
+- Optimized memory usage
+- Improved rendering for large datasets
+- Better handling of frequent data refreshes
+- Reduced visual update time
 
-### Analysis Tools
-- Distance and area measurement tools
-- Basic spatial analysis capabilities
-- Isochrone visualization
-- Custom coordinate system support
-- Data-driven styling rules
+### Power BI Feature Integration
+- Support for Power BI built-in hierarchies
+- Enhanced relative date filtering
+- Q&A integration
+- Mobile layout optimization
+- Responsive design improvements
 
-### Additional Base Maps
-- Integration with ArcGIS Online
-- Support for WMS/WMTS services
-- Custom tile server support
-- Aerial/satellite imagery options
+### Accessibility Improvements
+- High contrast mode support
+- Screen reader compatibility
+- Keyboard navigation support
+- Color blindness friendly defaults
+- Focus state indicators
 
-These planned enhancements will further expand Maplumi's capabilities and provide users with even more powerful geographic visualization options. Priority and implementation timeline will be based on user feedback and requirements.
+These planned enhancements will improve the visual's integration with Power BI while maintaining focus on effective data visualization and analysis within dashboards. Implementation priority will be based on user feedback and Power BI's feature updates.
 
 This visual is perfect for:
 - Demographic analysis
@@ -110,3 +113,16 @@ This visual is perfect for:
 - Multi-variable spatial analysis
 - Administrative boundary visualizations
 - Location-based performance metrics
+- Humanitarian response mapping:
+  - Food security classification (IPC)
+  - Severity scales visualization
+  - Population needs assessment
+  - Access constraints mapping
+  - Response coverage analysis
+  - Displacement tracking
+- Development sector analysis:
+  - SDG progress monitoring
+  - Project coverage mapping
+  - Impact assessment visualization
+  - Resource allocation analysis
+  - Beneficiary distribution mapping

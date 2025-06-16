@@ -157,20 +157,8 @@ export class MaplumiVisual implements IVisual {
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
-
-
-        // Ensure SVG groups exist
-        /* if (this.svg.select("#choropleth-group").empty()) {
-            this.svg.append("g").attr("id", "choropleth-group");
-        }
-        if (this.svg.select("#circles-group-1").empty()) {
-            this.svg.append("g").attr("id", "circles-group-1");
-        }
-        if (this.svg.select("#circles-group-2").empty()) {
-            this.svg.append("g").attr("id", "circles-group-2");
-        } */
-
-        // Hide overlay by default
+        
+        this.svg.selectAll('*').remove();
         this.svgOverlay.style.display = 'none';
 
         // Get latest options
@@ -196,20 +184,43 @@ export class MaplumiVisual implements IVisual {
         this.choroplethDisplayed = choroplethOptions.layerControl;
         this.mapService.updateBasemap(basemapOptions);
 
-        // Ensure groups exist and clean them up first
-        this.ensureAndCleanupGroups(choroplethOptions.layerControl, circleOptions.layerControl);
-
         // Render layers based on settings
-        if (choroplethOptions.layerControl) {
+        if (choroplethOptions.layerControl == true) {
+
             this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
+
+        } else {
+
+            const group = this.svg.select(`#choropleth-group`);
+
+            group.selectAll("*").remove();  // Clear children
+
+            this.choroplethLayer = undefined; // Reset choropleth layer
+           
+
+            this.legendService.hideLegend("choropleth");
         }
 
-        if (circleOptions.layerControl) {
+        if (circleOptions.layerControl == true) {
+
             this.renderCircleLayer(dataView.categorical, circleOptions);
+
+        } else {
+
+            const group1 = this.svg.select(`#circles-group-1`);
+            const group2 = this.svg.select(`#circles-group-2`);
+
+            // Always clean up children
+            group1.selectAll("*").remove();
+            group2.selectAll("*").remove();
+
+            this.circleLayer = undefined; // Reset circle layer
+
+            this.legendService.hideLegend("circle");
         }
 
         // Update legend visibility
-        if (!choroplethOptions.layerControl && !circleOptions.layerControl) {
+        if (choroplethOptions.layerControl == false && circleOptions.layerControl == false) {
             this.legendContainer.style.display = "none";
         }
 
@@ -224,13 +235,15 @@ export class MaplumiVisual implements IVisual {
     // This function is responsible for rendering the circle layer on the map
 
     private renderCircleLayer(categorical: any, circleOptions: CircleOptions): void {
-        if (!circleOptions.layerControl) return; // Early exit if layer is off
+
+        // Check if circle layer is enabled
+        if (circleOptions.layerControl == false) return; // Early exit if layer is off
 
         const group1 = this.svg.select(`#circles-group-1`);
         const group2 = this.svg.select(`#circles-group-2`);
 
-        // Always clean up before re-rendering to avoid duplication
-        group1.selectAll("*").remove();  // Clear children, not the group itself
+        // Always clean up children before re-rendering to avoid duplication
+        group1.selectAll("*").remove();
         group2.selectAll("*").remove();
 
         this.legendContainer.style.display = "block";
@@ -419,7 +432,8 @@ export class MaplumiVisual implements IVisual {
     // **** CHOROPLETH LAYER ****
     // This function is responsible for rendering the choropleth layer on the map
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions): void {
-        if (!choroplethOptions.layerControl) return; // Early exit if the layer is disabled
+
+        if (choroplethOptions.layerControl == false) return; // Early exit if the layer is disabled
 
         const group = this.svg.select(`#choropleth-group`);
 
@@ -625,6 +639,7 @@ export class MaplumiVisual implements IVisual {
     // *** END CHOROPLETH LAYER ***
 
     private updateLegendContainer(): void {
+
         // Update legend container styles
         this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
         this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
@@ -771,7 +786,8 @@ export class MaplumiVisual implements IVisual {
 
     }
 
-    private ensureAndCleanupGroups(choroplethEnabled: boolean, circleEnabled: boolean): void {
+    private ensureAndCleanupLayerGroups(choroplethEnabled: boolean, circleEnabled: boolean): void {
+
         // Create groups if they don't exist
         if (this.svg.select("#choropleth-group").empty()) {
             this.svg.append("g").attr("id", "choropleth-group");
@@ -783,26 +799,8 @@ export class MaplumiVisual implements IVisual {
             this.svg.append("g").attr("id", "circles-group-2");
         }
 
-        // Clean up inactive layers immediately
-        if (!choroplethEnabled) {
-            this.svg.select("#choropleth-group").selectAll("*").remove();
-            if (this.choroplethLayer) {
-                this.map.removeLayer(this.choroplethLayer);
-                this.choroplethLayer = null;
-            }
-        }
-
-        if (!circleEnabled) {
-            this.svg.select("#circles-group-1").selectAll("*").remove();
-            this.svg.select("#circles-group-2").selectAll("*").remove();
-            if (this.circleLayer) {
-                this.map.removeLayer(this.circleLayer);
-                this.circleLayer = null;
-            }
-        }
-
         // Hide SVG overlay if both layers are disabled
-        this.svgOverlay.style.display = (!choroplethEnabled && !circleEnabled) ? 'none' : 'block';
+        this.svgOverlay.style.display = (choroplethEnabled == false && circleEnabled == false) ? 'none' : 'block';
     }
 
 }

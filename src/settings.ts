@@ -368,7 +368,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     topoJSON_geoJSON_FileUrl: formattingSettings.TextInput = new TextInput({
         name: "topoJSON_geoJSON_FileUrl",
         displayName: "TopoJSON/GeoJSON Url",
-        value: "", // Default country
+        value: "", // Default url
         placeholder: "" // Placeholder text
     });
 

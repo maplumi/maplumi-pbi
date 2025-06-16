@@ -173,67 +173,14 @@ export interface CircleOptions {
     layer2Opacity: number;
     showLegend: boolean;
     legendTitle: string;
+    //legendTitleFontSize: string;
+    //legendTitleFontWeight: string;
     legendTitleColor: string;
     leaderLineColor: string;
     leaderLineStrokeWidth: number;
     labelTextColor: string;
+    //labelTextFontSize: string;
 }
-
-// export interface CircleOptions {
-//     layerControl: boolean;
-//     color1: string;
-//     color2: string;
-//     minRadius: number;
-//     maxRadius: number;
-//     strokeColor: string;
-//     strokeWidth: number;
-//     layer1Opacity: number;
-//     layer2Opacity: number;
-//     showLegend: boolean;
-//     legendTitle: string;
-//     legendTitleColor: string;
-//     leaderLineColor: string;
-//     leaderLineStrokeWidth: number;
-//     labelTextColor: string;
-// }
-
-// export interface CircleLayerOptions extends LayerOptions {
-
-//     longitudes: number[];
-//     latitudes: number[];
-//     circleOptions: CircleOptions;
-//     combinedCircleSizeValues?: number[];
-//     circle1SizeValues?: number[];
-//     circle2SizeValues?: number[];
-//     minCircleSizeValue?: number;
-//     circleScale?: number;
-//     svg: any;
-//     svgContainer: HTMLElement;
-//     zIndex: number;
-//     dataPoints?: Array<{
-//         longitude: number;
-//         latitude: number;
-//         tooltip: VisualTooltipDataItem[];
-//         selectionId: ISelectionId;
-//     }>;
-//     tooltipServiceWrapper: ITooltipServiceWrapper;
-//     selectionManager: powerbi.extensibility.ISelectionManager;
-// }
-
-// export interface ChoroplethLayerOptions extends LayerOptions {
-//     geojson: any;
-//     strokeColor: string;
-//     strokeWidth: number;
-//     fillOpacity: number;
-//     colorScale: (value: any) => string;
-//     dataKey: string;
-//     svg: any;
-//     svgContainer: HTMLElement;
-//     zIndex?: number;
-//     categoryValues: string[];
-//     measureValues: number[];
-// }
-
 
 export interface ChoroplethOptions {
     layerControl: boolean;
@@ -262,6 +209,7 @@ export interface ChoroplethOptions {
     legendTitleAlignment: string;
     legendTitleColor: string;
     legendLabelsColor: string;
+    //legendLabelsFontSize: string;
 
 }
 
