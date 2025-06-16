@@ -28,7 +28,7 @@
         "src/services/colorRampService.ts",
         "src/config/VisualConfig.ts", 
         
-        "src/utils/fetch.ts",
+        "src/utils/requestHelpers.ts",
         "src/utils/attribution.ts",        
         "src/utils/geometry.ts",
         "src/utils/render.ts",
