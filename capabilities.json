@@ -444,7 +444,7 @@
         }
       }
     },
-    "mapToolsVisualCardSettings": {
+    "mapControlsVisualCardSettings": {
       "properties": {
         "lockMapExtent": {
           "type": {

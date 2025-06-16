@@ -696,7 +696,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     private getMapToolsOptions(): MapToolsOptions {
-        const maptoolsSettings = this.visualFormattingSettingsModel.MapToolsVisualCardSettings;
+        const maptoolsSettings = this.visualFormattingSettingsModel.mapControlsVisualCardSettings;
         return {
 
             lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,

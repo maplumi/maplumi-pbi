@@ -92,7 +92,7 @@ The following enhancements and features are being considered for future releases
 
 ### Visual Improvements
 - Point clustering for better handling of dense data
-- Smarter label positioning to prevent overlaps
+- Feature labels with smart positioning and placement controls to prevent overlaps
 - Additional predefined color schemes aligned with Power BI themes
 - Smart defaults based on data type and volume
 - Multiple small multiples support
@@ -101,7 +101,7 @@ The following enhancements and features are being considered for future releases
 - Improved handling of large datasets
 - Additional data classification methods
 - Support for multiple measure comparisons
-- Dynamic reference lines in legends
+- Dynamic reference lines in legends e.g for average data values
 - Enhanced null value handling
 
 ### Performance Optimization

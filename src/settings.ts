@@ -792,14 +792,14 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
 
 }
 
-class mapToolsVisualCardSettings extends formattingSettings.CompositeCard {
+class mapControlsVisualCardSettings extends formattingSettings.CompositeCard {
 
     public mapToolsSettingsGroup: mapToolsSettingsGroup = new mapToolsSettingsGroup();
     public legendContainerSettingsGroup: legendContainerSettingsGroup = new legendContainerSettingsGroup();
 
 
-    name: string = "mapToolsVisualCardSettings";
-    displayName: string = "General Controls";
+    name: string = "mapControlsVisualCardSettings";
+    displayName: string = "Controls";
     groups: formattingSettings.Group[] = [this.mapToolsSettingsGroup, this.legendContainerSettingsGroup];
 
 }
@@ -814,8 +814,8 @@ export class MaplumiVisualFormattingSettingsModel extends FormattingSettingsMode
     BasemapVisualCardSettings = new basemapVisualCardSettings();
     ProportionalCirclesVisualCardSettings = new proportionalCirclesVisualCardSettings();
     ChoroplethVisualCardSettings = new choroplethVisualCardSettings();
-    MapToolsVisualCardSettings = new mapToolsVisualCardSettings();
+    mapControlsVisualCardSettings = new mapControlsVisualCardSettings();
 
-    cards = [this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings, this.MapToolsVisualCardSettings];
+    cards = [this.mapControlsVisualCardSettings, this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings];
 
 }

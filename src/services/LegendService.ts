@@ -16,7 +16,10 @@ export class LegendService {
         radii: number[],
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
-        formatTemplate: string = "{:.0f}"
+        formatTemplate: string = "{:.0f}",
+        xpadding: number = 5,
+        ypadding: number = 5,
+        labelSpacing: number = 15
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -45,7 +48,7 @@ export class LegendService {
         title.style.color = circleOptions.legendTitleColor;
         title.style.fontSize = "12px";
         title.style.fontWeight = "bold";
-        title.style.marginBottom = "5px";
+        title.style.marginBottom = "10px";
         circleLegendItemsContainer.appendChild(title);
 
         // Get legend data
@@ -54,10 +57,9 @@ export class LegendService {
 
         // Create SVG elements
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const padding = 10;
         const maxRadius = Math.max(...legendData.map((item) => item.radius));
-        const centerX = maxRadius + padding;
-        const bottomY = 2 * maxRadius + padding;
+        const centerX = maxRadius + xpadding;
+        const bottomY = 2 * maxRadius + ypadding;
         let maxLabelWidth = 0;
 
         // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
@@ -94,7 +96,7 @@ export class LegendService {
             svg.appendChild(circle);
 
             // Calculate label position
-            const labelX = centerX + maxRadius + 20;
+            const labelX = centerX + maxRadius + labelSpacing;
             const labelY = currentY - item.radius;
 
             // Add the leader line
@@ -122,6 +124,7 @@ export class LegendService {
             text.setAttribute("y", labelY.toString());
             text.setAttribute("alignment-baseline", "middle");
             text.setAttribute("fill", circleOptions.labelTextColor);
+            text.setAttribute("font-size", "10px");
             text.textContent = `${formattedLabel}`;
 
             svg.appendChild(text);
@@ -142,8 +145,8 @@ export class LegendService {
         });
 
         // Set SVG dimensions
-        const svgWidth = centerX + maxRadius + maxLabelWidth + padding * 2 + 20;
-        const svgHeight = bottomY + padding;
+        const svgWidth = maxRadius + maxLabelWidth + xpadding;
+        const svgHeight = bottomY + ypadding;
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
