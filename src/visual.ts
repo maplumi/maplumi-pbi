@@ -145,9 +145,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
-
         this.events.renderingStarted(options);
-
         const dataView = options.dataViews[0];
 
         // Update formatting settings
@@ -158,6 +156,7 @@ export class MaplumiVisual implements IVisual {
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
         
+        // Clean up previous layers and SVG elements
         this.svg.selectAll('*').remove();
         this.svgOverlay.style.display = 'none';
 
@@ -263,7 +262,7 @@ export class MaplumiVisual implements IVisual {
         if (longitudes.length !== latitudes.length) {
             // Assuming 'host' is an instance of IVisualHost
             this.host.displayWarningIcon("Longitude and Latitude have different lengths.", "maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values.");
-            console.warn("Longitude and Latitude have different lengths.");
+            
             return;
         }
 
@@ -293,8 +292,7 @@ export class MaplumiVisual implements IVisual {
         const latCategory = categorical?.categories?.find((c) => c.source?.roles?.Latitude);
 
         if (!lonCategory || !latCategory) {
-            this.host.displayWarningIcon("Missing Longitude or Latitude roles", "maplumiWarning: Both Longitude and Latitude roles must be assigned. Please check your data fields.");
-            console.warn("Both Longitude and Latitude roles must be assigned.");
+            this.host.displayWarningIcon("Missing Longitude or Latitude roles", "maplumiWarning: Both Longitude and Latitude roles must be assigned to view scaled cirles. Please check your data fields.");
             return { longitudes: undefined, latitudes: undefined, circleSizeValuesObjects: [] };
         }
 
@@ -470,12 +468,11 @@ export class MaplumiVisual implements IVisual {
     private prepareChoroplethRendering(): void {
         this.svgOverlay.style.display = 'flex';
         this.legendContainer.style.display = "block";
-        console.log('Rendering choropleth...');
     }
 
     private validateChoroplethInputData(categorical: any): boolean {
         if (!categorical.values || categorical.values.length === 0) {
-            console.warn("Measures not found.");
+            this.host.displayWarningIcon("Measures not found", "maplumiWarning: Measures field is missing. Please ensure it is included in your data.");
             return false;
         }
         return true;
@@ -489,7 +486,6 @@ export class MaplumiVisual implements IVisual {
 
         if (!AdminPCodeNameIDCategory) {
             this.host.displayWarningIcon("Admin PCode/Name/ID not found", "maplumiWarning: Admin PCode/Name/ID field is missing. Please ensure it is included in your data.");
-            console.warn("Admin PCode/Name/ID not found.");
             return { AdminPCodeNameIDCategory: undefined, colorMeasure: undefined, pCodes: undefined };
         }
 
@@ -499,14 +495,14 @@ export class MaplumiVisual implements IVisual {
 
         if (!colorMeasure) {
             this.host.displayWarningIcon("Color Measure not found", "maplumiWarning: Color measure field is missing. Please ensure it is included in your data.");
-            console.warn("Color Measure not found.");
+            
             return { AdminPCodeNameIDCategory, colorMeasure: undefined, pCodes: undefined };
         }
 
         const pCodes = AdminPCodeNameIDCategory.values as string[];
         if (!pCodes || pCodes.length === 0) {
             this.host.displayWarningIcon("No PCodes found", "maplumiWarning: No PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            console.warn("No PCodes found. Exiting...");
+            
             return { AdminPCodeNameIDCategory, colorMeasure, pCodes: undefined };
         }
 
@@ -517,7 +513,7 @@ export class MaplumiVisual implements IVisual {
         const validPCodes = pCodes.filter((pcode) => pcode);
         if (validPCodes.length === 0) {
             this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            console.warn("No valid PCodes found. Exiting...");
+            
         }
         return validPCodes;
     }
@@ -610,7 +606,7 @@ export class MaplumiVisual implements IVisual {
             });
         } catch (error) {
             this.host.displayWarningIcon("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
-            console.error("Error fetching data:", error);
+            
         }
     }
 
