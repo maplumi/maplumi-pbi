@@ -188,16 +188,16 @@ export interface ChoroplethOptions {
     locationPcodeNameId: string,
     topoJSON_geoJSON_FileUrl: string,
 
-    usePredefinedColorRamp: boolean;
+    //usePredefinedColorRamp: boolean;
 
     invertColorRamp: boolean;
     colorMode: string;
     colorRamp: string;
-    midColor: string;
+    customColorRamp: string;
+    
     classes: number;
     classificationMethod: string;
-    minColor: string;
-    maxColor: string;
+   
     strokeColor: string;
     strokeWidth: number;
     layerOpacity: number;

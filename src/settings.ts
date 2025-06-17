@@ -402,12 +402,12 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
             displayName: "Quantile"
         },
         items: [
+            { value: "u", displayName: "Unique Data Values" },
             { value: "q", displayName: "Quantile" },
             { value: "e", displayName: "Equal Interval" },
             { value: "l", displayName: "Logarithmic" },
             { value: "k", displayName: "K-means" },
-            { value: "j", displayName: "Jenks Natural Breaks" },
-            { value: "u", displayName: "Unclassified" }
+            { value: "j", displayName: "Jenks Natural Breaks" }           
         ]
     });
 
@@ -423,11 +423,11 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
 
 class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
-    usePredefinedColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "usePredefinedColorRamp",
-        displayName: "Predefined Ramp",
-        value: false
-    });
+    // usePredefinedColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+    //     name: "usePredefinedColorRamp",
+    //     displayName: "Predefined Ramp",
+    //     value: false
+    // });
 
     colorRamp: DropDown = new DropDown({
         name: "colorRamp",
@@ -437,6 +437,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             displayName: "Blue"
         },
         items: [
+            { value: "custom", displayName: "Custom" }, // Custom color ramp option
             { value: "blue", displayName: "Blue" },
             { value: "red", displayName: "Red" },
             { value: "green", displayName: "Green" },
@@ -446,19 +447,20 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "slateGrey", displayName: "Slate Grey" },
             { value: "neutralGrey", displayName: "Neutral Grey" },
             { value: "azurecascade", displayName: "Azure Cascade" },
+            { value: "ipc", displayName: "IPC" },
             { value: "sdgred", displayName: "SDG Red" },
             { value: "sdgyellow", displayName: "SDG Yellow" },
             { value: "sdgorange", displayName: "SDG Orange" },
             { value: "sdggreen", displayName: "SDG Green" },
             { value: "sdgdarkgreen", displayName: "SDG Dark Green" },
-            { value: "sdgnavyblue", displayName: "SDG Navy Blue" },
-            { value: "ipc", displayName: "IPC" },
-            { value: "custom", displayName: "Custom" } // Custom color ramp option
+            { value: "sdgnavyblue", displayName: "SDG Navy Blue" }
+           
+           
         ]
     });
 
     customColorRamp: formattingSettings.TextInput = new TextInput({
-        name: "custom_color_ramp",
+        name: "customColorRamp",
         displayName: "Custom Color Ramp",
         value: " #e1eef9, #c7e1f5, #64beeb, #009edb", // Default value
         placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb" // Placeholder
@@ -485,24 +487,6 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "lch", displayName: "LCH" }
 
         ]
-    });
-
-    minColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "minColor",
-        displayName: "Minimum Color",
-        value: { value: "#e1eef9" } // Default color
-    });
-
-    midColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "midColor",
-        displayName: "Mid Color",
-        value: { value: "#009edb" } // Default color
-    });
-
-    maxColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "maxColor",
-        displayName: "Maximum Color",
-        value: { value: "#002e6e" } // Default color
     });
 
     strokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
@@ -537,35 +521,23 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
-        this.usePredefinedColorRamp,
+        
         this.colorRamp,
         this.customColorRamp,
         this.invertColorRamp,
         this.colorMode,
-        this.minColor,
-        this.midColor,
-        this.maxColor,
         this.strokeColor,
         this.strokeWidth,
         this.layerOpacity
     ];
 
     public applyConditionalDisplayRules(): void {
-        const useRamp = this.usePredefinedColorRamp.value;
+        
         const isCustomRamp = this.colorRamp.value?.value === "custom";
 
-        // Show/hide predefined ramp settings
-        this.colorRamp.visible = useRamp;
-        this.invertColorRamp.visible = useRamp;
-        this.colorMode.visible = useRamp;
+        // Show custom ramp text input only if the choice of color ramp is 'custom'
+        this.customColorRamp.visible = isCustomRamp;
 
-        // Show custom ramp text input only if predefined ramp is selected and the choice is 'custom'
-        this.customColorRamp.visible = useRamp && isCustomRamp;
-
-        // Show manual color pickers only when useRamp is false
-        this.minColor.visible = !useRamp;
-        this.midColor.visible = !useRamp;
-        this.maxColor.visible = !useRamp;
     }
 
 

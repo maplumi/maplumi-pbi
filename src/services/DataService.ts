@@ -16,7 +16,7 @@ export class DataService {
 
     private colorRampService: ColorRampService;
 
-    constructor(colorRampService: any) {
+    constructor(colorRampService: ColorRampService) {
         this.colorRampService = colorRampService;
     }
 
@@ -51,7 +51,7 @@ export class DataService {
      * @returns Array of tooltip items arrays, where each inner array contains tooltip items for a feature
      */
     public extractTooltips(categorical: any): VisualTooltipDataItem[][] {
-        
+
         // Get all fields that have the Tooltips role
         const tooltipFields = categorical.values
             .filter(v => v.source.roles["Tooltips"])
@@ -68,7 +68,7 @@ export class DataService {
             const tooltipItems: VisualTooltipDataItem[] = tooltipFields.map(field => {
                 const value = field.values[i];
                 const format = field.source.format;
-                
+
                 // Create tooltip item with original formatting
                 const tooltipItem: VisualTooltipDataItem = {
                     displayName: field.source.displayName,
@@ -206,10 +206,10 @@ export class DataService {
         const uniqueValues = new Set(values);
         const numValues = uniqueValues.size;
 
-        // Handle unclassified/unique values case first
+        // Handle unique values case first
         if (options.classificationMethod === "u") {
             return Array.from(uniqueValues).sort((a, b) => a - b);
-        }     
+        }
 
         const adjustedClasses = Math.min(options.classes, numValues);
 
@@ -248,27 +248,30 @@ export class DataService {
      */
 
     public getColorScale(classBreaks: number[], options: ChoroplethOptions): string[] {
-        // For unclassified/unique values, use the number of unique values as classes
-        const numClasses = options.classificationMethod === "u" 
-            ? classBreaks.length 
+
+        // For unique values, use the number of unique values as classes
+        const numClasses = options.classificationMethod === "u"
+            ? classBreaks.length
             : options.classes;
 
-        if (options.usePredefinedColorRamp) {
-            if (options.invertColorRamp) {
-                this.colorRampService.invertRamp();
-            }
-            return this.colorRampService.generateColorRamp(
-                classBreaks,
-                numClasses,
-                options.colorMode
-            );
-        }
 
-        return chroma
-            .scale([options.minColor, options.midColor, options.maxColor])
-            .mode(options.colorMode)
-            .domain(classBreaks)
-            .colors(numClasses);
+        if (options.invertColorRamp === true) {
+            this.colorRampService.invertRamp();
+        }
+        return this.colorRampService.generateColorRamp(
+            classBreaks,
+            numClasses,
+            options.colorMode
+        );
+
+        // // split colorRamp into parts
+        // const colorRampParts = options.colorRamp.split(",");
+
+        // return chroma
+        //     .scale(colorRampParts)
+        //     .mode(options.colorMode)
+        //     .domain(classBreaks)
+        //     .colors(numClasses);
     }
 
 

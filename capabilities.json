@@ -333,14 +333,14 @@
             "enumeration": []
           }
         },
-        "usePredefinedColorRamp": {
-          "type": {
-            "bool": true
-          }
-        },
         "colorRamp": {
           "type": {
             "enumeration": []
+          }
+        },
+        "customColorRamp":{
+          "type": {
+            "text": true
           }
         },
         "invertColorRamp": {
@@ -351,33 +351,6 @@
         "colorMode": {
           "type": {
             "enumeration": []
-          }
-        },
-        "minColor": {
-          "type": {
-            "fill": {
-              "solid": {
-                "color": true
-              }
-            }
-          }
-        },
-        "midColor": {
-          "type": {
-            "fill": {
-              "solid": {
-                "color": true
-              }
-            }
-          }
-        },
-        "maxColor": {
-          "type": {
-            "fill": {
-              "solid": {
-                "color": true
-              }
-            }
           }
         },
         "strokeColor": {

@@ -79,7 +79,7 @@ export class ChoroplethLayer extends Layer {
             .attr('width', width)
             .attr('height', height);
 
-        // Calculate the correct scale for D3's geoMercator
+        // Calculate the correct scale factor for D3's geoMercator (Web Mercator)
         const scale = 6378137 / resolution;
 
         // Configure D3's projection to align with OpenLayers

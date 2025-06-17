@@ -156,7 +156,7 @@ export class MaplumiVisual implements IVisual {
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
-        
+
         // Clean up previous layers and SVG elements
         this.svg.selectAll('*').remove();
         this.svgOverlay.style.display = 'none';
@@ -170,7 +170,33 @@ export class MaplumiVisual implements IVisual {
         // Update legend container styles
         this.updateLegendContainer();
 
-        this.colorRampService = new ColorRampService(choroplethOptions.colorRamp);
+        // Create color ramp service and data service
+        const colorRampName = choroplethOptions.colorRamp;
+        const colorRamp: string[] = VisualConfig.COLORRAMPS[colorRampName.toUpperCase()];
+        const customColorRamp: string[] = choroplethOptions.customColorRamp.split(",");
+        // Validate custom color ramp: trim and check for valid hex colors
+        const validCustomColorRamp = customColorRamp
+            .map(c => c.trim())
+            .filter(c => /^#([0-9A-Fa-f]{3}){1,2}$/.test(c));
+
+        let selectedColorRamp: string[];
+        if (colorRampName === "custom") {
+            if (validCustomColorRamp.length > 0) {
+                selectedColorRamp = validCustomColorRamp;
+            } else {
+                selectedColorRamp = colorRamp;
+
+                this.host.displayWarningIcon(
+                    "Invalid or empty custom color ramp.",
+                    "maplumiWarning: Invalid or empty custom color ramp. Using default color ramp instead. Please provide a valid comma-separated list of hex color codes."
+                );
+
+            }
+        } else {
+            selectedColorRamp = colorRamp;
+        }
+
+        this.colorRampService = new ColorRampService(selectedColorRamp);
         this.dataService = new DataService(this.colorRampService);
 
         // If no data, clear everything and return
@@ -196,7 +222,7 @@ export class MaplumiVisual implements IVisual {
             group.selectAll("*").remove();  // Clear children
 
             this.choroplethLayer = undefined; // Reset choropleth layer
-           
+
 
             this.legendService.hideLegend("choropleth");
         }
@@ -261,9 +287,9 @@ export class MaplumiVisual implements IVisual {
         const dataPoints = this.createCircleDataPoints(longitudes, latitudes, circleSizeValuesObjects, categorical);
 
         if (longitudes.length !== latitudes.length) {
-            // Assuming 'host' is an instance of IVisualHost
+
             this.host.displayWarningIcon("Longitude and Latitude have different lengths.", "maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values.");
-            
+
             return;
         }
 
@@ -496,14 +522,14 @@ export class MaplumiVisual implements IVisual {
 
         if (!colorMeasure) {
             this.host.displayWarningIcon("Color Measure not found", "maplumiWarning: Color measure field is missing. Please ensure it is included in your data.");
-            
+
             return { AdminPCodeNameIDCategory, colorMeasure: undefined, pCodes: undefined };
         }
 
         const pCodes = AdminPCodeNameIDCategory.values as string[];
         if (!pCodes || pCodes.length === 0) {
             this.host.displayWarningIcon("No PCodes found", "maplumiWarning: No PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            
+
             return { AdminPCodeNameIDCategory, colorMeasure, pCodes: undefined };
         }
 
@@ -514,7 +540,7 @@ export class MaplumiVisual implements IVisual {
         const validPCodes = pCodes.filter((pcode) => pcode);
         if (validPCodes.length === 0) {
             this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            
+
         }
         return validPCodes;
     }
@@ -634,7 +660,7 @@ export class MaplumiVisual implements IVisual {
             this.renderChoroplethLayerOnMap(choroplethLayerOptions, choroplethOptions, colorValues, classBreaks, colorScale);
         } catch (error) {
             this.host.displayWarningIcon("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
-            
+
         }
     }
 
@@ -774,15 +800,13 @@ export class MaplumiVisual implements IVisual {
             locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
 
-            usePredefinedColorRamp: choroplethDisplaySettings.usePredefinedColorRamp.value,
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
             colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
             colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
-            midColor: choroplethDisplaySettings.midColor.value.value,
+            customColorRamp: choroplethDisplaySettings.customColorRamp.value,
+
             classes: choroplethClassificationSettings.numClasses.value,
             classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString(),
-            minColor: choroplethDisplaySettings.minColor.value.value,
-            maxColor: choroplethDisplaySettings.maxColor.value.value,
             strokeColor: choroplethDisplaySettings.strokeColor.value.value,
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
