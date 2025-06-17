@@ -47,7 +47,7 @@ import * as d3 from "d3";
 import * as requestHelpers from "./utils/requestHelpers";
 import { LegendService } from "./services/legendService";
 import { MapService } from "./services/mapService";
-import { DataService } from "./services/dataService";
+import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampService } from "./services/colorRampService";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
@@ -65,7 +65,7 @@ export class MaplumiVisual implements IVisual {
     private colorRampService: ColorRampService;
     private legendService: LegendService;
     private mapService: MapService;
-    private dataService: DataService;
+    private dataService: ChoroplethDataService;
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
     private map: Map;
@@ -197,7 +197,7 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.colorRampService = new ColorRampService(selectedColorRamp);
-        this.dataService = new DataService(this.colorRampService);
+        this.dataService = new ChoroplethDataService(this.colorRampService);
 
         // If no data, clear everything and return
         if (!dataView || !dataView.categorical) {

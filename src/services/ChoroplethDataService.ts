@@ -12,7 +12,7 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
  * for visualization on maps. Handles data classification, tooltip generation, and geometry processing.
  */
 
-export class DataService {
+export class ChoroplethDataService {
 
     private colorRampService: ColorRampService;
 
@@ -236,13 +236,9 @@ export class DataService {
     /**
      * Generates a color scale based on class breaks and choropleth options
      * @param classBreaks Array of numeric break points that define class intervals
-     * @param options Choropleth options object containing:
-     *   - usePredefinedColorRamp: boolean - Whether to use predefined color ramp
+     * @param options Choropleth options object containing:    
      *   - invertColorRamp: boolean - Whether to invert the color ramp order
-     *   - classes: number - Number of color classes to generate
-     *   - minColor: string - Starting color for custom gradient
-     *   - midColor: string - Middle color for custom gradient
-     *   - maxColor: string - Ending color for custom gradient
+     *   - classes: number - Number of color classes to generate    
      *   - colorMode: string - Color interpolation mode (e.g. 'lch', 'lab', 'rgb')
      * @returns Array of color strings representing the generated color scale
      */
