@@ -106,7 +106,7 @@ export class MaplumiVisual implements IVisual {
         this.container.appendChild(this.legendContainer);
 
         this.legendService = new LegendService(this.legendContainer);
-        // Pass showZoomControl and host for debugging
+
         this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
 
         this.map = this.mapService.getMap();
@@ -147,6 +147,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
+
         this.events.renderingStarted(options);
         const dataView = options.dataViews[0];
 
@@ -178,6 +179,7 @@ export class MaplumiVisual implements IVisual {
         const colorRampName = choroplethOptions.colorRamp;
         const colorRamp: string[] = VisualConfig.COLORRAMPS[colorRampName.toUpperCase()];
         const customColorRamp: string[] = choroplethOptions.customColorRamp.split(",");
+
         // Validate custom color ramp: trim and check for valid hex colors
         const validCustomColorRamp = customColorRamp
             .map(c => c.trim())
@@ -200,6 +202,7 @@ export class MaplumiVisual implements IVisual {
             selectedColorRamp = colorRamp;
         }
 
+        // Initialize color ramp service and data service
         this.colorRampService = new ColorRampService(selectedColorRamp);
         this.dataService = new ChoroplethDataService(this.colorRampService);
 
@@ -225,8 +228,10 @@ export class MaplumiVisual implements IVisual {
 
             group.selectAll("*").remove();  // Clear children
 
-            this.choroplethLayer = undefined; // Reset choropleth layer
-
+            if (this.choroplethLayer) {
+                this.map.removeLayer(this.choroplethLayer);
+                this.choroplethLayer = undefined; // Reset choropleth layer
+            }
 
             this.legendService.hideLegend("choropleth");
         }
@@ -244,7 +249,10 @@ export class MaplumiVisual implements IVisual {
             group1.selectAll("*").remove();
             group2.selectAll("*").remove();
 
-            this.circleLayer = undefined; // Reset circle layer
+            if (this.circleLayer) {
+                this.map.removeLayer(this.circleLayer);
+                this.circleLayer = undefined; // Reset circle layer
+            }
 
             this.legendService.hideLegend("circle");
         }
@@ -308,7 +316,7 @@ export class MaplumiVisual implements IVisual {
             circleSizeValuesObjects[1]?.values as number[]
         );
 
-        this.updateCircleLayer(circleLayerOptions);
+        this.renderCircleLayerOnMap(circleLayerOptions);
 
         if (circleOptions.showLegend) {
             this.renderCircleLegend(combinedCircleSizeValues, minCircleSizeValue, circleScale, circleOptions);
@@ -318,6 +326,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     private extractCircleData(categorical: any): CircleData {
+
         const lonCategory = categorical?.categories?.find((c) => c.source?.roles?.Longitude);
         const latCategory = categorical?.categories?.find((c) => c.source?.roles?.Latitude);
 
@@ -396,7 +405,6 @@ export class MaplumiVisual implements IVisual {
         circle2SizeValues?: number[]
     ): CircleLayerOptions {
 
-
         return {
             longitudes,
             latitudes,
@@ -419,7 +427,7 @@ export class MaplumiVisual implements IVisual {
         };
     }
 
-    private updateCircleLayer(circleLayerOptions: CircleLayerOptions): void {
+    private renderCircleLayerOnMap(circleLayerOptions: CircleLayerOptions): void {
         // Remove existing CircleLayer if it exists
         if (this.circleLayer) {
             this.map.removeLayer(this.circleLayer);
@@ -674,6 +682,10 @@ export class MaplumiVisual implements IVisual {
         classBreaks: any,
         colorScale: any
     ): void {
+
+        if (this.choroplethLayer) {
+            this.map.removeLayer(this.choroplethLayer);
+        }
         this.choroplethLayer = new ChoroplethLayer(choroplethLayerOptions);
         this.map.addLayer(this.choroplethLayer);
 
