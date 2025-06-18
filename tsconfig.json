@@ -24,6 +24,7 @@
         "src/services/ChoroplethDataService.ts",
         "src/services/mapService.ts",
         "src/services/cacheService.ts",
+        "src/services/ZoomControlManager.ts",
        
         "src/services/legendService.ts",
         "src/services/colorRampService.ts",

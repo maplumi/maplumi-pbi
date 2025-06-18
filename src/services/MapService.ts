@@ -27,15 +27,14 @@ export class MapService {
     private host: any; // Add host property for debugging
 
     constructor(container: HTMLElement, showZoomControl: boolean = true, host?: any) {
+
         this.container = container;
         this.showZoomControl = showZoomControl;
         this.host = host;
         this.initializeMap();
         this.zoomControlManager = new ZoomControlManager(this.map);
         this.setZoomControlVisible(this.showZoomControl);
-        // if (this.host && this.host.displayWarningIcon) {
-        //     this.host.displayWarningIcon("MapService", `MapService constructed. showZoomControl: ${showZoomControl}`);
-        // }
+        
     }
 
     private initializeMap(): void {
@@ -72,6 +71,7 @@ export class MapService {
     }
 
     public updateBasemap(options: any): void {
+        
         const { selectedBasemap, customMapAttribution } = options;
 
         // Get default attribution
@@ -106,7 +106,6 @@ export class MapService {
         this.map.addControl(this.attributionControl);
 
         // Update basemap layer
-        // Note: Implementation of getBasemap would need to be added
         const newLayer = this.getBasemap(options);
         if (newLayer) {
             newLayer.getSource()?.setAttributions(newAttribution);
@@ -133,9 +132,7 @@ export class MapService {
     }
 
     public setZoomControlVisible(visible: boolean) {
-        if (this.host && this.host.displayWarningIcon) {
-            this.host.displayWarningIcon("ZoomControl", `setZoomControlVisible called with: ${visible}`);
-        }
+        
         this.zoomControlManager.setZoomControlVisible(visible);
         this.showZoomControl = visible;
     }
@@ -169,13 +166,15 @@ export class MapService {
 
     private getMapboxBasemap = (basemapOptions: BasemapOptions): MapboxVectorLayer => {
         if (basemapOptions.mapboxStyle === 'custom' && basemapOptions.mapboxCustomStyleUrl.startsWith('mapbox://')) {
-            console.log('Custom Mapbox Style URL: ', basemapOptions.mapboxCustomStyleUrl);
+           
             return new MapboxVectorLayer({
                 styleUrl: basemapOptions.mapboxCustomStyleUrl,
                 accessToken: basemapOptions.mapboxAccessToken,
                 declutter: basemapOptions.declutterLabels
             });
+
         } else {
+
             return new MapboxVectorLayer({
                 styleUrl: basemapOptions.mapboxStyle,
                 accessToken: basemapOptions.mapboxAccessToken,
