@@ -287,7 +287,6 @@ export class MaplumiVisual implements IVisual {
         const dataPoints = this.createCircleDataPoints(longitudes, latitudes, circleSizeValuesObjects, categorical);
 
         if (longitudes.length !== latitudes.length) {
-
             this.host.displayWarningIcon("Longitude and Latitude have different lengths.", "maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values.");
 
             return;
