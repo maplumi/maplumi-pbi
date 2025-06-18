@@ -106,7 +106,8 @@ export class MaplumiVisual implements IVisual {
         this.container.appendChild(this.legendContainer);
 
         this.legendService = new LegendService(this.legendContainer);
-        this.mapService = new MapService(this.container);
+        // Pass showZoomControl and host for debugging
+        this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
 
         this.map = this.mapService.getMap();
 
@@ -166,6 +167,9 @@ export class MaplumiVisual implements IVisual {
         const circleOptions = this.getCircleOptions();
         const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
+
+        // Dynamically toggle zoom control
+        this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
 
         // Update legend container styles
         this.updateLegendContainer();

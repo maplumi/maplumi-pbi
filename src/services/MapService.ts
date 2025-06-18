@@ -13,6 +13,8 @@ import TileJSON from "ol/source/TileJSON";
 import Tile from "ol/layer/Tile";
 import VectorTileSource from "ol/source/VectorTile";
 import VectorTileLayer from "ol/layer/VectorTile";
+import Zoom from "ol/control/Zoom";
+import { ZoomControlManager } from "./ZoomControlManager";
 
 
 export class MapService {
@@ -20,20 +22,30 @@ export class MapService {
     private state: MapState;
     private container: HTMLElement;
     private attributionControl: MaplyticsAttributionControl;
+    private showZoomControl: boolean;
+    private zoomControlManager: ZoomControlManager;
+    private host: any; // Add host property for debugging
 
-    constructor(container: HTMLElement) {
+    constructor(container: HTMLElement, showZoomControl: boolean = true, host?: any) {
         this.container = container;
+        this.showZoomControl = showZoomControl;
+        this.host = host;
         this.initializeMap();
+        this.zoomControlManager = new ZoomControlManager(this.map);
+        this.setZoomControlVisible(this.showZoomControl);
+        // if (this.host && this.host.displayWarningIcon) {
+        //     this.host.displayWarningIcon("MapService", `MapService constructed. showZoomControl: ${showZoomControl}`);
+        // }
     }
 
     private initializeMap(): void {
-        
         const view = new View({
             center: fromLonLat(VisualConfig.MAP.DEFAULT_CENTER),
             zoom: VisualConfig.MAP.DEFAULT_ZOOM
         });
 
         const controls = defaultControls({
+            zoom: false, // Disable default zoom control
             attribution: false,
             attributionOptions: {
                 collapsible: false, // Keep the attribution always visible
@@ -120,6 +132,14 @@ export class MapService {
         }
     }
 
+    public setZoomControlVisible(visible: boolean) {
+        if (this.host && this.host.displayWarningIcon) {
+            this.host.displayWarningIcon("ZoomControl", `setZoomControlVisible called with: ${visible}`);
+        }
+        this.zoomControlManager.setZoomControlVisible(visible);
+        this.showZoomControl = visible;
+    }
+
     private getBasemap(basemapOptions: BasemapOptions): TileLayer | MapboxVectorLayer | VectorTileLayer {
 
         switch (basemapOptions.selectedBasemap) {
@@ -177,4 +197,4 @@ export class MapService {
 
     };
 
-} 
+}
