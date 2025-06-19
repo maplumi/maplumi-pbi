@@ -423,12 +423,6 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
 
 class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
-    // usePredefinedColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-    //     name: "usePredefinedColorRamp",
-    //     displayName: "Predefined Ramp",
-    //     value: false
-    // });
-
     colorRamp: DropDown = new DropDown({
         name: "colorRamp",
         displayName: "Color Ramp",
@@ -661,9 +655,21 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
         value: true
     });
 
+    // Stores the locked map extent as a comma-separated string: "minX,minY,maxX,maxY"
+    lockedMapExtent: formattingSettings.TextInput = new formattingSettings.TextInput({
+        name: "lockedMapExtent",
+        displayName: "Locked Map Extent",
+        value: "",
+        placeholder: "minX,minY,maxX,maxY"
+    });
+
     name: string = "mapToolsSettingsGroup";
     displayName: string = "Map Tools";
-    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl];
+    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl, this.lockedMapExtent];
+    public applyConditionalDisplayRules(): void {   
+        
+        this.lockedMapExtent.visible = false; // Always hidden
+    }
 
 }
 

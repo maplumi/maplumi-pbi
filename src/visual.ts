@@ -80,6 +80,7 @@ export class MaplumiVisual implements IVisual {
     private circleGroup1: string = "#circles-group-1";
     private circleGroup2: string = "#circles-group-2";
     private choroplethGroup: string = "#choropleth-group";
+    private previousLockMapExtent: boolean | undefined;
 
     constructor(options: VisualConstructorOptions) {
 
@@ -147,7 +148,6 @@ export class MaplumiVisual implements IVisual {
     }
 
     public update(options: VisualUpdateOptions) {
-
         this.events.renderingStarted(options);
         const dataView = options.dataViews[0];
 
@@ -158,6 +158,7 @@ export class MaplumiVisual implements IVisual {
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
+        this.visualFormattingSettingsModel.mapControlsVisualCardSettings.mapToolsSettingsGroup.applyConditionalDisplayRules();
 
         // Clean up previous layers and SVG elements
         this.svg.selectAll('*').remove();
@@ -169,8 +170,12 @@ export class MaplumiVisual implements IVisual {
         const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
 
+
         // Dynamically toggle zoom control
         this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
+
+        // Apply map extent locking if enabled
+        this.applyMapExtentLocking();
 
         // Update legend container styles
         this.updateLegendContainer();
@@ -770,6 +775,7 @@ export class MaplumiVisual implements IVisual {
 
             lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,
             showZoomControl: maptoolsSettings.mapToolsSettingsGroup.showZoomControl.value,
+            lockedMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockedMapExtent.value,
             legendPosition: maptoolsSettings.legendContainerSettingsGroup.legendPosition.value.value.toString(),
             legendBorderWidth: maptoolsSettings.legendContainerSettingsGroup.legendBorderWidth.value,
             legendBorderColor: maptoolsSettings.legendContainerSettingsGroup.legendBorderColor.value.value,
@@ -864,6 +870,79 @@ export class MaplumiVisual implements IVisual {
 
         // Hide SVG overlay if both layers are disabled
         this.svgOverlay.style.display = (choroplethEnabled == false && circleEnabled == false) ? 'none' : 'block';
+    }
+
+    /**
+     * Call this method when the user enables lockMapExtent (e.g., on toggle ON in the formatting pane).
+     * It persists the current map extent as lockedMapExtent.
+     */
+    private persistCurrentExtentAsLocked() {
+        const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
+        const currentExtentString = currentExtent.join(",");
+        this.host.persistProperties({
+            merge: [{
+                objectName: "mapToolsSettingsGroup",
+                properties: { lockedMapExtent: currentExtentString },
+                selector: null
+            }]
+        });
+    }
+
+    private applyMapExtentLocking() {
+    
+        // Detect lockMapExtent toggle ON
+        if (this.mapToolsOptions.lockMapExtent && !this.previousLockMapExtent) {
+            this.persistCurrentExtentAsLocked();
+        }
+        this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
+
+        let lockedExtent: [number, number, number, number] | undefined = undefined;
+        if (this.mapToolsOptions.lockedMapExtent) {
+            lockedExtent = this.mapToolsOptions.lockedMapExtent.split(",").map(Number) as [number, number, number, number];
+        }
+        const view = this.map.getView();
+        const currentViewState = {
+            center: view.getCenter(),
+            zoom: view.getZoom(),
+            rotation: view.getRotation(),
+            projection: view.getProjection(),
+            resolutions: view.getResolutions?.() || undefined,
+            constrainOnlyCenter: view.get('constrainOnlyCenter'),
+            smoothExtentConstraint: view.get('smoothExtentConstraint'),
+            minZoom: view.getMinZoom(),
+            maxZoom: view.getMaxZoom(),
+        };
+        let needsRecreate = false;
+        if (this.mapToolsOptions.lockMapExtent && lockedExtent) {
+            // If extent is not set or changed, recreate the view with extent constraint
+            if (!view.get('extent') || JSON.stringify(view.get('extent')) !== JSON.stringify(lockedExtent)) {
+                needsRecreate = true;
+            }
+        } else {
+            // If extent is set but should be removed, recreate the view without extent
+            if (view.get('extent')) {
+                needsRecreate = true;
+            }
+        }
+        if (needsRecreate) {
+            // Remove listeners, overlays, etc. if needed (not shown here)
+            let newViewOptions: any = {
+                ...currentViewState,
+                extent: (this.mapToolsOptions.lockMapExtent && lockedExtent) ? lockedExtent : undefined,
+            };
+            // Remove undefined properties for clean View instantiation
+            Object.keys(newViewOptions).forEach(key => newViewOptions[key] === undefined && delete newViewOptions[key]);
+            const ol = require('ol');
+            const View = require('ol/View').default;
+            const newView = new View(newViewOptions);
+            this.map.setView(newView);
+            if (lockedExtent && this.mapToolsOptions.lockMapExtent) {
+                newView.fit(lockedExtent, { size: this.map.getSize(), padding: [10, 10, 10, 10] });
+            }
+        } else if (lockedExtent && this.mapToolsOptions.lockMapExtent) {
+            // Just fit to the extent if already constrained
+            view.fit(lockedExtent, { size: this.map.getSize(), padding: [10, 10, 10, 10] });
+        }
     }
 
 }

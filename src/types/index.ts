@@ -121,7 +121,7 @@ export interface EventData {
 
 export interface EventCallback {
     (data: EventData): void;
-} 
+}
 
 
 
@@ -152,13 +152,13 @@ export interface BasemapOptions {
     mapboxCustomStyleUrl: string;
     mapboxStyle: string;
     mapboxAccessToken: string;
-  
+
     declutterLabels: boolean;
 
     maptilerStyle: string;
     maptilerApiKey: string;
-    
-    
+
+
 }
 
 export interface CircleOptions {
@@ -194,10 +194,10 @@ export interface ChoroplethOptions {
     colorMode: string;
     colorRamp: string;
     customColorRamp: string;
-    
+
     classes: number;
     classificationMethod: string;
-   
+
     strokeColor: string;
     strokeWidth: number;
     layerOpacity: number;
@@ -229,8 +229,7 @@ export interface MapToolsOptions {
     lockMapExtent: boolean;
     showZoomControl: boolean;
 
-    //currentZoom: number;
-    //currentExtent: any;
+    lockedMapExtent: string; // Stores the locked map extent as a comma-separated string: "minX,minY,maxX,maxY"
 
     legendPosition: string;
     legendBorderWidth: number;

@@ -191,13 +191,13 @@
             "bool": true
           }
         },
-        "maptilerApiKey":{
+        "maptilerApiKey": {
           "type": {
             "text": true
           }
         },
-        "maptilerStyle":{
-          "type": { 
+        "maptilerStyle": {
+          "type": {
             "enumeration": []
           }
         }
@@ -338,7 +338,7 @@
             "enumeration": []
           }
         },
-        "customColorRamp":{
+        "customColorRamp": {
           "type": {
             "text": true
           }
@@ -429,11 +429,10 @@
             "bool": true
           }
         },
-        "lockedExtent": {
-          "type": { "text": true }
-        },
-        "lockedZoom": {
-          "type": { "numeric": true }
+        "lockedMapExtent": {
+          "type": {
+            "text": true
+          }
         },
         "legendPosition": {
           "type": {
@@ -521,8 +520,8 @@
       "essential": true
     },
     {
-        "name": "ExportContent",
-        "essential": true
+      "name": "ExportContent",
+      "essential": true
     }
   ]
 }
