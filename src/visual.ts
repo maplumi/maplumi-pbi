@@ -324,7 +324,7 @@ export class MaplumiVisual implements IVisual {
         this.renderCircleLayerOnMap(circleLayerOptions);
 
         if (circleOptions.showLegend) {
-            this.renderCircleLegend(combinedCircleSizeValues, minCircleSizeValue, circleScale, circleOptions);
+            this.renderCircleLegend(combinedCircleSizeValues,circleSizeValuesObjects.length, minCircleSizeValue, circleScale, circleOptions);
         } else {
             this.legendService.hideLegend("circle");
         }
@@ -340,7 +340,7 @@ export class MaplumiVisual implements IVisual {
             return { longitudes: undefined, latitudes: undefined, circleSizeValuesObjects: [] };
         }
 
-        const circleSizeValuesObjects = categorical?.values?.filter((c) => c.source?.roles?.Size) || [];
+        const circleSizeValuesObjects = categorical?.values?.filter((c) => c.source?.roles?.Size) || [];         
         return {
             longitudes: lonCategory.values as number[],
             latitudes: latCategory.values as number[],
@@ -450,6 +450,7 @@ export class MaplumiVisual implements IVisual {
 
     private renderCircleLegend(
         combinedCircleSizeValues: number[],
+        numberofCircleCategories: number,
         minCircleSizeValue: number,
         circleScale: number,
         circleOptions: CircleOptions
@@ -461,7 +462,7 @@ export class MaplumiVisual implements IVisual {
         this.legendService.createProportionalCircleLegend(
             combinedCircleSizeValues,
             radii,
-            combinedCircleSizeValues.length,
+            numberofCircleCategories,
             circleOptions
         );
 

@@ -76,8 +76,7 @@ export class LegendService {
         const minLeftPadding = 2; // minimal left space
         const newCenterX = minLeftPadding + maxRadius;
 
-        // Update all circle and label positions to use newCenterX
-        // (update sortedLegendData.forEach loop)
+       
         // Clear SVG before re-adding elements (safe way)
         while (svg.firstChild) {
             svg.removeChild(svg.firstChild);
