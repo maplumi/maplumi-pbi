@@ -3,7 +3,7 @@ import * as turf from "@turf/turf";
 import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
 import * as topojson from 'topojson-client';
-import { ColorRampService } from "./colorRampService";
+import { ColorRampManager } from "./ColorRampManager";
 import { ChoroplethOptions } from "../types/index";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
@@ -14,10 +14,10 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 export class ChoroplethDataService {
 
-    private colorRampService: ColorRampService;
+    private colorRampService: ColorRampManager;
 
-    constructor(colorRampService: ColorRampService) {
-        this.colorRampService = colorRampService;
+    constructor(colorRampManager: ColorRampManager) {
+        this.colorRampService = colorRampManager;
     }
 
     /**

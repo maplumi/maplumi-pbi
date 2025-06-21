@@ -2,7 +2,7 @@ import * as chroma from "chroma-js";
 
 type ColorRamp = string[];
 
-export class ColorRampService {
+export class ColorRampManager {
 
   // Constructor accepts a color ramp name
   constructor(colorRamp: string[]) {

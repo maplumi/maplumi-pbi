@@ -48,7 +48,7 @@ import * as requestHelpers from "./utils/requestHelpers";
 import { LegendService } from "./services/legendService";
 import { MapService } from "./services/mapService";
 import { ChoroplethDataService } from "./services/ChoroplethDataService";
-import { ColorRampService } from "./services/colorRampService";
+import { ColorRampManager } from "./services/ColorRampManager";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
 import { CacheService } from "./services/cacheService";
@@ -62,7 +62,7 @@ export class MaplumiVisual implements IVisual {
     private container: HTMLElement;
     private svgContainer: HTMLElement;
     private legendContainer: HTMLElement;
-    private colorRampService: ColorRampService;
+    private colorRampManager: ColorRampManager;
     private legendService: LegendService;
     private mapService: MapService;
     private dataService: ChoroplethDataService;
@@ -208,9 +208,9 @@ export class MaplumiVisual implements IVisual {
             selectedColorRamp = colorRamp;
         }
 
-        // Initialize color ramp service and data service
-        this.colorRampService = new ColorRampService(selectedColorRamp);
-        this.dataService = new ChoroplethDataService(this.colorRampService);
+        // Initialize color ramp and data service
+        this.colorRampManager = new ColorRampManager(selectedColorRamp);
+        this.dataService = new ChoroplethDataService(this.colorRampManager);
 
         // If no data, clear everything and return
         if (!dataView || !dataView.categorical) {
