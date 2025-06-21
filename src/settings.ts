@@ -333,6 +333,92 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
         value: { value: "#000000" } // Default color
     });
 
+    labelSpacing: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "labelSpacing",
+        displayName: "Label Spacing",
+        value: 15, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 20
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 5
+            }
+        }
+    });
+
+    roundOffLegendValues: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "roundOffLegendValues",
+        displayName: "Round Legend Values",
+        value: false
+    });
+
+    hideMinIfBelowThreshold: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "hideMinIfBelowThreshold",
+        displayName: "Hide Min Circle",
+        value: false
+    });
+
+    minValueThreshold: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "minValueThreshold",
+        displayName: "Min Value Threshold",
+        value: 10, 
+    });
+
+    minRadiusThreshold: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "minRadiusThreshold",
+        displayName: "Min Radius Threshold",
+        value: 5, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 5
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    xPadding: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "xPadding",
+        displayName: "X Padding",
+        value: 15, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 30
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    yPadding: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "yPadding",
+        displayName: "Y Padding",
+        value: 5, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 15
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
     name: string = "proportalCirclesLegendSettingsGroup";
     displayName: string = "Legend";
     collapsible: boolean = false;
@@ -341,7 +427,13 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
         this.legendTitle,
         this.legendTitleColor,
         this.leaderLineColor,
-        this.labelTextColor
+        this.labelTextColor,
+        this.roundOffLegendValues,
+        this.hideMinIfBelowThreshold,
+        this.minValueThreshold,
+        this.minRadiusThreshold,
+        this.xPadding,
+        this.yPadding
     ];
 
 }
@@ -731,8 +823,8 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
     legendBackgroundOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
         name: "legendBackgroundOpacity",
         displayName: "Background Opacity",
-        value: 90,//default value
-        options: // optional input value validator  
+        value: 90,
+        options:  
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -748,8 +840,8 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
     legendBottomMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "legendBottomMargin",
         displayName: "Bottom Margin",
-        value: 40, // Default size
-        options: // optional input value validator  
+        value: 40, 
+        options:  
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -758,6 +850,57 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
             minValue: {
                 type: powerbi.visuals.ValidatorType.Min,
                 value: 10
+            }
+        }
+    });
+
+    legendTopMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendTopMargin",
+        displayName: "Top Margin",
+        value: 10, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 80
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    legendLeftMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendLeftMargin",
+        displayName: "Left Margin",
+        value: 10, 
+        options: 
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 80
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
+    legendRightMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendRightMargin",
+        displayName: "RIght Margin",
+        value: 10, 
+        options:  
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 80
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
             }
         }
     });

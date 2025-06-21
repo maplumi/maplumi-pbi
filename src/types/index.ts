@@ -158,7 +158,6 @@ export interface BasemapOptions {
     maptilerStyle: string;
     maptilerApiKey: string;
 
-
 }
 
 export interface CircleOptions {
@@ -180,6 +179,13 @@ export interface CircleOptions {
     leaderLineStrokeWidth: number;
     labelTextColor: string;
     //labelTextFontSize: string;
+    roundOffLegendValues: boolean;
+    hideMinIfBelowThreshold: boolean;
+    minValueThreshold: number;
+    minRadiusThreshold: number;
+    yPadding: number;
+    xPadding: number;
+    labelSpacing: number;
 }
 
 export interface ChoroplethOptions {

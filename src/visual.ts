@@ -803,7 +803,14 @@ export class MaplumiVisual implements IVisual {
             legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,
             leaderLineStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineStrokeWidth.value,
             leaderLineColor: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineColor.value.value,
-            labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value
+            labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value,
+            roundOffLegendValues: circleSettings.proportionalCircleLegendSettingsGroup.roundOffLegendValues.value,
+            hideMinIfBelowThreshold: circleSettings.proportionalCircleLegendSettingsGroup.hideMinIfBelowThreshold.value,
+            minValueThreshold: circleSettings.proportionalCircleLegendSettingsGroup.minValueThreshold.value,
+            minRadiusThreshold: circleSettings.proportionalCircleLegendSettingsGroup.minRadiusThreshold.value,
+            labelSpacing: circleSettings.proportionalCircleLegendSettingsGroup.labelSpacing.value,
+            yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
+            xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value
 
         };
     }
@@ -889,7 +896,7 @@ export class MaplumiVisual implements IVisual {
     }
 
     private applyMapExtentLocking() {
-    
+
         // Detect lockMapExtent toggle ON
         if (this.mapToolsOptions.lockMapExtent && !this.previousLockMapExtent) {
             this.persistCurrentExtentAsLocked();

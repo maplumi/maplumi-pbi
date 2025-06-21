@@ -16,10 +16,7 @@ export class LegendService {
         radii: number[],
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
-        formatTemplate: string = "{:.0f}",
-        xpadding: number = 5,
-        ypadding: number = 5,
-        labelSpacing: number = 15
+        formatTemplate: string = "{:.0f}"        
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -52,19 +49,40 @@ export class LegendService {
         circleLegendItemsContainer.appendChild(title);
 
         // Get legend data
-        const legendData = this.getProportionalCircleLegendData(sizeValues, radii);
+        let legendData = this.getProportionalCircleLegendData(
+            sizeValues,
+            radii,
+            circleOptions.minRadiusThreshold, 
+            circleOptions.roundOffLegendValues 
+        );
         if (!legendData || legendData.length === 0) return;
+
+        // Optionally hide the minimum circle if value is below threshold, using CircleOptions
+        if (circleOptions.hideMinIfBelowThreshold && legendData.length > 0 && legendData[0].size < circleOptions.minValueThreshold) {
+            legendData = legendData.slice(1);
+        }
 
         // Create SVG elements
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         const maxRadius = Math.max(...legendData.map((item) => item.radius));
-        const centerX = maxRadius + xpadding;
-        const bottomY = 2 * maxRadius + ypadding;
+        //const centerX = maxRadius + xpadding;
+        const bottomY = 2 * maxRadius + circleOptions.yPadding; // Bottom Y position for circles
         let maxLabelWidth = 0;
 
         // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
         const sortedLegendData = [...legendData].sort((a, b) => b.radius - a.radius);
 
+        // Set SVG dimensions with minimal left padding
+        const minLeftPadding = 2; // minimal left space
+        const newCenterX = minLeftPadding + maxRadius;
+
+        // Update all circle and label positions to use newCenterX
+        // (update sortedLegendData.forEach loop)
+        // Clear SVG before re-adding elements (safe way)
+        while (svg.firstChild) {
+            svg.removeChild(svg.firstChild);
+        }
+        maxLabelWidth = 0;
         sortedLegendData.forEach((item) => {
             // Calculate the Y position so all circles are aligned at the bottom
             const currentY = bottomY - item.radius;
@@ -74,7 +92,7 @@ export class LegendService {
                 "http://www.w3.org/2000/svg",
                 "circle"
             );
-            circle.setAttribute("cx", centerX.toString());
+            circle.setAttribute("cx", newCenterX.toString());
             circle.setAttribute("cy", currentY.toString());
             circle.setAttribute("r", item.radius.toString());
             circle.setAttribute("stroke-width", circleOptions.strokeWidth.toString());
@@ -96,7 +114,7 @@ export class LegendService {
             svg.appendChild(circle);
 
             // Calculate label position
-            const labelX = centerX + maxRadius + labelSpacing;
+            const labelX = newCenterX + maxRadius + circleOptions.labelSpacing;
             const labelY = currentY - item.radius;
 
             // Add the leader line
@@ -104,7 +122,7 @@ export class LegendService {
                 "http://www.w3.org/2000/svg",
                 "line"
             );
-            line.setAttribute("x1", centerX.toString());
+            line.setAttribute("x1", newCenterX.toString());
             line.setAttribute("y1", (currentY - item.radius).toString());
             line.setAttribute("x2", (labelX - 3).toString());
             line.setAttribute("y2", labelY.toString());
@@ -144,9 +162,10 @@ export class LegendService {
 
         });
 
-        // Set SVG dimensions
-        const svgWidth = maxRadius + maxLabelWidth + xpadding;
-        const svgHeight = bottomY + ypadding;
+        // Calculate the farthest right point of the label
+        const farthestLabelX = newCenterX + maxLabelWidth;
+        const svgWidth = farthestLabelX + circleOptions.xPadding; // Add padding to the right
+        const svgHeight = bottomY + circleOptions.yPadding;
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
@@ -303,10 +322,21 @@ export class LegendService {
         }
     }
 
+    // Helper to round a value to the nearest 'nice' number (100s, 1000s, etc)
+    private roundToNiceNumber(value: number): number {
+        if (value === 0) return 0;
+        const absValue = Math.abs(value);
+        const exponent = Math.floor(Math.log10(absValue));
+        const base = Math.pow(10, exponent);
+        const rounded = Math.round(value / base) * base;
+        return rounded;
+    }
+
     private getProportionalCircleLegendData(
         sizeValues: number[],
         radii: number[],
-        minRadiusThreshold: number = 5
+        minRadiusThreshold: number = 5,
+        roundOffLegendValues: boolean = false
     ) {
         // Validate inputs
         if (sizeValues.length !== radii.length) {
@@ -326,12 +356,21 @@ export class LegendService {
 
         // Sort by size
         const sortedData = [...validData].sort((a, b) => a.size - b.size);
-        const min = sortedData[0];
-        const max = sortedData[sortedData.length - 1];
+        let min = sortedData[0];
+        let max = sortedData[sortedData.length - 1];
 
         // Edge case: All values are identical
         if (min.size === max.size) {
-            return [min, min, min]; // Single size dominates
+            if (roundOffLegendValues) {
+                const rounded = this.roundToNiceNumber(min.size);
+                return [
+                    { size: rounded, radius: min.radius },
+                    { size: rounded, radius: min.radius },
+                    { size: rounded, radius: min.radius }
+                ]; 
+            } else {
+                return [min, min, min];
+            }
         }
 
         // Dynamic medium calculation
@@ -363,10 +402,19 @@ export class LegendService {
             mediumRadius = max.radius - minRadiusThreshold;
         }
 
+        // Round min, medium, max sizes to nice numbers if flag is set
+        let minSizeOut = min.size;
+        let mediumSizeOut = mediumSize;
+        let maxSizeOut = max.size;
+        if (roundOffLegendValues) {
+            minSizeOut = this.roundToNiceNumber(min.size);
+            mediumSizeOut = this.roundToNiceNumber(mediumSize);
+            maxSizeOut = this.roundToNiceNumber(max.size);
+        }
         return [
-            min,
-            { size: mediumSize, radius: mediumRadius },
-            max
+            { size: minSizeOut, radius: min.radius },
+            { size: mediumSizeOut, radius: mediumRadius },
+            { size: maxSizeOut, radius: max.radius }
         ];
     }
 

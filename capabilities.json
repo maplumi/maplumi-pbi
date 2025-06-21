@@ -303,6 +303,36 @@
               }
             }
           }
+        },
+        "labelSpacing": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "roundOffLegendValues": {
+          "type": {
+            "bool": true
+          }
+        },
+        "hideMinIfBelowThreshold": {
+          "type": {
+            "bool": true
+          }
+        },
+        "minValueThreshold": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "yPadding": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "xPadding": {
+          "type": {
+            "numeric": true
+          }
         }
       }
     },
