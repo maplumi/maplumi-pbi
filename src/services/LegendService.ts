@@ -274,6 +274,7 @@ export class LegendService {
             const legendItem = this.createChoroplethLegendItem(
                 allLabels[i],
                 color,
+                options.layerOpacity.toString(),
                 options.legendLabelsColor,
                 options.legendLabelPosition,
                 options.legendOrientation,
@@ -420,6 +421,7 @@ export class LegendService {
     private createChoroplethLegendItem(
         labelText: string,
         color: string,
+        opacity: string,
         labelColor: string,
         labelPosition: string,
         orientation: string,
@@ -455,7 +457,14 @@ export class LegendService {
             (orientation === "vertical" && labelPosition === "center");
 
         colorBox.style.height = "20px";
-        colorBox.style.backgroundColor = color;
+        // Use RGBA for background color with opacity
+        let boxBgColor = color;
+        let boxOpacity = parseFloat(opacity);
+        if (color.startsWith('#') && !isNaN(boxOpacity)) {
+            boxBgColor = this.hexToRgba(color, boxOpacity);
+        }
+        colorBox.style.backgroundColor = boxBgColor;
+        // Remove: colorBox.style.opacity = opacity;
         colorBox.style.border = "1px solid #ccc";
         colorBox.style.position = "relative";
 
@@ -474,6 +483,7 @@ export class LegendService {
         // Configure label
         label.textContent = labelText;
         label.style.color = labelColor;
+        label.style.opacity = "100%";
         label.style.fontSize = "10px";
         label.style.whiteSpace = "nowrap";
 
@@ -492,5 +502,15 @@ export class LegendService {
         }
 
         return container;
+    }
+
+    // Helper: Convert hex color to rgba with opacity
+    private hexToRgba(hex: string, opacity: number) {
+        hex = hex.replace('#', '');
+        let bigint = parseInt(hex, 16);
+        let r = (bigint >> 16) & 255;
+        let g = (bigint >> 8) & 255;
+        let b = bigint & 255;
+        return `rgba(${r},${g},${b},${opacity})`;
     }
 }

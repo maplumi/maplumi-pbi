@@ -9,7 +9,7 @@ export const VisualConfig = {
         DEFAULT_CENTER: [0, 0],
         DEFAULT_ZOOM: 2,
         FIT_OPTIONS: {
-            padding: [40, 40, 40, 40],
+            padding: [40, 10, 40, 10],// top, right, bottom, left
             duration: 1000,
             easing: easeOut,
         }
