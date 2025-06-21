@@ -175,7 +175,7 @@ export class MaplumiVisual implements IVisual {
         this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
 
         // Apply map extent locking if enabled
-        this.applyMapExtentLocking();
+        // this.applyMapExtentLocking();
 
         // Update legend container styles
         this.updateLegendContainer();
@@ -895,8 +895,8 @@ export class MaplumiVisual implements IVisual {
         });
     }
 
-    private applyMapExtentLocking() {
-
+    /* private applyMapExtentLocking() {
+    
         // Detect lockMapExtent toggle ON
         if (this.mapToolsOptions.lockMapExtent && !this.previousLockMapExtent) {
             this.persistCurrentExtentAsLocked();
@@ -950,7 +950,7 @@ export class MaplumiVisual implements IVisual {
             // Just fit to the extent if already constrained
             view.fit(lockedExtent, { size: this.map.getSize(), padding: [10, 10, 10, 10] });
         }
-    }
+    } */
 
 }
 
