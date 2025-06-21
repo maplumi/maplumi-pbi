@@ -506,6 +506,21 @@
           "type": {
             "numeric": true
           }
+        },
+        "legendTopMargin": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "legendLeftMargin": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "legendRightMargin": {
+          "type": {
+            "numeric": true
+          }
         }
       }
     }

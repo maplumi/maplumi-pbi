@@ -336,8 +336,8 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
     labelSpacing: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "labelSpacing",
         displayName: "Label Spacing",
-        value: 15, 
-        options: 
+        value: 15,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -365,14 +365,14 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
     minValueThreshold: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "minValueThreshold",
         displayName: "Min Value Threshold",
-        value: 10, 
+        value: 10,
     });
 
     minRadiusThreshold: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "minRadiusThreshold",
         displayName: "Min Radius Threshold",
-        value: 5, 
-        options: 
+        value: 5,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -388,8 +388,8 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
     xPadding: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "xPadding",
         displayName: "X Padding",
-        value: 15, 
-        options: 
+        value: 15,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -405,8 +405,8 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
     yPadding: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "yPadding",
         displayName: "Y Padding",
-        value: 5, 
-        options: 
+        value: 5,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -499,7 +499,7 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
             { value: "e", displayName: "Equal Interval" },
             { value: "l", displayName: "Logarithmic" },
             { value: "k", displayName: "K-means" },
-            { value: "j", displayName: "Jenks Natural Breaks" }           
+            { value: "j", displayName: "Jenks Natural Breaks" }
         ]
     });
 
@@ -540,8 +540,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
             { value: "sdggreen", displayName: "SDG Green" },
             { value: "sdgdarkgreen", displayName: "SDG Dark Green" },
             { value: "sdgnavyblue", displayName: "SDG Navy Blue" }
-           
-           
+
+
         ]
     });
 
@@ -607,7 +607,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
-        
+
         this.colorRamp,
         this.customColorRamp,
         this.invertColorRamp,
@@ -618,7 +618,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
     ];
 
     public applyConditionalDisplayRules(): void {
-        
+
         const isCustomRamp = this.colorRamp.value?.value === "custom";
 
         // Show custom ramp text input only if the choice of color ramp is 'custom'
@@ -758,8 +758,8 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
     name: string = "mapToolsSettingsGroup";
     displayName: string = "Map Tools";
     slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl, this.lockedMapExtent];
-    public applyConditionalDisplayRules(): void {   
-        
+    public applyConditionalDisplayRules(): void {
+
         this.lockedMapExtent.visible = false; // Always hidden
     }
 
@@ -824,7 +824,7 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendBackgroundOpacity",
         displayName: "Background Opacity",
         value: 90,
-        options:  
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -840,8 +840,8 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
     legendBottomMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "legendBottomMargin",
         displayName: "Bottom Margin",
-        value: 40, 
-        options:  
+        value: 25,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -857,8 +857,8 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
     legendTopMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "legendTopMargin",
         displayName: "Top Margin",
-        value: 10, 
-        options: 
+        value: 0,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -874,8 +874,8 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
     legendLeftMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "legendLeftMargin",
         displayName: "Left Margin",
-        value: 10, 
-        options: 
+        value: 25,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -890,9 +890,9 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
 
     legendRightMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
         name: "legendRightMargin",
-        displayName: "RIght Margin",
-        value: 10, 
-        options:  
+        displayName: "Right Margin",
+        value: 0,
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -908,8 +908,58 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
 
     name: string = "legendContainerSettingsGroup";
     displayName: string = "Legend Container";
-    slices: formattingSettings.Slice[] = [this.legendPosition, this.legendBorderWidth, this.legendBorderRadius, this.legendBorderColor,
-    this.legendBackgroundColor, this.legendBackgroundOpacity, this.legendBottomMargin];
+    slices: formattingSettings.Slice[] = [
+        this.legendPosition,
+        this.legendBorderWidth,
+        this.legendBorderRadius,
+        this.legendBorderColor,
+        this.legendBackgroundColor,
+        this.legendBackgroundOpacity,
+        this.legendTopMargin,
+        this.legendBottomMargin,
+        this.legendLeftMargin,
+        this.legendRightMargin
+    ];
+
+    public applyConditionalDisplayRules(): void {
+
+        if(this.legendPosition.value?.value === "top-center" ) {          
+            this.legendLeftMargin.visible = false;
+            this.legendRightMargin.visible = false;
+            this.legendBottomMargin.visible = false;
+        }
+
+         if(this.legendPosition.value?.value === "top-right") {         
+           
+            this.legendLeftMargin.visible = false;
+            this.legendBottomMargin.visible = false;
+        }
+
+        if(this.legendPosition.value?.value === "top-left") {         
+           
+            this.legendRightMargin.visible = false;
+            this.legendBottomMargin.visible = false;
+        }
+
+        if(this.legendPosition.value?.value === "bottom-center" ) {          
+            this.legendLeftMargin.visible = false;
+            this.legendRightMargin.visible = false;
+            this.legendTopMargin.visible = false;
+        }
+
+        if(this.legendPosition.value?.value === "bottom-left") {         
+            this.legendLeftMargin.value = 0;
+            this.legendRightMargin.visible = false;
+            this.legendTopMargin.visible = false;
+        }
+
+        if(this.legendPosition.value?.value === "bottom-right") {         
+           
+            this.legendLeftMargin.visible = false;
+            this.legendTopMargin.visible = false;
+        }
+        
+    }
 
 }
 

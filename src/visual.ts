@@ -159,6 +159,7 @@ export class MaplumiVisual implements IVisual {
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
         this.visualFormattingSettingsModel.mapControlsVisualCardSettings.mapToolsSettingsGroup.applyConditionalDisplayRules();
+        this.visualFormattingSettingsModel.mapControlsVisualCardSettings.legendContainerSettingsGroup.applyConditionalDisplayRules();
 
         // Clean up previous layers and SVG elements
         this.svg.selectAll('*').remove();
@@ -717,6 +718,9 @@ export class MaplumiVisual implements IVisual {
         this.legendContainer.style.border = `${this.mapToolsOptions.legendBorderWidth}px solid ${this.mapToolsOptions.legendBorderColor}`;
         this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
         this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;
+        this.legendContainer.style.marginTop = `${this.mapToolsOptions.legendTopMargin}px`;
+        this.legendContainer.style.marginLeft = `${this.mapToolsOptions.legendLeftMargin}px`;
+        this.legendContainer.style.marginRight = `${this.mapToolsOptions.legendRightMargin}px`;
 
         // Reset all positioning properties first
         this.legendContainer.style.top = 'auto';
@@ -784,6 +788,9 @@ export class MaplumiVisual implements IVisual {
             legendBackgroundOpacity: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundOpacity.value / 100,
             legendBorderRadius: maptoolsSettings.legendContainerSettingsGroup.legendBorderRadius.value,
             legendBottomMargin: maptoolsSettings.legendContainerSettingsGroup.legendBottomMargin.value,
+            legendTopMargin: maptoolsSettings.legendContainerSettingsGroup.legendTopMargin.value,
+            legendLeftMargin: maptoolsSettings.legendContainerSettingsGroup.legendLeftMargin.value,
+            legendRightMargin: maptoolsSettings.legendContainerSettingsGroup.legendRightMargin.value
         };
     }
 

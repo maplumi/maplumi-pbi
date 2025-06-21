@@ -244,5 +244,8 @@ export interface MapToolsOptions {
     legendBackgroundColor: string;
     legendBackgroundOpacity: number;
     legendBottomMargin: number;
+    legendTopMargin: number;
+    legendLeftMargin: number;
+    legendRightMargin: number;
 
 }
