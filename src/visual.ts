@@ -809,6 +809,8 @@ export class MaplumiVisual implements IVisual {
             showLegend: circleSettings.proportionalCircleLegendSettingsGroup.showLegend.value,
             legendTitle: circleSettings.proportionalCircleLegendSettingsGroup.legendTitle.value,
             legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,
+            legendItemStrokeColor: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeColor.value.value,
+            legendItemStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeWidth.value,
             leaderLineStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineStrokeWidth.value,
             leaderLineColor: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineColor.value.value,
             labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value,
@@ -852,7 +854,7 @@ export class MaplumiVisual implements IVisual {
             legendOrientation: choroplethLegendSettings.legendOrientation.value.value.toString(),
             legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value.toString(),
             legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value
+            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value           
         };
     }
 

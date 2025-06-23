@@ -175,6 +175,8 @@ export interface CircleOptions {
     //legendTitleFontSize: string;
     //legendTitleFontWeight: string;
     legendTitleColor: string;
+    legendItemStrokeColor: string;
+    legendItemStrokeWidth: number;
     leaderLineColor: string;
     leaderLineStrokeWidth: number;
     labelTextColor: string;

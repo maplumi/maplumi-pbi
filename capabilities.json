@@ -309,6 +309,20 @@
             "numeric": true
           }
         },
+        "legendItemStrokeColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "legendItemStrokeWidth": {
+          "type": {
+            "numeric": true
+          }
+        },
         "roundOffLegendValues": {
           "type": {
             "bool": true
@@ -440,6 +454,7 @@
             "enumeration": []
           }
         },
+        
         "legendOrientation": {
           "type": {
             "enumeration": []

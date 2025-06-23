@@ -94,12 +94,12 @@ export class LegendService {
             circle.setAttribute("cx", newCenterX.toString());
             circle.setAttribute("cy", currentY.toString());
             circle.setAttribute("r", item.radius.toString());
-            circle.setAttribute("stroke-width", circleOptions.strokeWidth.toString());
+            circle.setAttribute("stroke-width", circleOptions.legendItemStrokeWidth.toString());
 
             // Remove fill if circleValues are more than one
             if (numberofCircleCategories === 1) {
 
-                circle.setAttribute("stroke", circleOptions.strokeColor);
+                circle.setAttribute("stroke", circleOptions.legendItemStrokeColor);
                 circle.setAttribute("fill", circleOptions.color1);
                 circle.setAttribute("fill-opacity", circleOptions.layer1Opacity.toString());
 

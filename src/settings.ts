@@ -315,6 +315,30 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
         value: { value: "#000000" } // Default color
     });
 
+    legendItemStrokeColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
+        name: "legendItemStrokeColor",
+        displayName: "Legend Item Stroke Color",
+        value: { value: "#ffffff" } // Default color    
+        // This will be used for the stroke around legend items
+    });
+
+    legendItemStrokeWidth: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendItemStrokeWidth",
+        displayName: "Legend Item Stroke Width",
+        value: 1, // Default size
+        options:
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 5
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
     leaderLineColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "leaderLineColor",
         displayName: "Leader Line Color",
@@ -426,6 +450,8 @@ class proportionalCirclesLegendSettingsGroup extends formattingSettings.SimpleCa
         this.showLegend,
         this.legendTitle,
         this.legendTitleColor,
+        this.legendItemStrokeColor,
+        this.legendItemStrokeWidth,
         this.leaderLineColor,
         this.labelTextColor,
         this.roundOffLegendValues,
@@ -686,6 +712,7 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         ]
     });
 
+    
     legendOrientation: DropDown = new DropDown({
         name: "legendOrientation",
         displayName: "Legend Orientation",
