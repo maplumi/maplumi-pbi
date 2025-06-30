@@ -15,6 +15,7 @@ import VectorTileSource from "ol/source/VectorTile";
 import VectorTileLayer from "ol/layer/VectorTile";
 import Zoom from "ol/control/Zoom";
 import { ZoomControlManager } from "./ZoomControlManager";
+import { defaults as defaultInteractions } from 'ol/interaction';
 
 
 export class MapService {
@@ -25,12 +26,18 @@ export class MapService {
     private showZoomControl: boolean;
     private zoomControlManager: ZoomControlManager;
     private host: any; // Add host property for debugging
+    private view: View;
+    private originalInteractions: any = null;
 
     constructor(container: HTMLElement, showZoomControl: boolean = true, host?: any) {
 
         this.container = container;
         this.showZoomControl = showZoomControl;
         this.host = host;
+        this.view = new View({
+            center: fromLonLat(VisualConfig.MAP.DEFAULT_CENTER),
+            zoom: VisualConfig.MAP.DEFAULT_ZOOM
+        });
         this.initializeMap();
         this.zoomControlManager = new ZoomControlManager(this.map);
         this.setZoomControlVisible(this.showZoomControl);
@@ -38,11 +45,6 @@ export class MapService {
     }
 
     private initializeMap(): void {
-        const view = new View({
-            center: fromLonLat(VisualConfig.MAP.DEFAULT_CENTER),
-            zoom: VisualConfig.MAP.DEFAULT_ZOOM
-        });
-
         const controls = defaultControls({
             zoom: false, // Disable default zoom control
             attribution: false,
@@ -54,7 +56,7 @@ export class MapService {
         this.map = new Map({
             target: this.container,
             layers: [],
-            view: view,
+            view: this.view,
             controls: controls
         });
 
@@ -196,4 +198,88 @@ export class MapService {
 
     };
 
+    /**
+     * Locks the map extent to the given bounding box and sets center/zoom, constraining zoom/pan within the extent.
+     * @param extent [minX, minY, maxX, maxY] in map projection
+     * @param center Center coordinate in map projection (optional)
+     * @param zoom Zoom level (optional)
+     */
+    public lockExtent(extent: [number, number, number, number], center?: [number, number], zoom?: number) {
+        if (this.view) {
+            // Set extent
+            this.view.setProperties({ extent });
+            // Calculate minZoom that fits the extent
+            const size = this.map.getSize();
+            if (size) {
+                const resolution = this.view.getResolutionForExtent(extent, size);
+                if (resolution) {
+                    const minZoom = this.view.getZoomForResolution(resolution);
+                    // Always set minZoom to the provided zoom if available
+                    if (typeof zoom === 'number') {
+                        this.view.setMinZoom(zoom);
+                    } else {
+                        this.view.setMinZoom(minZoom);
+                    }
+                }
+            }
+            // Set maxZoom to provided zoom or current
+            if (typeof zoom === 'number') {
+                this.view.setMaxZoom(zoom);
+                this.view.setZoom(zoom);
+            } else {
+                this.view.setMaxZoom(this.view.getZoom());
+            }
+            // Set center if provided
+            if (center) {
+                this.view.setCenter(center);
+            }
+        }
+    }
+
+    /**
+     * Removes all map interactions (robust lock)
+     */
+    public removeAllInteractions() {
+        if (this.map) {
+            if (!this.originalInteractions) {
+                // Save the original interactions for restoration
+                this.originalInteractions = this.map.getInteractions().getArray().slice();
+            }
+            this.map.getInteractions().clear();
+        }
+    }
+
+    /**
+     * Restores default map interactions (robust unlock)
+     */
+    public restoreDefaultInteractions() {
+        if (this.map) {
+            this.map.getInteractions().clear();
+            // Restore original interactions if available, else use OpenLayers defaults
+            if (this.originalInteractions) {
+                this.originalInteractions.forEach((interaction: any) => this.map.addInteraction(interaction));
+            } else {
+                const interactions = defaultInteractions();
+                interactions.forEach((interaction: any) => this.map.addInteraction(interaction));
+            }
+        }
+    }
+
+    /**
+     * Disables all map interactions (zoom, pan, etc.)
+     */
+    public disableInteractions() {
+        if (this.map) {
+            this.map.getInteractions().forEach(interaction => interaction.setActive(false));
+        }
+    }
+
+    /**
+     * Enables all map interactions (zoom, pan, etc.)
+     */
+    public enableInteractions() {
+        if (this.map) {
+            this.map.getInteractions().forEach(interaction => interaction.setActive(true));
+        }
+    }
 }

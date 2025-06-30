@@ -1,5 +1,4 @@
 import { FeatureCollection } from "geojson";
-import * as turf from "@turf/turf";
 import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
 import * as topojson from 'topojson-client';

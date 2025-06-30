@@ -782,12 +782,26 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
         placeholder: "minX,minY,maxX,maxY"
     });
 
+    // Stores the locked map zoom level
+    lockedMapZoom: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "lockedMapZoom",
+        displayName: "Locked Map Zoom",
+        value: null
+    });
+
     name: string = "mapToolsSettingsGroup";
     displayName: string = "Map Tools";
-    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl, this.lockedMapExtent];
+    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl, this.lockedMapExtent, this.lockedMapZoom];
+
     public applyConditionalDisplayRules(): void {
 
         this.lockedMapExtent.visible = false; // Always hidden
+        this.lockedMapZoom.visible = false; // Always hidden
+
+        if (this.lockMapExtent.value) {
+            this.showZoomControl.value = false;
+            this.showZoomControl.visible = false;
+        }
     }
 
 }

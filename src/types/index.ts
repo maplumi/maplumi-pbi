@@ -238,6 +238,7 @@ export interface MapToolsOptions {
     showZoomControl: boolean;
 
     lockedMapExtent: string; // Stores the locked map extent as a comma-separated string: "minX,minY,maxX,maxY"
+    lockedMapZoom?: number; // Stores the locked map zoom level
 
     legendPosition: string;
     legendBorderWidth: number;
