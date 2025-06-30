@@ -194,9 +194,6 @@ export class MaplumiVisual implements IVisual {
         // Dynamically toggle zoom control
         this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
 
-        // Apply map extent locking if enabled
-        //this.applyMapExtentLocking();
-
         // Update legend container styles
         this.updateLegendContainer();
 
@@ -286,13 +283,10 @@ export class MaplumiVisual implements IVisual {
         if (choroplethOptions.layerControl == false && circleOptions.layerControl == false) {
             this.legendContainer.style.display = "none";
         }
-
-        // Always update map size
+      
         this.map.updateSize();
-
-        // At the end of update, after all rendering and fitting:
-        if (this.mapToolsOptions.lockMapExtent && !this.previousLockMapExtent) {
-            // Persist the current visible extent and zoom as the locked state
+        
+        if (this.mapToolsOptions.lockMapExtent) {          
             this.persistCurrentExtentAsLocked();
         }
         // Update previousLockMapExtent for next update
@@ -921,15 +915,7 @@ export class MaplumiVisual implements IVisual {
         });
     }
 
-    private applyMapExtentLocking() {
-        
-        if (this.mapToolsOptions.lockMapExtent && !this.previousLockMapExtent) {
-            console.log('[Maplumi] Lock extent toggled ON. Persisting current extent:', this.map.getView().calculateExtent(this.map.getSize()));
-            this.persistCurrentExtentAsLocked();
-        }
-
-        console.log('[Maplumi] lockMapExtent:', this.mapToolsOptions.lockMapExtent, 'previousLockMapExtent:', this.previousLockMapExtent);
-        console.log('[Maplumi] lockedMapExtent (raw):', this.mapToolsOptions.lockedMapExtent);
+    private applyMapExtentLocking() {        
 
         this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
 
@@ -956,19 +942,7 @@ export class MaplumiVisual implements IVisual {
             view.setProperties({ minZoom: zoom, maxZoom: zoom });
             view.fit(lockedExtent, VisualConfig.MAP.FIT_OPTIONS); // Ensure view is fitted to locked extent
             this.mapService.setZoomControlVisible(false);
-        } else {
-            console.log('[Maplumi] Extent lock OFF or no locked extent. Resetting to default view.');
-            // Reset to default center, zoom, and unconstrained extent
-            const defaultCenter = VisualConfig.MAP.DEFAULT_CENTER;
-            const defaultZoom = VisualConfig.MAP.DEFAULT_ZOOM;
-            view.setCenter(defaultCenter);
-            view.setZoom(defaultZoom);
-            view.setProperties({ extent: undefined });
-            const defaultMinZoom = typeof view.get('defaultMinZoom') === 'number' ? view.get('defaultMinZoom') : 0;
-            const defaultMaxZoom = typeof view.get('defaultMaxZoom') === 'number' ? view.get('defaultMaxZoom') : 28;
-            view.setProperties({ minZoom: defaultMinZoom, maxZoom: defaultMaxZoom });
-            this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
-        }
+        } 
     }
 
 }
