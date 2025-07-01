@@ -40,6 +40,7 @@ import IVisualEventService = powerbi.extensibility.IVisualEventService;
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
+import { fromLonLat } from "ol/proj";
 import { BasemapOptions, ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptions, ChoroplethOptions, CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
 import { CircleLayer } from "./layers/circleLayer";
 import { ChoroplethLayer } from "./layers/choroplethLayer";
@@ -107,7 +108,7 @@ export class MaplumiVisual implements IVisual {
         this.container.appendChild(this.legendContainer);
 
         this.legendService = new LegendService(this.legendContainer);
-        
+
         this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
         this.map = this.mapService.getMap();
 
@@ -156,23 +157,6 @@ export class MaplumiVisual implements IVisual {
 
         // Get latest options early for lockMapExtent
         this.mapToolsOptions = this.getMapToolsOptions();
-        // If lock extent was ON and is now OFF, force reset view and restore interactions/controls
-        if (!this.mapToolsOptions.lockMapExtent) {
-            const view = this.map.getView();
-            const defaultCenter = VisualConfig.MAP.DEFAULT_CENTER;
-            const defaultZoom = VisualConfig.MAP.DEFAULT_ZOOM;
-            view.setCenter(defaultCenter);
-            view.setZoom(defaultZoom);
-            view.setProperties({ extent: undefined });
-            const defaultMinZoom = typeof view.get('defaultMinZoom') === 'number' ? view.get('defaultMinZoom') : 0;
-            const defaultMaxZoom = typeof view.get('defaultMaxZoom') === 'number' ? view.get('defaultMaxZoom') : 28;
-            view.setProperties({ minZoom: defaultMinZoom, maxZoom: defaultMaxZoom });
-            this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
-            // Restore all map interactions (zoom, pan, scroll, etc.)
-            if (this.mapService.restoreDefaultInteractions) {
-                this.mapService.restoreDefaultInteractions();
-            }
-        }
 
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
@@ -283,13 +267,45 @@ export class MaplumiVisual implements IVisual {
         if (choroplethOptions.layerControl == false && circleOptions.layerControl == false) {
             this.legendContainer.style.display = "none";
         }
-      
+
         this.map.updateSize();
-        
-        if (this.mapToolsOptions.lockMapExtent) {          
-            this.persistCurrentExtentAsLocked();
+
+        // Handle map extent locking
+        if (this.mapToolsOptions.lockMapExtent == true) {
+
+            this.map.on('postrender', () => {
+                const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
+                const currentExtentString = currentExtent.join(",");
+                const currentZoom = this.map.getView().getZoom();
+                if (currentExtentString !== this.mapToolsOptions.lockedMapExtent ||
+                    currentZoom !== this.mapToolsOptions.lockedMapZoom
+                ) {
+                    this.persistCurrentExtentAsLocked(currentExtentString, currentZoom);
+                }                
+            });
+
+            let lockedExtent: [number, number, number, number] | undefined = undefined;
+            if (typeof this.mapToolsOptions.lockedMapExtent === 'string' && this.mapToolsOptions.lockedMapExtent.trim() !== '') {
+                lockedExtent = this.mapToolsOptions.lockedMapExtent.split(",").map(Number) as [number, number, number, number];
+            }
+            if (this.mapToolsOptions.lockMapExtent === true && lockedExtent && lockedExtent.length === 4) {
+                const center: [number, number] = [
+                    (lockedExtent[0] + lockedExtent[2]) / 2,
+                    (lockedExtent[1] + lockedExtent[3]) / 2
+                ];
+                let zoom = this.map.getView().getZoom();
+                if (typeof this.mapToolsOptions.lockedMapZoom === 'number' && !isNaN(this.mapToolsOptions.lockedMapZoom)) {
+                    zoom = this.mapToolsOptions.lockedMapZoom;
+                }
+                this.mapService.lockExtent(lockedExtent, center, zoom);
+                this.map.getView().fit(lockedExtent, VisualConfig.MAP.FIT_OPTIONS);
+                this.mapService.setZoomControlVisible(false);
+            }
+
+        }else{
+            //this.mapService.unlockExtent();
         }
-        // Update previousLockMapExtent for next update
+
         this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
         this.events.renderingFinished(options);
     }
@@ -343,7 +359,7 @@ export class MaplumiVisual implements IVisual {
         );
 
         this.renderCircleLayerOnMap(circleLayerOptions);
-        this.applyMapExtentLocking();
+
 
         if (circleOptions.showLegend) {
             this.renderCircleLegend(combinedCircleSizeValues, circleSizeValuesObjects.length, minCircleSizeValue, circleScale, circleOptions);
@@ -465,7 +481,7 @@ export class MaplumiVisual implements IVisual {
         this.map.addLayer(this.circleLayer);
 
         // Always fit to features unless extent is locked
-        if (!this.choroplethDisplayed && !this.mapToolsOptions.lockMapExtent) {
+        if (this.choroplethDisplayed === false && this.mapToolsOptions.lockMapExtent === false) {
             this.mapExtent = this.circleLayer.getFeaturesExtent();
             if (this.mapExtent) {
                 this.map.getView().fit(this.mapExtent, VisualConfig.MAP.FIT_OPTIONS);
@@ -700,7 +716,7 @@ export class MaplumiVisual implements IVisual {
             };
 
             this.renderChoroplethLayerOnMap(choroplethLayerOptions, choroplethOptions, colorValues, classBreaks, colorScale);
-            this.applyMapExtentLocking();
+
         } catch (error) {
             this.host.displayWarningIcon("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
 
@@ -721,7 +737,7 @@ export class MaplumiVisual implements IVisual {
         this.map.addLayer(this.choroplethLayer);
 
         // Always fit to features unless extent is locked
-        if (!this.mapToolsOptions.lockMapExtent) {
+        if (this.mapToolsOptions.lockMapExtent === false) {
             this.mapExtent = this.choroplethLayer.getFeaturesExtent();
             if (this.mapExtent) {
                 this.map.getView().fit(this.mapExtent, VisualConfig.MAP.FIT_OPTIONS);
@@ -902,47 +918,14 @@ export class MaplumiVisual implements IVisual {
 
     }
 
-    private persistCurrentExtentAsLocked() {
-        const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
-        const currentExtentString = currentExtent.join(",");
-        const currentZoom = this.map.getView().getZoom();
+    private persistCurrentExtentAsLocked(extentString: string, zoom: number) {
         this.host.persistProperties({
             merge: [{
                 objectName: "mapControlsVisualCardSettings",
-                properties: { lockedMapExtent: currentExtentString, lockedMapZoom: currentZoom },
+                properties: { lockedMapExtent: extentString, lockedMapZoom: zoom },
                 selector: null
             }]
         });
-    }
-
-    private applyMapExtentLocking() {        
-
-        this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
-
-        let lockedExtent: [number, number, number, number] | undefined = undefined;
-
-        if (typeof this.mapToolsOptions.lockedMapExtent === 'string' && this.mapToolsOptions.lockedMapExtent.trim() !== '') {
-            lockedExtent = this.mapToolsOptions.lockedMapExtent.split(",").map(Number) as [number, number, number, number];
-        }
-
-        const view = this.map.getView();
-
-        if (this.mapToolsOptions.lockMapExtent && lockedExtent) {
-            console.log('[Maplumi] Applying extent lock:', lockedExtent);
-            // Set extent, center, and zoom only (no interaction removal)
-            const center: [number, number] = [
-                (lockedExtent[0] + lockedExtent[2]) / 2,
-                (lockedExtent[1] + lockedExtent[3]) / 2
-            ];
-            let zoom = view.getZoom();
-            if (typeof this.mapToolsOptions.lockedMapZoom === 'number' && !isNaN(this.mapToolsOptions.lockedMapZoom)) {
-                zoom = this.mapToolsOptions.lockedMapZoom;
-            }
-            this.mapService.lockExtent(lockedExtent, center, zoom);
-            view.setProperties({ minZoom: zoom, maxZoom: zoom });
-            view.fit(lockedExtent, VisualConfig.MAP.FIT_OPTIONS); // Ensure view is fitted to locked extent
-            this.mapService.setZoomControlVisible(false);
-        } 
     }
 
 }

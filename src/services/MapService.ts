@@ -27,7 +27,6 @@ export class MapService {
     private zoomControlManager: ZoomControlManager;
     private host: any; // Add host property for debugging
     private view: View;
-    private originalInteractions: any = null;
 
     constructor(container: HTMLElement, showZoomControl: boolean = true, host?: any) {
 
@@ -207,7 +206,7 @@ export class MapService {
     public lockExtent(extent: [number, number, number, number], center?: [number, number], zoom?: number) {
         if (this.view) {
             // Set extent
-            this.view.setProperties({ extent });
+            //this.view.setProperties({ extent });
             // Calculate minZoom that fits the extent
             const size = this.map.getSize();
             if (size) {
@@ -233,53 +232,21 @@ export class MapService {
             if (center) {
                 this.view.setCenter(center);
             }
+
+            this.setState({
+            extent: extent,
+            zoom: typeof zoom === 'number' ? zoom : this.view.getZoom()
+        });
         }
     }
 
     /**
-     * Removes all map interactions (robust lock)
+     * Unlocks the map extent and zoom, resetting the view to the default center and zoom level.
      */
-    public removeAllInteractions() {
-        if (this.map) {
-            if (!this.originalInteractions) {
-                // Save the original interactions for restoration
-                this.originalInteractions = this.map.getInteractions().getArray().slice();
-            }
-            this.map.getInteractions().clear();
-        }
-    }
-
-    /**
-     * Restores default map interactions (robust unlock)
-     */
-    public restoreDefaultInteractions() {
-        if (this.map) {
-            this.map.getInteractions().clear();
-            // Restore original interactions if available, else use OpenLayers defaults
-            if (this.originalInteractions) {
-                this.originalInteractions.forEach((interaction: any) => this.map.addInteraction(interaction));
-            } else {
-                const interactions = defaultInteractions();
-                interactions.forEach((interaction: any) => this.map.addInteraction(interaction));
-            }
-        }
-    }
-
-    /**
-     * Disables all map interactions (zoom, pan, etc.)
-     */
-    public disableInteractions() {
-        if (this.map) {
-            this.map.getInteractions().forEach(interaction => interaction.setActive(false));
-        }
-    }
-
-    /**
-     * Enables all map interactions (zoom, pan, etc.)
-     */
-    public enableInteractions() {
-        if (this.map) {
-            this.map.getInteractions().forEach(interaction => interaction.setActive(true));
-        }
+    public unlockExtent() {
+       
+        this.view.setCenter(fromLonLat(VisualConfig.MAP.DEFAULT_CENTER));
+        this.view.setZoom(VisualConfig.MAP.DEFAULT_ZOOM);
+        this.view.setProperties({ minZoom: 0, maxZoom: 28 });
     }
 }
