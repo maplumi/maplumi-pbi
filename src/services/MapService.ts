@@ -118,6 +118,10 @@ export class MapService {
         return this.map;
     }
 
+    public getView(): View {
+        return this.view;
+    }
+
     public getState(): MapState {
         return this.state;
     }
@@ -240,13 +244,5 @@ export class MapService {
         }
     }
 
-    /**
-     * Unlocks the map extent and zoom, resetting the view to the default center and zoom level.
-     */
-    public unlockExtent() {
-       
-        this.view.setCenter(fromLonLat(VisualConfig.MAP.DEFAULT_CENTER));
-        this.view.setZoom(VisualConfig.MAP.DEFAULT_ZOOM);
-        this.view.setProperties({ minZoom: 0, maxZoom: 28 });
-    }
+   
 }

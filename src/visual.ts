@@ -53,6 +53,7 @@ import { ColorRampManager } from "./services/ColorRampManager";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
 import { CacheService } from "./services/cacheService";
+import { View } from "ol";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -70,6 +71,7 @@ export class MaplumiVisual implements IVisual {
     private svgOverlay: SVGSVGElement;
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
     private map: Map;
+    private view: View;
     private mapToolsOptions: MapToolsOptions;
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
@@ -111,6 +113,7 @@ export class MaplumiVisual implements IVisual {
 
         this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
         this.map = this.mapService.getMap();
+        this.view = this.mapService.getView();
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -150,6 +153,8 @@ export class MaplumiVisual implements IVisual {
     public update(options: VisualUpdateOptions) {
         this.events.renderingStarted(options);
         const dataView = options.dataViews[0];
+
+        this.map.setView(this.view); // default view
 
         // Update formatting settings
         this.visualFormattingSettingsModel = this.formattingSettingsService
@@ -303,7 +308,7 @@ export class MaplumiVisual implements IVisual {
             }
 
         }else{
-            //this.mapService.unlockExtent();
+            this.map.getView().setProperties({extent: undefined, minZoom: 0, maxZoom: 28});
         }
 
         this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
