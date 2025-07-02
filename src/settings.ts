@@ -498,7 +498,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     });
 
     name: string = "choroplethLocationBoundarySettingsGroup";
-    displayName: string = "Location Boundary";
+    displayName: string = "Boundary";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId];
 }
@@ -510,17 +510,28 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
         name: "numClasses",
         displayName: "Classes",
         value: 5, // Default number of classes
+        options:
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 7
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
     });
 
     classificationMethod: DropDown = new DropDown({
         name: "classificationMethod",
-        displayName: "Classification Method",
+        displayName: "Method",
         value: {
             value: "q",  //default value
             displayName: "Quantile"
         },
         items: [
-            { value: "u", displayName: "Unique Data Values" },
+            { value: "u", displayName: "Categorical/Ordinal" },
             { value: "q", displayName: "Quantile" },
             { value: "e", displayName: "Equal Interval" },
             { value: "l", displayName: "Logarithmic" },
@@ -575,7 +586,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         name: "customColorRamp",
         displayName: "Custom Color Ramp",
         value: " #e1eef9, #c7e1f5, #64beeb, #009edb", // Default value
-        placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb" // Placeholder
+        placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb" 
     });
 
     invertColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
@@ -617,7 +628,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         name: "layerOpacity",
         displayName: "Layer Opacity",
         value: 100,//default value
-        options: // optional input value validator  
+        options:  
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -726,6 +737,23 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         ]
     });
 
+    legendItemMargin: formattingSettings.NumUpDown = new formattingSettings.NumUpDown({
+        name: "legendItemMargin",
+        displayName: "Legdend Item Margin",
+        value: 2.5, // Default size
+        options:
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 5
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
 
     name: string = "choroplethLegendSettingsGroup";
     displayName: string = "Legend";
@@ -736,7 +764,8 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         this.legendOrientation,
         this.legendLabelPosition,
         this.legendTitleColor,
-        this.legendLabelsColor
+        this.legendLabelsColor,
+        this.legendItemMargin
     ];
 }
 

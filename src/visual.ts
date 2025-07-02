@@ -286,7 +286,7 @@ export class MaplumiVisual implements IVisual {
                     currentZoom !== this.mapToolsOptions.lockedMapZoom
                 ) {
                     this.persistCurrentExtentAsLocked(currentExtentString, currentZoom);
-                }                
+                }
             });
 
             let lockedExtent: [number, number, number, number] | undefined = undefined;
@@ -307,8 +307,8 @@ export class MaplumiVisual implements IVisual {
                 this.mapService.setZoomControlVisible(false);
             }
 
-        }else{
-            this.map.getView().setProperties({extent: undefined, minZoom: 0, maxZoom: 28});
+        } else {
+            this.map.getView().setProperties({ extent: undefined, minZoom: 0, maxZoom: 28 });
         }
 
         this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
@@ -528,8 +528,8 @@ export class MaplumiVisual implements IVisual {
         // Always clean up before re-rendering to avoid duplication
         group.selectAll("*").remove();  // Clear children, not the group itself
 
-
-        this.prepareChoroplethRendering();
+        this.svgOverlay.style.display = 'flex';
+        this.legendContainer.style.display = "block";
 
         if (!this.validateChoroplethInputData(categorical)) return;
 
@@ -539,7 +539,7 @@ export class MaplumiVisual implements IVisual {
         const validPCodes = this.filterValidPCodes(pCodes);
         if (validPCodes.length === 0) return;
 
-        const { colorValues, classBreaks, colorScale, pcodeKey, tooltips, dataPoints } =
+        const { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } =
             this.prepareChoroplethData(categorical, choroplethOptions, AdminPCodeNameIDCategory, colorMeasure, pCodes);
 
         this.fetchAndRenderChoroplethLayer(
@@ -550,15 +550,10 @@ export class MaplumiVisual implements IVisual {
             classBreaks,
             colorScale,
             pcodeKey,
-            tooltips,
             dataPoints
         );
     }
 
-    private prepareChoroplethRendering(): void {
-        this.svgOverlay.style.display = 'flex';
-        this.legendContainer.style.display = "block";
-    }
 
     private validateChoroplethInputData(categorical: any): boolean {
         if (!categorical.values || categorical.values.length === 0) {
@@ -615,6 +610,7 @@ export class MaplumiVisual implements IVisual {
         colorMeasure: any,
         pCodes: string[]
     ): ChoroplethDataSet {
+
         const colorValues: number[] = colorMeasure.values;
         const classBreaks = this.dataService.getClassBreaks(colorValues, choroplethOptions);
         const colorScale = this.dataService.getColorScale(classBreaks, choroplethOptions);
@@ -627,15 +623,31 @@ export class MaplumiVisual implements IVisual {
                 .withCategory(AdminPCodeNameIDCategory, i)
                 .withMeasure(colorMeasure.source.queryName)
                 .createSelectionId();
+
             return {
                 pcode: pcode,
                 value: colorValues[i],
                 tooltip: tooltips[i],
                 selectionId: selectionId
             };
+
         });
 
-        return { colorValues, classBreaks, colorScale, pcodeKey, tooltips, dataPoints };
+        // Debug: log color assignment for each value
+        colorValues.forEach((v, i) => {
+            const idx = classBreaks.indexOf(v);
+            const color = this.dataService.getColorFromClassBreaks(v, classBreaks, colorScale, choroplethOptions);
+            if (idx === -1) {
+                console.log(`Value ${v} (index ${i}) is overflow, assigned fallback color: ${color}`);
+            } else {
+                console.log(`Value ${v} (index ${i}) matched classBreaks[${idx}], assigned color: ${color}`);
+            }
+        });
+
+        console.log("Class Breaks:", classBreaks);
+        console.log("Color Scale:", colorScale);
+
+        return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints };
     }
 
     private async fetchAndRenderChoroplethLayer(
@@ -646,9 +658,9 @@ export class MaplumiVisual implements IVisual {
         classBreaks: any,
         colorScale: any,
         pcodeKey: string,
-        tooltips: any[],
         dataPoints: any[]
     ): Promise<void> {
+
         const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
         const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
 
@@ -660,9 +672,10 @@ export class MaplumiVisual implements IVisual {
 
         try {
             const data = await this.cacheService.getOrFetch(cacheKey, async () => {
+
                 if (!requestHelpers.isValidURL(serviceUrl)) {
                     this.host.displayWarningIcon(
-                        "Invalid GeoJSON URL",
+                        "Invalid Geo/TopoJSON URL",
                         "maplumiWarning: The provided GeoJSON URL is not valid. Please check the data source URL."
                     );
                     return null;
@@ -672,28 +685,29 @@ export class MaplumiVisual implements IVisual {
                     response = await window.fetch(serviceUrl, { signal: this.abortController!.signal });
                 } catch (e) {
                     this.host.displayWarningIcon(
-                        "GeoJSON Fetch Error",
-                        "maplumiWarning: Failed to fetch GeoJSON data. Please check your network connection or the data source URL."
+                        "Geo/TopoJSON Fetch Error",
+                        "maplumiWarning: Failed to fetch Geo/TopoJSON data. Please check your network connection or the data source URL."
                     );
                     return null;
                 }
                 if (!response.ok) {
                     this.host.displayWarningIcon(
-                        "GeoJSON Fetch Error",
-                        `maplumiWarning: Failed to fetch GeoJSON data. Server responded with status: ${response.status}`
+                        "Geo/TopoJSON Fetch Error",
+                        `maplumiWarning: Failed to fetch Geo/TopoJSON data. Server responded with status: ${response.status}`
                     );
                     return null;
                 }
                 const json = await response.json();
                 if (!(await requestHelpers.isValidJsonResponse(json))) {
                     this.host.displayWarningIcon(
-                        "Invalid GeoJSON Data",
-                        "maplumiWarning: The fetched GeoJSON data is not valid. Please check the data source."
+                        "Invalid Geo/TopoJSON Data",
+                        "maplumiWarning: The fetched Geo/TopoJSON data is not valid. Please check the data source."
                     );
                     return null;
                 }
                 return json;
             });
+
             if (!data || !choroplethOptions.layerControl) return;
 
             const processedGeoData = this.dataService.processGeoData(
@@ -905,7 +919,8 @@ export class MaplumiVisual implements IVisual {
             legendOrientation: choroplethLegendSettings.legendOrientation.value.value.toString(),
             legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value.toString(),
             legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value
+            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
+            legendItemMargin: choroplethLegendSettings.legendItemMargin.value,
         };
     }
 

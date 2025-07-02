@@ -3,8 +3,8 @@
     {
       "name": "AdminPCodeNameID",
       "kind": "Grouping",
-      "displayName": "Boundary PCode/Name/ID",
-      "description": "Boundary PCodes/Name/ID for Choropleth Layer. Same Field from Geojson properties must be set in Choropleth Settings under Visual formatting. For HDX COD-AB specify on county ISO3 & AdminLevel in choropleth settings."
+      "displayName": "Boundary ID",
+      "description": "Unique Identifier for Choropleth Boundary Layer. Same Identifier from Geo/Topojson properties must be set in Choropleth Settings under Visual formatting."
     },
     {
       "name": "Longitude",
@@ -76,7 +76,7 @@
       "name": "Color",
       "kind": "Measure",
       "displayName": "Choropleth Color",
-      "description": "Numeric data type measure to control display of Choropleth or Heatmap colors",
+      "description": "Numeric or Text data type measure to control display of Choropleth or Heatmap colors",
       "requiredTypes": [
         {
           "numeric": true
@@ -84,6 +84,7 @@
         {
           "integer": true
         }
+        
       ]
     },
     {
@@ -458,6 +459,11 @@
         "legendOrientation": {
           "type": {
             "enumeration": []
+          }
+        },
+        "legendItemMargin": {
+          "type": {
+            "numeric": true
           }
         }
       }

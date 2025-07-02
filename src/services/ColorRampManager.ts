@@ -28,6 +28,16 @@ export class ColorRampManager {
     // Get the current ramp (inverted or not)
     const ramp = this.getColorRamp();
 
+    // If the number of class breaks matches the number of classes (unique value mode),
+    // just return the ramp colors directly (no interpolation)
+    if (classBreaks.length === numberOfClasses) {
+      const colors = ramp.slice(0, numberOfClasses);
+      while (colors.length < numberOfClasses) {
+        colors.push("#000000");
+      }
+      return colors;
+    }
+
     // Use the classBreaks to define the domain of the color scale
     const scale = chroma.scale(ramp).mode(colorMode).domain(classBreaks);
 

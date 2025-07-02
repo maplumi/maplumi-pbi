@@ -188,28 +188,32 @@ export class ChoroplethDataService {
 
     /**
      * Calculates class breaks for choropleth map data classification
-     * @param values Array of numeric values to be classified
+     * @param values Array of values to be classified (can be numeric or string)
      * @param options Classification options object containing:
      *   - classifyData: boolean - Whether to classify the data or use unique values
-     *   - classes: number - Number of desired classes/breaks
+     *   - classes: number - Number of desired classes/breaks (max 7)
      *   - classificationMethod: string - Classification method to use:
      *     - "j": Jenks natural breaks
      *     - "k": K-means clustering
      *     - "q": Quantile
      *     - "e": Equal interval
      *     - "l": Linear
-     * @returns Array of break points that define the class intervals
+     *     - "u": Unique values (categorical)
+     * @returns Array of break points or unique values that define the class intervals
      */
-    public getClassBreaks(values: number[], options: any): number[] {
+    public getClassBreaks(values: any[], options: any): any[] {
 
-        const uniqueValues = new Set(values);
-        const numValues = uniqueValues.size;
-
-        // Handle unique values case first
         if (options.classificationMethod === "u") {
-            return Array.from(uniqueValues).sort((a, b) => a - b);
+            // Unique value (categorical) classification for numbers
+            // Sort numerically and cap to 7 unique values
+            const unique = Array.from(new Set(values)).sort((a, b) => a - b);
+            const n = Math.min(options.classes || 7, 7);
+            return unique.slice(0, n);
         }
 
+        // Numeric classification
+        const uniqueValues = new Set(values);
+        const numValues = uniqueValues.size;
         const adjustedClasses = Math.min(options.classes, numValues);
 
         if (numValues <= 2) {
@@ -219,10 +223,11 @@ export class ChoroplethDataService {
         switch (options.classificationMethod) {
             case "j":
                 return ss.jenks(values, adjustedClasses);
-            case "k":
+            case "k": {
                 const clusters = ss.ckmeans(values, adjustedClasses);
                 const maxValues = clusters.map(cluster => Math.max(...cluster));
                 return [Math.min(...values), ...maxValues.sort((a, b) => a - b)];
+            }
             default:
                 return chroma.limits(
                     values,
@@ -234,22 +239,31 @@ export class ChoroplethDataService {
 
     /**
      * Generates a color scale based on class breaks and choropleth options
-     * @param classBreaks Array of numeric break points that define class intervals
+     * @param classBreaks Array of break points or unique values
      * @param options Choropleth options object containing:    
      *   - invertColorRamp: boolean - Whether to invert the color ramp order
      *   - classes: number - Number of color classes to generate    
      *   - colorMode: string - Color interpolation mode (e.g. 'lch', 'lab', 'rgb')
      * @returns Array of color strings representing the generated color scale
      */
-
-    public getColorScale(classBreaks: number[], options: ChoroplethOptions): string[] {
-
-        // For unique values, use the number of unique values as classes
-        const numClasses = options.classificationMethod === "u"
-            ? classBreaks.length
-            : options.classes;
-
-
+    public getColorScale(classBreaks: any[], options: ChoroplethOptions): string[] {
+        // For unique values, use the number of unique values as classes (max 7)
+        if (options.classificationMethod === "u") {
+            // Direct mapping: assign each unique value a color from the ramp, no interpolation
+            const numClasses = Math.min(classBreaks.length, 7);
+            let ramp = this.colorRampService.getColorRamp();
+            if (options.invertColorRamp === true) {
+                ramp = ramp.slice().reverse();
+            }
+            // Pad or slice ramp to match numClasses
+            const colors = ramp.slice(0, numClasses);
+            while (colors.length < numClasses) {
+                colors.push("#000000"); // fallback color for overflow
+            }
+            return colors;
+        }
+        // Numeric classification
+        const numClasses = options.classes;
         if (options.invertColorRamp === true) {
             this.colorRampService.invertRamp();
         }
@@ -258,49 +272,40 @@ export class ChoroplethDataService {
             numClasses,
             options.colorMode
         );
-
-        // // split colorRamp into parts
-        // const colorRampParts = options.colorRamp.split(",");
-
-        // return chroma
-        //     .scale(colorRampParts)
-        //     .mode(options.colorMode)
-        //     .domain(classBreaks)
-        //     .colors(numClasses);
     }
-
 
     /**
      * Gets the color from the color scale based on the value and class breaks
-     * @param value The value to get the color for
-     * @param classBreaks The class breaks to use for the color scale
+     * @param value The value to get the color for (can be string or number)
+     * @param classBreaks The class breaks or unique values
      * @param colorScale The color scale to use for the color
+     * @param options Choropleth options (to check classification method)
      * @returns The color from the color scale
      */
     public getColorFromClassBreaks(
-        value: number,
-        classBreaks: number[],
+        value: any,
+        classBreaks: any[],
         colorScale: string[],
         options?: ChoroplethOptions
     ): string {
-        // For unclassified/unique values, find exact match
         if (options?.classificationMethod === "u") {
+            // Unique value (categorical): match exact value
             const index = classBreaks.indexOf(value);
-            return index !== -1 ? colorScale[index] : "#009edb"; // Default color if no match
+            // Fallback to black if overflow, else default color
+            return index !== -1 && index < colorScale.length ? colorScale[index] : "#000000";
         }
 
-        // For classified values, use range-based logic
+        // Numeric classification
+        if (typeof value !== "number") return "#009edb";
         if (value < classBreaks[0]) return colorScale[0];
         if (value > classBreaks[classBreaks.length - 1]) {
             return colorScale[colorScale.length - 1];
         }
-
         for (let i = 0; i < classBreaks.length - 1; i++) {
             if (value >= classBreaks[i] && value <= classBreaks[i + 1]) {
                 return colorScale[i];
             }
         }
-
         return "#009edb"; // Default color
     }
 
@@ -342,4 +347,4 @@ export class ChoroplethDataService {
         return topojson.feature(topology, topology.objects[layerName]);
     }
 
-} 
+}

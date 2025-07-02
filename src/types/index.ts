@@ -64,8 +64,7 @@ export interface ChoroplethDataSet {
     colorValues: number[];
     classBreaks: any;
     colorScale: any;
-    pcodeKey: string;
-    tooltips: any[];
+    pcodeKey: string;   
     dataPoints: any[];
 }
 
@@ -217,6 +216,7 @@ export interface ChoroplethOptions {
     legendTitleAlignment: string;
     legendTitleColor: string;
     legendLabelsColor: string;
+    legendItemMargin: number;
     //legendLabelsFontSize: string;
 
 }

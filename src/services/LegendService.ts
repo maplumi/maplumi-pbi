@@ -2,7 +2,7 @@ import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as format from "../utils/format";
 
 export class LegendService {
-    
+
     private mainContainer: HTMLElement;
     private circleLegendContainer: HTMLElement | null = null;
     private choroplethLegendContainer: HTMLElement | null = null;
@@ -16,7 +16,7 @@ export class LegendService {
         radii: number[],
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
-        formatTemplate: string = "{:.0f}"        
+        formatTemplate: string = "{:.0f}"
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -52,8 +52,8 @@ export class LegendService {
         let legendData = this.getProportionalCircleLegendData(
             sizeValues,
             radii,
-            circleOptions.minRadiusThreshold, 
-            circleOptions.roundOffLegendValues 
+            circleOptions.minRadiusThreshold,
+            circleOptions.roundOffLegendValues
         );
         if (!legendData || legendData.length === 0) return;
 
@@ -76,7 +76,7 @@ export class LegendService {
         const minLeftPadding = 2; // minimal left space
         const newCenterX = minLeftPadding + maxRadius;
 
-       
+
         // Clear SVG before re-adding elements (safe way)
         while (svg.firstChild) {
             svg.removeChild(svg.firstChild);
@@ -104,7 +104,7 @@ export class LegendService {
                 circle.setAttribute("fill-opacity", circleOptions.layer1Opacity.toString());
 
             } else {
-                
+
                 circle.setAttribute("stroke", circleOptions.leaderLineColor);
                 circle.setAttribute("fill", "none"); // Remove fill
             }
@@ -178,16 +178,10 @@ export class LegendService {
         classBreaks: number[],
         colorScale: any,
         options: ChoroplethOptions,
-        formatTemplate: string = "{:.0f}",
-        gapSize: number = 2.5
+        formatTemplate: string = "{:.0f}"
+
     ) {
-        // Skip legend creation for unclassified/unique values
-        if (options.classificationMethod === "u") {
-            if (this.choroplethLegendContainer) {
-                this.choroplethLegendContainer.style.display = "none";
-            }
-            return;
-        }
+
 
         // Clear or create container
         if (!this.choroplethLegendContainer) {
@@ -196,7 +190,7 @@ export class LegendService {
         } else {
             this.clearContainer(this.choroplethLegendContainer);
             this.choroplethLegendContainer.style.display = "flex";
-        }
+        }        
 
         // Create legend items container
         const choroplethItemsContainer = document.createElement("div");
@@ -204,13 +198,6 @@ export class LegendService {
 
         // Set basic visibility
         this.choroplethLegendContainer.style.display = "flex";
-
-        const uniqueColorValues: number[] = [...new Set(colorValues)].sort((a, b) => a - b);
-
-        choroplethItemsContainer.style.padding = "5px";
-        choroplethItemsContainer.style.display = "flex";
-        choroplethItemsContainer.style.flexDirection = "column"; // Stack title and items vertically
-        choroplethItemsContainer.style.gap = "5px";
 
         // Add title
         const title = document.createElement("div");
@@ -221,16 +208,29 @@ export class LegendService {
         title.style.marginBottom = "5px";
         choroplethItemsContainer.appendChild(title); // Title is inside the items container
 
-        // Collect all labels and calculate max width
-        const allLabels = [];
-        if (options.classificationMethod !== "u") {
+
+        // Collect all labels and colors
+        let allLabels: string[] = [];
+        let colors: string[] = [];
+        if (options.classificationMethod === "u") {
+            // Unique value legend
+            // Use classBreaks (already sorted and capped) for both labels and color mapping
+            const uniqueValues = classBreaks;
+            const maxLegendItems = Math.min(options.classes || 7, 7);
+            const ramp = Array.isArray(colorScale) ? colorScale : Object.values(colorScale);
+            colors = [];
+            for (let i = 0; i < Math.min(uniqueValues.length, maxLegendItems); i++) {
+                colors.push(ramp[i] || "#000000");
+            }
+            while (colors.length < Math.min(uniqueValues.length, maxLegendItems)) {
+                colors.push("#000000");
+            }
+            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => format.formatValue(v, formatTemplate));
+        } else {
             for (let i = 0; i < classBreaks.length - 1; i++) {
                 allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
             }
-        } else {
-            uniqueColorValues.forEach(value => {
-                allLabels.push(format.formatValue(value, formatTemplate));
-            });
+            colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
         }
 
         // Calculate max width when needed
@@ -262,14 +262,10 @@ export class LegendService {
         const itemsContainer = document.createElement("div");
         itemsContainer.style.display = "flex";
         itemsContainer.style.flexDirection = options.legendOrientation === "vertical" ? "column" : "row";
-        itemsContainer.style.gap = `${gapSize}px`;
+        itemsContainer.style.gap = `${options.legendItemMargin}px`;
         itemsContainer.style.alignItems = "flex-start";
 
         // Create legend items
-        const colors = options.classificationMethod !== "u"
-            ? classBreaks.slice(0, -1).map((_, i) => colorScale[i])
-            : uniqueColorValues.map((_, i) => colorScale[i]);
-
         colors.forEach((color, i) => {
             const legendItem = this.createChoroplethLegendItem(
                 allLabels[i],
@@ -367,7 +363,7 @@ export class LegendService {
                     { size: rounded, radius: min.radius },
                     { size: rounded, radius: min.radius },
                     { size: rounded, radius: min.radius }
-                ]; 
+                ];
             } else {
                 return [min, min, min];
             }
