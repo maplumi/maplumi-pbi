@@ -187,6 +187,11 @@
             "enumeration": []
           }
         },
+        "mapboxCustomStyleUrl": {
+          "type": {
+            "text": true
+          }
+        },
         "declutterLabels": {
           "type": {
             "bool": true
