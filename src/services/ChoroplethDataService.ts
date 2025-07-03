@@ -5,6 +5,7 @@ import * as topojson from 'topojson-client';
 import { ColorRampManager } from "./ColorRampManager";
 import { ChoroplethOptions } from "../types/index";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
+import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 
 /**
  * Service class responsible for processing and transforming geographic and statistical data
@@ -14,9 +15,11 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 export class ChoroplethDataService {
 
     private colorRampService: ColorRampManager;
+    private host: IVisualHost;
 
-    constructor(colorRampManager: ColorRampManager) {
+    constructor(colorRampManager: ColorRampManager, host: IVisualHost) {
         this.colorRampService = colorRampManager;
+        this.host = host;
     }
 
     /**
@@ -247,26 +250,35 @@ export class ChoroplethDataService {
      * @returns Array of color strings representing the generated color scale
      */
     public getColorScale(classBreaks: any[], options: ChoroplethOptions): string[] {
+        
         // For unique values, use the number of unique values as classes (max 7)
         if (options.classificationMethod === "u") {
-            // Direct mapping: assign each unique value a color from the ramp, no interpolation
-            const numClasses = Math.min(classBreaks.length, 7);
+            // Sort unique values and cap to 7 for color mapping
+            const unique = Array.from(new Set(classBreaks)).sort((a, b) => a - b);
+            const n = Math.min(options.classes || 7, 7);
+            // Only the top 7 unique values are mapped to colors
+            const mappedUniques = unique.slice(0, n);
             let ramp = this.colorRampService.getColorRamp();
             if (options.invertColorRamp === true) {
                 ramp = ramp.slice().reverse();
             }
-            // Pad or slice ramp to match numClasses
-            const colors = ramp.slice(0, numClasses);
-            while (colors.length < numClasses) {
-                colors.push("#000000"); // fallback color for overflow
+            // Always use exactly 7 colors from the ramp, pad with black if needed
+            let colors = ramp.slice(0, 7);
+            while (colors.length < 7) {
+                colors.push("#000000");
             }
+            // Add black as the 8th color for overflow classes
+            colors.push("#000000");
+            
             return colors;
         }
+        
         // Numeric classification
         const numClasses = options.classes;
         if (options.invertColorRamp === true) {
             this.colorRampService.invertRamp();
         }
+
         return this.colorRampService.generateColorRamp(
             classBreaks,
             numClasses,
@@ -286,13 +298,17 @@ export class ChoroplethDataService {
         value: any,
         classBreaks: any[],
         colorScale: string[],
-        options?: ChoroplethOptions
+        classificationMethod: string
     ): string {
-        if (options?.classificationMethod === "u") {
-            // Unique value (categorical): match exact value
+
+        if (classificationMethod === "u") {
+            // Unique value (categorical): only top 7 get mapped, others get black
             const index = classBreaks.indexOf(value);
-            // Fallback to black if overflow, else default color
-            return index !== -1 && index < colorScale.length ? colorScale[index] : "#000000";
+            // Only allow mapping for index 0-6 (top 7), all others get black
+            if (index >= 0 && index < 7) {
+                return colorScale[index];
+            }
+            return "#000000";
         }
 
         // Numeric classification

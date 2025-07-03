@@ -94,14 +94,14 @@ export class ChoroplethLayer extends Layer {
         const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
 
         // Create a lookup for data points
-        const dataPointsLookup = this.options.dataPoints?.reduce((acc, point) => {
-            acc[point.pcode] = point;
+        const dataPointsLookup = this.options.dataPoints?.reduce((acc, dpoint) => {
+            acc[dpoint.pcode] = dpoint;
             return acc;
         }, {} as { [key: string]: any }) || {};
 
         // Simplify features dynamically based on zoom level
         const tolerance = this.getSimplificationTolerance(resolution);
-        //console.log(`Using simplification tolerance: ${tolerance} for resolution: ${resolution}`);
+        
         const options = { tolerance: tolerance, highQuality: false };
         const simplifiedFeatures = simplify(this.geojson, options);
 
@@ -109,11 +109,13 @@ export class ChoroplethLayer extends Layer {
         simplifiedFeatures.features.forEach((feature: GeoJSONFeature) => {
             const pCode = feature.properties[this.options.dataKey];
             const valueRaw = this.valueLookup[pCode];
+            
             // Use valueRaw as-is for colorScale (do not force to number if unique value mode)
             const fillColor = (pCode === undefined || valueRaw === undefined)
                 ? 'transparent'
                 : this.options.colorScale(valueRaw);
-            console.log('Layer render:', { pCode, value: valueRaw, fillColor, type: typeof valueRaw });
+            
+            //console.log('Layer render:', { pCode, value: valueRaw, fillColor, type: typeof valueRaw });
             
             const dataPoint = dataPointsLookup[pCode];
 
@@ -207,6 +209,7 @@ export class ChoroplethLayer extends Layer {
     };
 
     private getSimplificationTolerance(resolution: number): number {
+        
         // Get the total extent of all features
         const bounds = geoBounds(this.geojson);
         const width = Math.abs(bounds[1][0] - bounds[0][0]);  // longitude span

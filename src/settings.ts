@@ -784,9 +784,9 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
     topLevelSlice: formattingSettings.ToggleSwitch = this.showLayerControl;
     name: string = "choroplethVisualCardSettings";
     displayName: string = "Choropleth";
-    // groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup, this.choroplethClassificationSettingsGroup,
-    // this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
-    groups: formattingSettings.Group[] = [];
+    groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup, this.choroplethClassificationSettingsGroup,
+    this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
+    //groups: formattingSettings.Group[] = [];
     
 
 }

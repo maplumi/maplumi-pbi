@@ -215,7 +215,7 @@ export class MaplumiVisual implements IVisual {
 
         // Initialize color ramp and data service
         this.colorRampManager = new ColorRampManager(selectedColorRamp);
-        this.dataService = new ChoroplethDataService(this.colorRampManager);
+        this.dataService = new ChoroplethDataService(this.colorRampManager, this.host);
 
         // If no data, clear everything and return
         if (!dataView || !dataView.categorical) {
@@ -634,18 +634,26 @@ export class MaplumiVisual implements IVisual {
         });
 
         // Debug: log color assignment for each value
-        colorValues.forEach((v, i) => {
-            const idx = classBreaks.indexOf(v);
-            const color = this.dataService.getColorFromClassBreaks(v, classBreaks, colorScale, choroplethOptions);
-            if (idx === -1) {
-                console.log(`Value ${v} (index ${i}) is overflow, assigned fallback color: ${color}`);
-            } else {
-                console.log(`Value ${v} (index ${i}) matched classBreaks[${idx}], assigned color: ${color}`);
-            }
-        });
+        // colorValues.forEach((v, i) => {
+        //     const idx = classBreaks.indexOf(v);
+        //     const color = this.dataService.getColorFromClassBreaks(v, classBreaks, colorScale, choroplethOptions.classificationMethod);
+        //     if (idx === -1) {
+        //         console.log(`Value ${v} (index ${i}) is overflow, assigned fallback color: ${color}`);
+        //     } else {
+        //         console.log(`Value ${v} (index ${i}) matched classBreaks[${idx}], assigned color: ${color}`);
+        //     }
+        // });
 
-        console.log("Class Breaks:", classBreaks);
-        console.log("Color Scale:", colorScale);
+        // console.log("Class Breaks:", classBreaks);
+        // console.log("Color Scale:", colorScale);
+
+        // Warn if too many unique values for unique value classification
+        if (choroplethOptions.classificationMethod === "u" && classBreaks.length > 7) {
+            this.host.displayWarningIcon(
+                "Too many unique values for unique value classification.",
+                "maplumiWarning: Only the top 7 unique values are mapped to colors; all others are shown in black. Please select a different classification method for better results."
+            );
+        }        
 
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints };
     }
@@ -722,7 +730,7 @@ export class MaplumiVisual implements IVisual {
                 strokeWidth: choroplethOptions.strokeWidth,
                 fillOpacity: choroplethOptions.layerOpacity,
                 colorScale: (value: any) =>
-                    this.dataService.getColorFromClassBreaks(value, classBreaks, colorScale),
+                    this.dataService.getColorFromClassBreaks(value, classBreaks, colorScale, choroplethOptions.classificationMethod),
                 dataKey: pcodeKey,
                 svg: this.svg,
                 svgContainer: this.svgContainer,
