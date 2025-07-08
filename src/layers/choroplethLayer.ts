@@ -205,6 +205,7 @@ export class ChoroplethLayer extends Layer {
         high: 0.15,
         high_medium: 0.1,
         medium: 0.05,
+        low_medium: 0.02,
         low: 0.005
     };
 
@@ -220,13 +221,15 @@ export class ChoroplethLayer extends Layer {
         const densityFactor = Math.min(1, Math.max(0.1, area / 1000));  // Normalize between 0.1 and 1
 
         // Adjust thresholds based on feature density
-        let tolerance:number;
-        if (resolution > 10000) {
+        let tolerance: number;
+        if (resolution > 7500) {
             tolerance = this.simplifyThresholds.high * densityFactor;
         } else if (resolution > 5000) {
             tolerance = this.simplifyThresholds.high_medium * densityFactor;
-        } else if (resolution > 1000) {
+        } else if (resolution > 2500) {
             tolerance = this.simplifyThresholds.medium * densityFactor;
+        } else if (resolution > 1000) {
+            tolerance = this.simplifyThresholds.low_medium * densityFactor;
         } else {
             tolerance = this.simplifyThresholds.low * densityFactor;
         }
@@ -235,6 +238,22 @@ export class ChoroplethLayer extends Layer {
         const featureCount = this.geojson.features.length;
         const featureCountFactor = Math.min(1.5, Math.max(0.5, featureCount / 1000));
 
-        return tolerance * featureCountFactor;
+        // Clamp tolerance to avoid oversimplification
+        const minTolerance = 0.00001;
+        const maxTolerance = 0.01;
+        let finalTolerance = tolerance * featureCountFactor;
+        finalTolerance = Math.max(minTolerance, Math.min(maxTolerance, finalTolerance));
+
+        // Debug log
+        console.log('Simplification:', {
+            resolution,
+            tolerance,
+            featureCount,
+            featureCountFactor,
+            densityFactor,
+            finalTolerance
+        });
+
+        return finalTolerance;
     }
 }
