@@ -363,6 +363,16 @@
             "bool": true
           }
         },
+        "boundaryDataSource": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "sourceFieldID": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "locationPcodeNameId": {
           "type": {
             "text": true

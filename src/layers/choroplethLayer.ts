@@ -245,14 +245,14 @@ export class ChoroplethLayer extends Layer {
         finalTolerance = Math.max(minTolerance, Math.min(maxTolerance, finalTolerance));
 
         // Debug log
-        console.log('Simplification:', {
-            resolution,
-            tolerance,
-            featureCount,
-            featureCountFactor,
-            densityFactor,
-            finalTolerance
-        });
+        // console.log('Simplification:', {
+        //     resolution,
+        //     tolerance,
+        //     featureCount,
+        //     featureCountFactor,
+        //     densityFactor,
+        //     finalTolerance
+        // });
 
         return finalTolerance;
     }

@@ -483,6 +483,68 @@ class proportionalCirclesVisualCardSettings extends formattingSettings.Composite
 
 class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
 
+
+
+    boundaryDataSource: DropDown = new DropDown({
+        name: "boundaryDataSource",
+        displayName: "Boundary Source",
+        value: {
+            value: "maplumi",  //default value
+            displayName: "Maplumi"
+        },
+        items: [
+            { value: "maplumi", displayName: "Maplumi" },
+            { value: "hdx", displayName: "HDX" },
+            { value: "geoboundaried", displayName: "GeoBoundaries" },
+            { value: "custom", displayName: "Custom" }
+        ]
+    });
+
+    // Store all possible field options for each data source
+    private sourceFieldOptions: { [key: string]: { value: string, displayName: string }[] } = {
+        maplumi: [
+            { value: "shapeGroup", displayName: "shapeGroup" },
+            { value: "pcode", displayName: "pcode" },
+            { value: "country", displayName: "country" },
+            { value: "admin1", displayName: "admin1" },
+            { value: "admin2", displayName: "admin2" },
+            { value: "custom", displayName: "Custom" }
+        ],
+        hdx: [
+            { value: "pcode", displayName: "pcode" },
+            { value: "country", displayName: "country" },
+            { value: "admin1", displayName: "admin1" },
+            { value: "admin2", displayName: "admin2" },
+            { value: "custom", displayName: "Custom" }
+        ],
+        geoboundaried: [
+            { value: "country", displayName: "country" },
+            { value: "admin1", displayName: "admin1" },
+            { value: "admin2", displayName: "admin2" },
+            { value: "custom", displayName: "Custom" }
+        ],
+        custom: [
+            { value: "custom", displayName: "Custom" }
+        ]
+    };
+
+    sourceFieldID: DropDown = new DropDown({
+        name: "sourceFieldID",
+        displayName: "Boundary ID Field",
+        value: {
+            value: "shapeGroup",  //default value
+            displayName: "shapeGroup"
+        },
+        items: [
+            { value: "shapeGroup", displayName: "shapeGroup" },
+            { value: "pcode", displayName: "pcode" },
+            { value: "country", displayName: "country" },
+            { value: "admin1", displayName: "admin1" },
+            { value: "admin2", displayName: "admin2" },
+            { value: "custom", displayName: "Custom" }
+        ]
+    });
+
     topoJSON_geoJSON_FileUrl: formattingSettings.TextInput = new TextInput({
         name: "topoJSON_geoJSON_FileUrl",
         displayName: "TopoJSON/GeoJSON Url",
@@ -492,7 +554,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
 
     locationPcodeNameId: formattingSettings.TextInput = new TextInput({
         name: "locationPcodeNameId",
-        displayName: "PCode/Name/Id Field Name",
+        displayName: "Boundary ID Field",
         value: "",
         placeholder: "Field Name"
     });
@@ -500,7 +562,33 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId];
+    slices: formattingSettings.Slice[] = [this.boundaryDataSource,this.sourceFieldID, this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId];
+
+    public applyConditionalDisplayRules(): void {
+
+        const selectedSource = this.boundaryDataSource.value?.value;
+
+        // Dynamically update sourceFieldID items based on selected boundaryDataSource
+        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
+
+            this.sourceFieldID.items = this.sourceFieldOptions[selectedSource];
+
+            // If current value is not in the new items, reset to first
+            const validValues = this.sourceFieldOptions[selectedSource].map(opt => opt.value);
+
+            if (!validValues.includes(String(this.sourceFieldID.value.value))) {
+                this.sourceFieldID.value = { ...this.sourceFieldID.items[0] };
+            }
+        }
+
+        if (selectedSource === "custom") {
+            this.topoJSON_geoJSON_FileUrl.visible = true;
+            this.locationPcodeNameId.visible = true;
+        } else {
+            this.topoJSON_geoJSON_FileUrl.visible = false;
+            this.locationPcodeNameId.visible = false;
+        }
+    }
 }
 
 class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCard {
@@ -586,7 +674,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         name: "customColorRamp",
         displayName: "Custom Color Ramp",
         value: " #e1eef9, #c7e1f5, #64beeb, #009edb", // Default value
-        placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb" 
+        placeholder: " #e1eef9, #c7e1f5, #64beeb, #009edb"
     });
 
     invertColorRamp: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
@@ -628,7 +716,7 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         name: "layerOpacity",
         displayName: "Layer Opacity",
         value: 100,//default value
-        options:  
+        options:
         {
             maxValue: {
                 type: powerbi.visuals.ValidatorType.Max,
@@ -723,7 +811,7 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         ]
     });
 
-    
+
     legendOrientation: DropDown = new DropDown({
         name: "legendOrientation",
         displayName: "Legend Orientation",
@@ -787,7 +875,7 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
     groups: formattingSettings.Group[] = [this.choroplethLocationBoundarySettingsGroup, this.choroplethClassificationSettingsGroup,
     this.choroplethDisplaySettingsGroup, this.choroplethLegendSettingsGroup];
     //groups: formattingSettings.Group[] = [];
-    
+
 
 }
 
@@ -995,42 +1083,42 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
 
     public applyConditionalDisplayRules(): void {
 
-        if(this.legendPosition.value?.value === "top-center" ) {          
+        if (this.legendPosition.value?.value === "top-center") {
             this.legendLeftMargin.visible = false;
             this.legendRightMargin.visible = false;
             this.legendBottomMargin.visible = false;
         }
 
-         if(this.legendPosition.value?.value === "top-right") {         
-           
+        if (this.legendPosition.value?.value === "top-right") {
+
             this.legendLeftMargin.visible = false;
             this.legendBottomMargin.visible = false;
         }
 
-        if(this.legendPosition.value?.value === "top-left") {         
-           
+        if (this.legendPosition.value?.value === "top-left") {
+
             this.legendRightMargin.visible = false;
             this.legendBottomMargin.visible = false;
         }
 
-        if(this.legendPosition.value?.value === "bottom-center" ) {          
+        if (this.legendPosition.value?.value === "bottom-center") {
             this.legendLeftMargin.visible = false;
             this.legendRightMargin.visible = false;
             this.legendTopMargin.visible = false;
         }
 
-        if(this.legendPosition.value?.value === "bottom-left") {         
+        if (this.legendPosition.value?.value === "bottom-left") {
             this.legendLeftMargin.value = 0;
             this.legendRightMargin.visible = false;
             this.legendTopMargin.visible = false;
         }
 
-        if(this.legendPosition.value?.value === "bottom-right") {         
-           
+        if (this.legendPosition.value?.value === "bottom-right") {
+
             this.legendLeftMargin.visible = false;
             this.legendTopMargin.visible = false;
         }
-        
+
     }
 
 }
