@@ -41,7 +41,8 @@ import IVisualEventService = powerbi.extensibility.IVisualEventService;
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
 import { fromLonLat } from "ol/proj";
-import { BasemapOptions, ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptions, ChoroplethOptions, CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
+import { BasemapOptions, ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptions, ChoroplethOptions, 
+    CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "./types/index";
 import { CircleLayer } from "./layers/circleLayer";
 import { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
@@ -654,7 +655,7 @@ export class MaplumiVisual implements IVisual {
                 "Too many unique values for unique value classification.",
                 "maplumiWarning: Only the top 7 unique values are mapped to colors; all others are shown in black. Please select a different classification method for better results."
             );
-        }        
+        }
 
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints };
     }
@@ -785,9 +786,13 @@ export class MaplumiVisual implements IVisual {
 
     private updateLegendContainer(): void {
 
+        const opacity = this.mapToolsOptions.legendBackgroundOpacity;
+        const rgbaColor = this.legendService.hexToRgba(this.mapToolsOptions.legendBackgroundColor, opacity);
+        this.legendContainer.style.backgroundColor = rgbaColor;
+
         // Update legend container styles
-        this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
-        this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
+        //this.legendContainer.style.background = this.mapToolsOptions.legendBackgroundColor;
+        //this.legendContainer.style.opacity = this.mapToolsOptions.legendBackgroundOpacity.toString();
         this.legendContainer.style.border = `${this.mapToolsOptions.legendBorderWidth}px solid ${this.mapToolsOptions.legendBorderColor}`;
         this.legendContainer.style.borderRadius = `${this.mapToolsOptions.legendBorderRadius}px`;
         this.legendContainer.style.marginBottom = `${this.mapToolsOptions.legendBottomMargin}px`;

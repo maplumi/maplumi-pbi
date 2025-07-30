@@ -198,6 +198,7 @@ export class LegendService {
 
         // Set basic visibility
         this.choroplethLegendContainer.style.display = "flex";
+        this.choroplethLegendContainer.style.padding = "5px";
 
         // Add title
         const title = document.createElement("div");
@@ -430,7 +431,7 @@ export class LegendService {
         // Configure container layout
         container.style.display = "flex";
         container.style.alignItems = "center";
-        container.style.gap = "4px";
+        container.style.gap = "0px";
 
         // Handle different layouts
         if (orientation === "vertical") {
@@ -460,8 +461,7 @@ export class LegendService {
             boxBgColor = this.hexToRgba(color, boxOpacity);
         }
         colorBox.style.backgroundColor = boxBgColor;
-        // Remove: colorBox.style.opacity = opacity;
-        colorBox.style.border = "1px solid #ccc";
+        colorBox.style.border = "0px solid #ccc";
         colorBox.style.position = "relative";
 
         if (useUniformWidth) {
@@ -501,7 +501,7 @@ export class LegendService {
     }
 
     // Helper: Convert hex color to rgba with opacity
-    private hexToRgba(hex: string, opacity: number) {
+    public hexToRgba(hex: string, opacity: number) {
         hex = hex.replace('#', '');
         let bigint = parseInt(hex, 16);
         let r = (bigint >> 16) & 255;
