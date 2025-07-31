@@ -899,7 +899,8 @@ export class MaplumiVisual implements IVisual {
             minRadiusThreshold: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
             labelSpacing: circleSettings.proportionalCircleLegendSettingsGroup.labelSpacing.value,
             yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
-            xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value
+            xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value,
+            donutChart: circleSettings.proportalCirclesDisplaySettingsGroup.donutChart.value
 
         };
     }

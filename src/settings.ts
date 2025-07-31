@@ -187,6 +187,11 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
 class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
     // Proportional circle styling options
+    donutChart: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
+        name: "donutChart",
+        displayName: "Donut Chart",
+        value: false
+    });
     proportionalCircles1Color: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
         name: "proportionalCircles1Color",
         displayName: "Circels 1 Color",
@@ -282,6 +287,7 @@ class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleC
     displayName: string = "Display";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
+        this.donutChart,
         this.proportionalCircles1Color,
         this.proportionalCircles2Color,
         this.proportionalCirclesMinimumRadius,

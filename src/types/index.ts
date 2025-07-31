@@ -187,6 +187,7 @@ export interface CircleOptions {
     yPadding: number;
     xPadding: number;
     labelSpacing: number;
+    donutChart: boolean;
 }
 
 export interface ChoroplethOptions {

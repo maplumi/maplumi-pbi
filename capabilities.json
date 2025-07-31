@@ -216,6 +216,11 @@
             "bool": true
           }
         },
+        "donutChart": {
+          "type": {
+            "bool": true
+          }
+        },
         "proportionalCircles1Color": {
           "type": {
             "fill": {
