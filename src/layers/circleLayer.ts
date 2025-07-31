@@ -62,7 +62,7 @@ export class CircleLayer extends Layer {
         const d3Projection = geoMercator().scale(scale).center(center).translate([width / 2, height / 2]);
 
         const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions } = this.options;
-        const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth, donutChart } = circleOptions;
+        const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth, chartType } = circleOptions;
 
         const minSize = Math.min(...combinedCircleSizeValues);
         const maxSize = Math.max(...combinedCircleSizeValues);
@@ -83,8 +83,8 @@ export class CircleLayer extends Layer {
                 const radius1 = circle1SizeValues[i] !== undefined ? circleScale(circle1SizeValues[i]) : minRadius;
                 const radius2 = circle2SizeValues[i] !== undefined ? circleScale(circle2SizeValues[i]) : minRadius;
 
-                // Donut chart rendering option
-                if (donutChart && circle2SizeValues.length > 0 && circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
+                // Chart rendering options
+                if (chartType === 'donut-chart' && circle2SizeValues.length > 0 && circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
                     // Draw donut chart at (x, y)
                     const value1 = circle1SizeValues[i];
                     const value2 = circle2SizeValues[i] - circle1SizeValues[i];
@@ -156,6 +156,90 @@ export class CircleLayer extends Layer {
                     }
 
                     // Click for donut arcs
+                    [arc1, arc2].forEach(arcElem => {
+                        arcElem.on('click', (event: MouseEvent) => {
+                            const selectionId = feature.properties.selectionId;
+                            const nativeEvent = event;
+                            this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
+                                .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
+                                    this.selectedIds = selectedIds;
+                                    console.log('Selected IDs:', this.selectedIds);
+                                    this.changed();
+                                });
+                        });
+                    });
+                } else if (chartType === 'pie-chart' && circle2SizeValues.length > 0 && circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
+                    // Draw pie chart at (x, y)
+                    const value1 = circle1SizeValues[i];
+                    const value2 = circle2SizeValues[i] - circle1SizeValues[i];
+                    const total = circle2SizeValues[i];
+                    const outerRadius = radius2;
+                    const innerRadius = 0; // Pie chart is a full disk
+                    const arcGen = d3Arc();
+
+                    // First arc (value1)
+                    const arc1 = circles2Group.append('path')
+                        .attr('d', arcGen({
+                            innerRadius,
+                            outerRadius,
+                            startAngle: 0,
+                            endAngle: (value1 / total) * 2 * Math.PI
+                        }))
+                        .attr('fill', color1)
+                        .attr('stroke', strokeColor)
+                        .attr('stroke-width', strokeWidth)
+                        .attr('transform', `translate(${x},${y})`)
+                        .datum(feature.properties.selectionId)
+                        .style('cursor', 'pointer')
+                        .style('pointer-events', 'all')
+                        .attr('fill-opacity', (d: any) => {
+                            if (this.selectedIds.length === 0) {
+                                return layer1Opacity;
+                            } else {
+                                return this.selectedIds.some(selectedId => selectedId === d) ? layer1Opacity : layer1Opacity / 2;
+                            }
+                        });
+
+                    // Second arc (value2)
+                    const arc2 = circles2Group.append('path')
+                        .attr('d', arcGen({
+                            innerRadius,
+                            outerRadius,
+                            startAngle: (value1 / total) * 2 * Math.PI,
+                            endAngle: 2 * Math.PI
+                        }))
+                        .attr('fill', color2)
+                        .attr('stroke', strokeColor)
+                        .attr('stroke-width', strokeWidth)
+                        .attr('transform', `translate(${x},${y})`)
+                        .datum(feature.properties.selectionId)
+                        .style('cursor', 'pointer')
+                        .style('pointer-events', 'all')
+                        .attr('fill-opacity', (d: any) => {
+                            if (this.selectedIds.length === 0) {
+                                return layer2Opacity;
+                            } else {
+                                return this.selectedIds.some(selectedId => selectedId === d) ? layer2Opacity : layer2Opacity / 2;
+                            }
+                        });
+
+                    // Tooltip for pie
+                    if (feature.properties.tooltip) {
+                        this.options.tooltipServiceWrapper.addTooltip(
+                            arc1,
+                            () => feature.properties.tooltip,
+                            () => feature.properties.selectionId,
+                            true
+                        );
+                        this.options.tooltipServiceWrapper.addTooltip(
+                            arc2,
+                            () => feature.properties.tooltip,
+                            () => feature.properties.selectionId,
+                            true
+                        );
+                    }
+
+                    // Click for pie arcs
                     [arc1, arc2].forEach(arcElem => {
                         arcElem.on('click', (event: MouseEvent) => {
                             const selectionId = feature.properties.selectionId;

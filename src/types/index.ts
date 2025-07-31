@@ -187,7 +187,7 @@ export interface CircleOptions {
     yPadding: number;
     xPadding: number;
     labelSpacing: number;
-    donutChart: boolean;
+    chartType: string; // "nested-circle" | "donut-chart" | "pie-chart"
 }
 
 export interface ChoroplethOptions {

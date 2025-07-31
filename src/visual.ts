@@ -900,7 +900,7 @@ export class MaplumiVisual implements IVisual {
             labelSpacing: circleSettings.proportionalCircleLegendSettingsGroup.labelSpacing.value,
             yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
             xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value,
-            donutChart: circleSettings.proportalCirclesDisplaySettingsGroup.donutChart.value
+            chartType: circleSettings.proportalCirclesDisplaySettingsGroup.chartType.value.value.toString()
 
         };
     }

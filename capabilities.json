@@ -216,9 +216,9 @@
             "bool": true
           }
         },
-        "donutChart": {
+        "chartType": {
           "type": {
-            "bool": true
+            "enumeration": []
           }
         },
         "proportionalCircles1Color": {
