@@ -1,0 +1,17 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "jsdom",
+  "testMatch": [
+    "**/tests/**/*.test.ts",
+    "**/tests/**/*.integration.test.ts"
+  ],
+  "setupFilesAfterEnv": ["<rootDir>/tests/setup.ts"],
+  "collectCoverageFrom": [
+    "src/**/*.ts",
+    "!src/**/*.d.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1"
+  }
+}
