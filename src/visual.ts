@@ -47,13 +47,13 @@ import { CircleLayer } from "./layers/circleLayer";
 import { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
 import * as requestHelpers from "./utils/requestHelpers";
-import { LegendService } from "./services/legendService";
-import { MapService } from "./services/mapService";
+import { LegendService } from "./services/LegendService";
+import { MapService } from "./services/MapService";
 import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
-import { CacheService } from "./services/cacheService";
+import { CacheService } from "./services/CacheService";
 import { View } from "ol";
 export class MaplumiVisual implements IVisual {
 

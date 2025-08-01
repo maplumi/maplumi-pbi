@@ -21,15 +21,11 @@
         "./src/settings.ts",      
         "src/layers/circleLayer.ts",
         "src/layers/choroplethLayer.ts",
-        "src/services/legendService.ts",
-       
-       
+        "src/services/LegendService.ts",
         "src/services/ChoroplethDataService.ts",
-        "src/services/mapService.ts",
-        "src/services/cacheService.ts",
+        "src/services/MapService.ts",
+        "src/services/CacheService.ts",
         "src/services/ZoomControlManager.ts",
-       
-        "src/services/legendService.ts",
         "src/services/ColorRampManager.ts",
         "src/config/VisualConfig.ts", 
         
