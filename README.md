@@ -1,128 +1,193 @@
-Maplumi Power BI Map Visual
-=====================
+# Maplumi Power BI Visual 🗺️
 
-Maplumi is a powerful and flexible mapping visual for Power BI that allows you to visualize geographical data in multiple ways. It combines the capabilities of both proportional circle maps and choropleth maps in a single visual, with rich customization options.
+**Transform your geographic data into compelling visual stories with Maplumi - the ultimate mapping solution for Power BI.**
 
-This visual is perfect for:
-- Demographic analysis
-- Geographic distribution studies
-- Multi-variable spatial analysis
-- Administrative boundary visualizations
-- Location-based performance metrics
-- Humanitarian needs and response mapping:
-  - Food security classification (IPC)
-  - Severity scales visualization
-  - Population needs assessment
-  - Access constraints mapping
-  - Response coverage analysis
-  - Displacement tracking
-- Development sector analysis:
-  - SDG progress monitoring
-  - Project coverage mapping
-  - Impact assessment visualization
-  - Resource allocation analysis
-  - Beneficiary distribution mapping
+![Maplumi Visual Icon](assets/icon.png)
 
-Key Features
------------
+![Maplumi Visual Hero Image](screenshots/hero-image.png)
+*Visualize data across regions with choropleth maps and proportional circles*
 
-### Dual Layer Visualization
-- **Choropleth Maps**: Color-code geographic areas based on data values
-- **Proportional Circle Maps**: Display up to two sets of values as scaled circles on the map
-- **Layer Control**: Independently enable/disable each layer as needed
+## Why Choose Maplumi?
 
-### Base Maps
-- Multiple base map providers:
-  - Mapbox
-  - MapTiler
-  - OpenStreetMap
-- Customizable map styles and attributions
+Maplumi makes geographic data analysis accessible to everyone. Whether you're tracking sales performance across regions, analyzing demographic trends, or monitoring humanitarian initiatives, Maplumi turns complex spatial data into clear, actionable insights.
 
-### Interactive Features
-- Interactive tooltips showing detailed information
-- Click-to-select features for cross-filtering
-- Zoom and pan controls
-- Automatic map extent fitting to your data
+### Perfect For:
+- 📊 **Business Intelligence**: Sales territories, market penetration, customer distribution
+- 🌍 **Development & Humanitarian Work**: Project coverage, needs assessment, impact tracking
+- 🏛️ **Public Sector**: Administrative reporting, resource allocation, policy analysis
+- 📈 **Research & Analytics**: Demographic studies, geographic correlations, trend analysis
 
-### Styling Options
-- Customizable colors for both choropleth and circle layers
-- Adjustable circle sizes and stroke widths
-- Multiple color ramp options for choropleth maps
-- Layer opacity controls
-- Border/stroke customization
+## Key Features
 
-### Legend
-- Customizable legend position (top, bottom, left, right, or center)
-- Adjustable legend styling (background, border, opacity)
-- Support for both choropleth and circle size legends
-- Custom legend titles and formatting
+### 🎯 Two Powerful Visualization Types in One
+- **Choropleth Maps**: Color-code regions based on your data values
+- **Proportional Circles**: Show data points with circles sized by importance
+- **Combined View**: Use both together for rich, multi-dimensional analysis
 
-### Data Classification
-- Multiple classification methods for choropleth maps
-- Adjustable number of classes
-- Custom color ramps or predefined color schemes
-- Support for various color modes (LAB, RGB, HSL, etc.)
+![Feature Overview](screenshots/features-overview.png)
+*Use choropleth and circles together or separately*
 
-Getting Started
--------------
-1. Add your location data (e.g., administrative codes, latitude/longitude)
-2. Configure value fields for coloring regions or sizing circles
-3. Customize the appearance using the format pane
-4. Add tooltips to show additional information on hover
+### 🗺️ Professional Base Maps
+Choose from multiple map providers and styles to match your brand and context:
+- Mapbox integration
+- MapTiler support  
+- OpenStreetMap options
 
-Advanced Features
----------------
-- Custom map attributions
-- Label decluttering options
-- Map extent locking
-- Flexible tooltip formatting
-- Custom color ramp definitions
+![Base Map Options](screenshots/base-maps.png)
+*Select the perfect base map style for your analysis*
 
-Roadmap
--------
+### 🎨 Smart Styling & Customization
+- Intuitive color schemes that work out of the box
+- Flexible legend positioning and styling
+- Adjustable circle sizes and opacity
+- Professional color ramps for data classification
 
-The following enhancements and features are being considered for future releases, focusing on improvements that complement Power BI's dashboard capabilities:
+![Styling Options](screenshots/styling-panel.png)
+*Customize colors, sizes, and styling with easy-to-use controls*
 
-### Enhanced Dashboard Integration
-- Improved cross-filtering synchronization with other visuals
-- Bookmarks support for map states (zoom level, selected regions)
-- Custom format string support for tooltips
-- Report page tooltip integration
-- Enhanced drill-through capabilities
+### 💡 Interactive & Engaging
+- Rich tooltips with detailed information
+- Click-to-filter integration with other Power BI visuals
+- Smooth zoom and pan controls
+- Automatic map fitting to your data
 
-### Visual Improvements
-- Point clustering for better handling of dense data
-- Feature labels with smart positioning and placement controls to prevent overlaps
-- Additional predefined color schemes aligned with Power BI themes
-- Smart defaults based on data type and volume
+![Interactive Features](screenshots/interactive-demo.gif)
+*Engage with your data through tooltips and cross-filtering*
+
+## Quick Start Guide
+
+### 1. Import Your Data
+Add Maplumi to your Power BI report and connect your geographic data:
+- **For Regions**: Use country codes, state names, or administrative IDs
+- **For Points**: Use latitude/longitude coordinates or place names
+
+![Data Setup](screenshots/data-setup.png)
+*Connect your geographic data in just a few clicks*
+
+### 2. Configure Your Visual
+- Drag fields to the appropriate data roles
+- Choose your visualization type (choropleth, circles, or both)
+- Select your base map style
+
+![Visual Configuration](screenshots/visual-config.png)
+*Simple drag-and-drop configuration*
+
+### 3. Customize & Style
+Use the formatting panel to:
+- Choose colors that match your brand
+- Position legends where they work best
+- Adjust circle sizes for optimal readability
+- Fine-tune tooltips and labels
+
+![Formatting Panel](screenshots/formatting-panel.png)
+*Professional styling options at your fingertips*
+
+### 4. Interact & Analyze
+Your map is now ready! Use it to:
+- Hover for detailed information
+- Click regions to filter other visuals
+- Zoom to focus on specific areas
+- Export or share your insights
+
+## Real-World Examples
+
+### Business Dashboard
+![Business Dashboard](screenshots/business-example.png)
+*Track sales performance across territories with combined choropleth and circle visualization*
+
+### Humanitarian Operations
+![Humanitarian Dashboard](screenshots/humanitarian-example.png)
+*Monitor project coverage and needs assessment across operational areas*
+
+### Public Sector Analytics
+![Public Sector Dashboard](screenshots/public-sector-example.png)
+*Analyze demographic trends and resource allocation at administrative levels*
+
+## Getting Help & Support
+
+### 📚 Documentation
+- **[Complete Specifications](specs/main.md)** - Detailed technical documentation
+- **[Choropleth Guide](specs/choropleth/choropleth-specification.md)** - Everything about region mapping
+- **[Circle Maps Guide](specs/scaled-circles/scaled-circles-specification.md)** - Point data visualization
+- **[API Reference](specs/choropleth/api-reference.md)** - For developers and advanced users
+
+### 🐛 Issues & Feature Requests
+Found a bug or have an idea? We'd love to hear from you!
+- **[Report Issues](https://github.com/ayiemba/maplumi-pbi/issues)**
+- **[Request Features](https://github.com/ayiemba/maplumi-pbi/issues/new?template=feature_request.md)**
+
+### 💬 Community & Discussion
+- **[GitHub Discussions](https://github.com/ayiemba/maplumi-pbi/discussions)** - Ask questions, share examples
+- **[Power BI Community](https://community.powerbi.com/)** - Connect with other Power BI users
+
+## Contributing to Maplumi
+
+We welcome contributions from the community! Here's how you can help make Maplumi even better:
+
+### 🎯 For Users
+- **Share Examples**: Show us how you're using Maplumi in your reports
+- **Report Issues**: Help us identify and fix problems
+- **Suggest Features**: Tell us what would make your analysis easier
+- **Spread the Word**: Share Maplumi with colleagues who could benefit
+
+### 👩‍💻 For Developers
+- **Code Contributions**: Submit pull requests for bug fixes or new features
+- **Documentation**: Help improve our guides and examples
+- **Testing**: Help us test new features and edge cases
+- **Translations**: Assist with internationalization efforts
+
+#### Development Setup
+```bash
+# Clone the repository
+git clone https://github.com/ayiemba/maplumi-pbi.git
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Run tests
+npm test
+```
+
+See our **[Contributing Guidelines](CONTRIBUTING.md)** for detailed information about our development process.
+
+### 🌟 Recognition
+All contributors are recognized in our changelog and contributor list. Whether you're fixing a typo or adding a major feature, your help makes Maplumi better for everyone!
+
+## Roadmap & Future Plans
+
+We're constantly working to improve Maplumi based on your feedback. Here's what's coming:
+
+### 🚀 Short Term (Next 3 months)
+- Enhanced mobile responsiveness
+- Additional base map providers
+- Improved performance for large datasets
+- Better accessibility features
+
+### 🎯 Medium Term (3-6 months)
+- Point clustering for dense data
+- Custom tooltip templates
+- Enhanced cross-filtering capabilities
 - Multiple small multiples support
 
-### Data Handling
-- Improved handling of large datasets
-- Additional data classification methods
-- Support for multiple measure comparisons
-- Dynamic reference lines in legends e.g for average data values
-- Enhanced null value handling
+### 🌟 Long Term (6+ months)
+- Advanced geocoding features
+- Real-time data streaming
+- Machine learning insights integration
+- Extended customization options
 
-### Performance Optimization
-- Faster initial loading
-- Optimized memory usage
-- Improved rendering for large datasets
-- Better handling of frequent data refreshes
-- Reduced visual update time
+**Vote on features and track progress in our [GitHub Issues](https://github.com/ayiemba/maplumi-pbi/issues)**
 
-### Power BI Feature Integration
-- Support for Power BI built-in hierarchies
-- Enhanced relative date filtering
-- Q&A integration
-- Mobile layout optimization
-- Responsive design improvements
+## About the Project
 
-### Accessibility Improvements
-- High contrast mode support
-- Screen reader compatibility
-- Keyboard navigation support
-- Color blindness friendly defaults
-- Focus state indicators
+**Author**: Elvis Ayiemba ([@ayiemba](https://github.com/ayiemba))  
+**License**: MIT  
+**Version**: 1.0.0
 
-These planned enhancements will improve the visual's integration with Power BI while maintaining focus on effective data visualization and analysis within dashboards. Implementation priority will be based on user feedback and Power BI's feature updates.
+Maplumi is an open-source project built with ❤️ for the Power BI community. We believe that powerful geographic visualization should be accessible to everyone, not just GIS experts.
+
+---
+
+**Ready to transform your geographic data?** Download Maplumi from the [Power BI Marketplace](https://appsource.microsoft.com/) or [build from source](https://github.com/ayiemba/maplumi-pbi) today!
