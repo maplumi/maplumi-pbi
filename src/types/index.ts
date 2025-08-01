@@ -77,6 +77,7 @@ export interface CircleLayerOptions extends LayerOptions {
     circle1SizeValues?: number[];
     circle2SizeValues?: number[];
     minCircleSizeValue?: number;
+    maxCircleSizeValue?: number;
     circleScale?: number;
     svg: any;
     svgContainer: HTMLElement;
@@ -188,6 +189,7 @@ export interface CircleOptions {
     xPadding: number;
     labelSpacing: number;
     chartType: string; // "nested-circle" | "donut-chart" | "pie-chart"
+    scalingMethod: string; // "linear" | "square-root" | "logarithmic" | "power"
 }
 
 export interface ChoroplethOptions {

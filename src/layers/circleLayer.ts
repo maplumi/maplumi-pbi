@@ -64,10 +64,38 @@ export class CircleLayer extends Layer {
         const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions } = this.options;
         const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth, chartType } = circleOptions;
 
-        const minSize = Math.min(...combinedCircleSizeValues);
-        const maxSize = Math.max(...combinedCircleSizeValues);
-        const circleScale = (value: number) => minRadius +
-            ((value - minSize) / (maxSize - minSize)) * (circleOptions.maxRadius - minRadius);
+        // Use the scaling parameters passed from visual.ts to ensure consistency with legend
+        const { minCircleSizeValue = 0, maxCircleSizeValue = 100, circleScale: scaleFactor = 1 } = this.options;
+        
+        const circleScale = (value: number) => {
+            const clampedValue = Math.max(minCircleSizeValue, Math.min(value, maxCircleSizeValue));
+            
+            switch (circleOptions.scalingMethod) {
+                case 'linear':
+                    return circleOptions.minRadius + (clampedValue - minCircleSizeValue) * scaleFactor;
+                    
+                case 'square-root':
+                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+                    const scaledAreaSquared = minRadiusSquared + (clampedValue - minCircleSizeValue) * scaleFactor;
+                    return Math.sqrt(scaledAreaSquared);
+                    
+                case 'logarithmic':
+                    const logValue = Math.log(Math.max(clampedValue, 0.1));
+                    const logMinValue = Math.log(Math.max(minCircleSizeValue, 0.1));
+                    return circleOptions.minRadius + (logValue - logMinValue) * scaleFactor;
+                    
+                case 'power':
+                    const powValue = Math.pow(clampedValue, 1.5);
+                    const powMinValue = Math.pow(minCircleSizeValue, 1.5);
+                    return circleOptions.minRadius + (powValue - powMinValue) * scaleFactor;
+                    
+                default:
+                    // Default to square root
+                    const defaultMinRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+                    const defaultScaledAreaSquared = defaultMinRadiusSquared + (clampedValue - minCircleSizeValue) * scaleFactor;
+                    return Math.sqrt(defaultScaledAreaSquared);
+            }
+        };
 
         const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
         const circles2Group = this.svg.append('g').attr('id', 'circles-group-2');
@@ -87,9 +115,10 @@ export class CircleLayer extends Layer {
                 if (chartType === 'donut-chart' && circle2SizeValues.length > 0 && circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
                     // Draw donut chart at (x, y)
                     const value1 = circle1SizeValues[i];
-                    const value2 = circle2SizeValues[i] - circle1SizeValues[i];
-                    const total = circle2SizeValues[i];
-                    const outerRadius = radius2;
+                    const value2 = circle2SizeValues[i];
+                    const total = value1 + value2;
+                    // Use the total of both values to determine the outer radius
+                    const outerRadius = circleScale(total);
                     const innerRadius = Math.max(outerRadius * 0.6, 1); // 60% of outer radius, min 1px
                     const arcGen = d3Arc();
 
@@ -171,9 +200,10 @@ export class CircleLayer extends Layer {
                 } else if (chartType === 'pie-chart' && circle2SizeValues.length > 0 && circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
                     // Draw pie chart at (x, y)
                     const value1 = circle1SizeValues[i];
-                    const value2 = circle2SizeValues[i] - circle1SizeValues[i];
-                    const total = circle2SizeValues[i];
-                    const outerRadius = radius2;
+                    const value2 = circle2SizeValues[i];
+                    const total = value1 + value2;
+                    // Use the total of both values to determine the outer radius
+                    const outerRadius = circleScale(total);
                     const innerRadius = 0; // Pie chart is a full disk
                     const arcGen = d3Arc();
 

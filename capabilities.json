@@ -221,6 +221,11 @@
             "enumeration": []
           }
         },
+        "scalingMethod": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "proportionalCircles1Color": {
           "type": {
             "fill": {
