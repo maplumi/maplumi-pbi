@@ -1,26 +1,26 @@
 {
-    "visual":{
-        "name":"maplumi",
-        "displayName":"Maplumi Visual",
-        "guid":"maplumi7708541FB6F548EAA4FDBD3BB2AB1811",
-        "visualClassName":"MaplumiVisual",
-        "version":"1.0.0.0",
-        "description":"Enhanced Map Visual for Power BI",
-        "supportUrl":"https://github.com/ayiemba/maplumi-pbi/issues",
-        "gitHubUrl":"https://github.com/ayiemba/maplumi-pbi"
+    "visual": {
+        "name": "maplumi",
+        "displayName": "Maplumi Visual",
+        "guid": "maplumi7708541FB6F548EAA4FDBD3BB2AB1811",
+        "visualClassName": "MaplumiVisual",
+        "version": "1.0.0.0",
+        "description": "Enhanced Map Visual for Power BI",
+        "supportUrl": "https://github.com/ayiemba/maplumi-pbi/issues",
+        "gitHubUrl": "https://github.com/ayiemba/maplumi-pbi"
     },
-    "apiVersion":"5.11.0",
-    "author":{
-        "name":"Elvis Ayiemba",
-        "email":"ayiembaelvis@gmail.com"
+    "apiVersion": "5.11.0",
+    "author": {
+        "name": "Elvis Ayiemba",
+        "email": "ayiembaelvis@gmail.com"
     },
-    "assets":{
-        "icon":"assets/icon.png"
+    "assets": {
+        "icon": "assets/icon.png"
     },
-    "externalJS":[],
-    "style":"style/visual.less",
-    "capabilities":"capabilities.json",
-    "dependencies":null,
-    "stringResources":[],
-    "version":"1.0.0.0"
+    "externalJS": [],
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": [],
+    "version": "1.0.1.1"
 }

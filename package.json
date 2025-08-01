@@ -1,16 +1,27 @@
 {
-  "name": "visual",
-  "description": "default_template_value",
+  "name": "maplumi-powerbi-visual",
+  "description": "Enhanced Map Visual for Power BI with choropleth and scaled circles",
   "version": "1.0.0.0",
   "repository": {
-    "type": "default_template_value",
-    "url": "default_template_value"
+    "type": "git",
+    "url": "https://github.com/ayiemba/maplumi-pbi.git"
   },
   "license": "MIT",
   "scripts": {
     "pbiviz": "pbiviz",
     "start": "pbiviz start",
-    "package": "pbiviz package",
+    "package": "npm run sync-version && pbiviz package",
+    "sync-version": "tsx scripts/sync-version.ts",
+    "version:patch": "tsx scripts/increment-version.ts patch",
+    "version:minor": "tsx scripts/increment-version.ts minor",
+    "version:major": "tsx scripts/increment-version.ts major",
+    "version:build": "tsx scripts/increment-version.ts build",
+    "version:ci": "tsx scripts/ci-version.ts",
+    "build": "npm run sync-version && pbiviz package",
+    "build:ci": "npm run version:ci && pbiviz package",
+    "release:patch": "npm run version:patch && npm run build",
+    "release:minor": "npm run version:minor && npm run build",
+    "release:major": "npm run version:major && npm run build",
     "lint": "npx eslint .",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -35,6 +46,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.1.0",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "eslint": "^9.17.0",
     "eslint-plugin-powerbi-visuals": "^1.0.0",
@@ -42,6 +54,7 @@
     "jest-environment-jsdom": "^29.7.0",
     "jsdom": "^22.1.0",
     "ts-jest": "^29.1.1",
+    "tsx": "^4.20.3",
     "typescript": "5.7.3"
   }
 }

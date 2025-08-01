@@ -574,48 +574,277 @@ Contributors are recognized through:
 
 ## Release Process
 
-### Versioning
+### Automated Versioning System
+
+This project includes **automated versioning scripts** that handle Power BI's 4-digit versioning requirements while maintaining development efficiency.
+
+**Key Features:**
+- ✅ **4-digit versioning** throughout (e.g., `1.0.0.0`)
+- ✅ **Automatic sync** between `package.json` and `pbiviz.json`
+- ✅ **Microsoft Power BI compliance**
+- ✅ **CI/CD integration** ready
+- ✅ **One-command releases**
+
+### Quick Start Commands
+
+#### **Daily Development**
+```bash
+# Start development server
+npm start
+
+# Quick package with current version
+npm run package
+
+# Quick iteration (increment build number)
+npm run version:build    # 1.0.0.0 → 1.0.0.1
+pbiviz package
+```
+
+#### **Version Management**
+```bash
+# Bug fixes
+npm run version:patch    # 1.0.0.0 → 1.0.1.0
+
+# New features  
+npm run version:minor    # 1.0.0.0 → 1.1.0.0
+
+# Breaking changes
+npm run version:major    # 1.0.0.0 → 2.0.0.0
+
+# Quick builds
+npm run version:build    # 1.0.0.0 → 1.0.0.1
+```
+
+#### **Complete Releases**
+```bash
+# Full release process (includes testing)
+npm run release:patch   # Version + test + build
+npm run release:minor   # Version + test + build  
+npm run release:major   # Version + test + build
+```
+
+#### **CI/CD Automation**
+```bash
+# Automatic versioning for CI/CD
+npm run build:ci       # Git-based versioning + build
+```
+
+### Development Workflows
+
+#### **Feature Development**
+```bash
+# 1. Start feature branch
+git checkout -b feature/new-map-style
+
+# 2. Development loop
+npm start              # Dev server
+# Make changes, test in Power BI Desktop
+
+# 3. Ready to release
+npm run version:minor  # Increment version
+npm run package       # Create .pbiviz file
+
+# 4. Commit and merge
+git commit -am "feat: add new map styling options"
+git checkout main && git merge feature/new-map-style
+```
+
+#### **Bug Fix Workflow**
+```bash
+# Quick fix
+npm run version:patch  # 1.0.1.0 → 1.0.2.0
+npm run package
+
+# Emergency hotfix
+npm run version:build  # 1.0.1.0 → 1.0.1.1
+pbiviz package
+```
+
+#### **Testing Workflow**
+```bash
+# Continuous testing during development
+npm start              # Terminal 1: Dev server
+
+# Terminal 2: When ready to test
+npm run version:build  # Quick increment
+npm run package       # New .pbiviz for Power BI Desktop
+```
+
+### Versioning Strategy
 
 **Power BI Visual Versioning (Required by Microsoft):**
 
-Power BI visuals must follow Microsoft's specific versioning requirements:
+Power BI visuals **must** use 4-digit versioning format:
 
-- **Format**: Four digits in the format `x.x.x.x` (e.g., `1.0.0.0`, `1.2.1.0`)
-- **Required**: If your visual only has three digits, add a `.0` at the end
-- **pbiviz.json**: Version must be updated in the `visual.version` field
-- **Marketplace**: Version changes are required for AppSource submissions
+- **Format**: Four digits `x.x.x.x` (e.g., `1.0.0.0`, `1.2.1.0`)
+- **Automatic**: Our scripts handle this automatically
+- **Consistent**: Same version in both `package.json` and `pbiviz.json`
+- **AppSource**: Required for marketplace submissions
 
-**Recommended Approach:**
-- **MAJOR.MINOR.PATCH.BUILD** (e.g., `1.2.3.0`)
+**Version Meaning:**
+- **MAJOR.MINOR.PATCH.BUILD** (e.g., `1.2.3.4`)
   - **MAJOR**: Breaking changes that affect existing functionality
   - **MINOR**: New features (backward compatible)
   - **PATCH**: Bug fixes (backward compatible)  
-  - **BUILD**: Internal builds, hotfixes, or metadata changes
+  - **BUILD**: Quick iterations, hotfixes, internal builds
 
 **Examples:**
 ```json
-// pbiviz.json
+// Both package.json and pbiviz.json use same format
 {
-  "visual": {
-    "version": "1.0.0.0"  // Initial release
-    "version": "1.1.0.0"  // New feature added
-    "version": "1.1.1.0"  // Bug fix
-    "version": "2.0.0.0"  // Breaking changes
-  }
+  "version": "1.0.0.0"  // ✅ Initial release
+  "version": "1.1.0.0"  // ✅ New feature added
+  "version": "1.1.1.0"  // ✅ Bug fix
+  "version": "1.1.1.1"  // ✅ Quick iteration
+  "version": "2.0.0.0"  // ✅ Breaking changes
 }
 ```
 
-**Important Notes:**
-- Never change the GUID when updating versions
-- Ensure version consistency between `pbiviz.json` and `package.json`
-- AppSource submissions require version increments
-- Test new versions thoroughly before submission
+### Automated Scripts Overview
+
+| Script | Purpose | Example Output |
+|--------|---------|----------------|
+| `sync-version` | Sync versions between files | Ensures consistency |
+| `version:patch` | Bug fix increment | `1.0.0.0` → `1.0.1.0` |
+| `version:minor` | Feature increment | `1.0.0.0` → `1.1.0.0` |
+| `version:major` | Breaking change increment | `1.0.0.0` → `2.0.0.0` |
+| `version:build` | Quick iteration | `1.0.0.0` → `1.0.0.1` |
+| `version:ci` | CI/CD auto-versioning | Git tag + build number |
+| `package` | Sync + build visual | Creates `.pbiviz` file |
+| `release:*` | Full release process | Version + test + build |
+
+### Manual Version Override
+
+If you need to set a specific version:
+
+```bash
+# Edit package.json version manually, then:
+npm run sync-version   # Sync to pbiviz.json
+npm run package       # Build with new version
+```
+
+### CI/CD Integration
+
+The project includes GitHub Actions automation:
+
+```yaml
+# Automatic versioning based on git tags + build numbers
+- name: Generate CI version
+  run: npm run version:ci
+  
+- name: Build visual
+  run: npm run build:ci
+```
+
+**Environment Variables Supported:**
+- `BUILD_NUMBER` - Jenkins builds
+- `GITHUB_RUN_NUMBER` - GitHub Actions
+- `BUILD_ID` - General CI systems
+
+### File Management
+
+The automated system manages these files:
+
+```
+📦 Version synchronization:
+├── package.json          # 4-digit version
+├── pbiviz.json           # 4-digit version (visual.version + version)
+└── dist/*.pbiviz         # Auto-generated with version in filename
+
+📝 Generated files:
+├── maplumi{GUID}.1.0.0.0.pbiviz    # Versioned package
+└── Automatic filename versioning   # No manual naming needed
+```
+
+### Best Practices
+
+1. **Use semantic versioning principles:**
+   ```bash
+   npm run version:build   # Quick iterations
+   npm run version:patch   # Bug fixes  
+   npm run version:minor   # New features
+   npm run version:major   # Breaking changes
+   ```
+
+2. **Test before releasing:**
+   ```bash
+   npm test                # Run unit tests
+   npm run lint           # Check code style
+   npm run package        # Test build process
+   ```
+
+3. **Git workflow integration:**
+   ```bash
+   npm run version:minor   # Increment version
+   git add .
+   git commit -m "feat: new map feature"
+   git tag v1.1.0         # Tag the release
+   git push origin v1.1.0
+   ```
+
+4. **Power BI Desktop testing:**
+   - Always test new versions in Power BI Desktop
+   - Verify cross-filtering functionality
+   - Test with realistic data sizes
+   - Validate visual interactions
+
+### AppSource Submission
+
+For Microsoft AppSource submissions:
+
+```bash
+# 1. Prepare release
+npm run release:minor    # Full release process
+
+# 2. Quality checks
+npm test                # All tests pass
+npm run lint           # No linting errors
+pbiviz package         # Verify build success
+
+# 3. Version verification
+# ✅ Version incremented from previous submission
+# ✅ No GUID changes
+# ✅ Proper 4-digit format
+# ✅ All files updated consistently
+```
+
+### Troubleshooting
+
+#### Version Sync Issues
+```bash
+npm run sync-version    # Fix version mismatches
+```
+
+#### Manual Reset
+```bash
+# Reset to specific version
+# 1. Edit package.json version
+# 2. Run sync
+npm run sync-version
+```
+
+#### Build Issues
+```bash
+# Clean rebuild
+rm -rf dist/
+npm run package
+```
+
+For complete versioning documentation, see [`docs/versioning.md`](docs/versioning.md).
 
 ### Release Schedule
 
-- **Minor releases**: Monthly (if features ready)
-- **Patch releases**: As needed for critical bugs
+- **Build increments**: As needed during development
+- **Patch releases**: For critical bugs and small fixes
+- **Minor releases**: Monthly for new features (when ready)
 - **Major releases**: When breaking changes accumulated
+
+**Important Notes:**
+- ✅ Never change the GUID when updating versions
+- ✅ Always test new versions in Power BI Desktop
+- ✅ AppSource submissions require version increments
+- ✅ Use automated scripts to prevent version inconsistencies
+- ✅ CI/CD handles versioning automatically
 
 ## Questions?
 
