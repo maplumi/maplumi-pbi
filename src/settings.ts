@@ -291,27 +291,11 @@ class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleC
         }
     });
 
-    scalingMethod: DropDown = new DropDown({
-        name: "scalingMethod",
-        displayName: "Scaling Method",
-        value: {
-            value: "square-root",  //default value
-            displayName: "Square Root (Area-based)"
-        },
-        items: [
-            { value: "linear", displayName: "Linear (Radius-based)" },
-            { value: "square-root", displayName: "Square Root (Area-based)" },
-            { value: "logarithmic", displayName: "Logarithmic (High disparity)" },
-            { value: "power", displayName: "Power (Low disparity)" }
-        ]
-    });
-
     name: string = "proportalCirclesDisplaySettingsGroup";
     displayName: string = "Display";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
         this.chartType,
-        this.scalingMethod,
         this.proportionalCircles1Color,
         this.proportionalCircles2Color,
         this.proportionalCirclesMinimumRadius,

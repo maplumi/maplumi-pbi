@@ -340,7 +340,7 @@ export class MaplumiVisual implements IVisual {
         if (!longitudes || !latitudes) return;
 
         const combinedCircleSizeValues = this.combineCircleSizeValues(circleSizeValuesObjects);
-        const { minCircleSizeValue, maxCircleSizeValue, circleScale } = this.calculateCircleScale(
+        const { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod } = this.calculateCircleScale(
             combinedCircleSizeValues,
             circleOptions
         );
@@ -370,7 +370,7 @@ export class MaplumiVisual implements IVisual {
 
 
         if (circleOptions.showLegend) {
-            this.renderCircleLegend(combinedCircleSizeValues, circleSizeValuesObjects.length, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions);
+            this.renderCircleLegend(combinedCircleSizeValues, circleSizeValuesObjects.length, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions);
         } else {
             this.legendService.hideLegend("circle");
         }
@@ -404,13 +404,13 @@ export class MaplumiVisual implements IVisual {
     private calculateCircleScale(
         combinedCircleSizeValues: number[],
         circleOptions: CircleOptions
-    ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number } {
+    ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number; selectedScalingMethod: string } {
 
         // Filter out invalid values
         const validValues = combinedCircleSizeValues.filter(v => !isNaN(v) && isFinite(v));
         
         if (validValues.length === 0) {
-            return { minCircleSizeValue: 0, maxCircleSizeValue: 0, circleScale: 1 };
+            return { minCircleSizeValue: 0, maxCircleSizeValue: 0, circleScale: 1, selectedScalingMethod: 'square-root' };
         }
 
         // Use robust statistics for outlier-resistant scaling
@@ -427,79 +427,31 @@ export class MaplumiVisual implements IVisual {
         const maxCircleSizeValue = percentile95 - percentile5 < 0.001 ? 
             Math.max(...validValues) : percentile95;
 
+        // Use square-root scaling as the default (area scales linearly with data)
+        // This provides good visual perception for most data types
+        let selectedScalingMethod = 'square-root';
+
         let circleScale: number;
         if (maxCircleSizeValue === minCircleSizeValue) {
             circleScale = 1; // No scaling needed, use the minimum radius
         } else {
-            // Calculate scale factor based on the chosen scaling method
-            // All methods should map minValue->minRadius and maxValue->maxRadius
-            switch (circleOptions.scalingMethod) {
-                case 'linear':
-                    // Linear radius scaling
-                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (maxCircleSizeValue - minCircleSizeValue);
-                    break;
-                    
-                case 'square-root':
-                    // Square root scaling (area scales linearly with data)
-                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                    const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
-                    circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
-                    break;
-                    
-                case 'logarithmic':
-                    // Logarithmic scaling (good for high disparity data)
-                    const logMin = Math.log(Math.max(minCircleSizeValue, 0.1));
-                    const logMax = Math.log(Math.max(maxCircleSizeValue, 0.1));
-                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (logMax - logMin);
-                    break;
-                    
-                case 'power':
-                    // Power scaling (good for low disparity data, emphasizes differences)
-                    const powMin = Math.pow(minCircleSizeValue, 1.5);
-                    const powMax = Math.pow(maxCircleSizeValue, 1.5);
-                    circleScale = (circleOptions.maxRadius - circleOptions.minRadius) / (powMax - powMin);
-                    break;
-                    
-                default:
-                    // Default to square root scaling
-                    const defaultMinRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                    const defaultMaxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
-                    circleScale = (defaultMaxRadiusSquared - defaultMinRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
-                    break;
-            }
+            // Calculate scale factor based on square-root scaling method
+            // Square-root scaling maps data values to circle areas linearly
+            const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+            const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
+            circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
         }
 
-        return { minCircleSizeValue, maxCircleSizeValue, circleScale };
+        return { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod };
     }
 
-    private applyScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, circleOptions: CircleOptions): number {
+    private applyScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, scalingMethod: string, circleOptions: CircleOptions): number {
         const clampedValue = Math.max(minValue, Math.min(value, maxValue));
         
-        switch (circleOptions.scalingMethod) {
-            case 'linear':
-                return circleOptions.minRadius + (clampedValue - minValue) * scaleFactor;
-                
-            case 'square-root':
-                const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                const scaledAreaSquared = minRadiusSquared + (clampedValue - minValue) * scaleFactor;
-                return Math.sqrt(scaledAreaSquared);
-                
-            case 'logarithmic':
-                const logValue = Math.log(Math.max(clampedValue, 0.1));
-                const logMin = Math.log(Math.max(minValue, 0.1));
-                return circleOptions.minRadius + (logValue - logMin) * scaleFactor;
-                
-            case 'power':
-                const powValue = Math.pow(clampedValue, 1.5);
-                const powMin = Math.pow(minValue, 1.5);
-                return circleOptions.minRadius + (powValue - powMin) * scaleFactor;
-                
-            default:
-                // Default to square root
-                const defaultMinRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                const defaultScaledAreaSquared = defaultMinRadiusSquared + (clampedValue - minValue) * scaleFactor;
-                return Math.sqrt(defaultScaledAreaSquared);
-        }
+        // Use square-root scaling (area scales linearly with data values)
+        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+        const scaledAreaSquared = minRadiusSquared + (clampedValue - minValue) * scaleFactor;
+        return Math.sqrt(scaledAreaSquared);
     }
 
     private createCircleDataPoints(
@@ -588,29 +540,90 @@ export class MaplumiVisual implements IVisual {
         minCircleSizeValue: number,
         maxCircleSizeValue: number,
         circleScale: number,
+        selectedScalingMethod: string,
         circleOptions: CircleOptions
     ): void {
         
-        // For legend, we want to show the actual scaling range being used
-        // Create representative values at min, mid, and max of the scaling range
-        const legendValues = [minCircleSizeValue, maxCircleSizeValue];
+        const validDataValues = combinedCircleSizeValues.filter(v => !isNaN(v) && isFinite(v));
         
-        // Add a middle value for better representation
-        const midValue = (minCircleSizeValue + maxCircleSizeValue) / 2;
-        legendValues.splice(1, 0, midValue);
+        if (validDataValues.length === 0) {
+            return; // No valid data to create legend
+        }
         
-        const legendRadii = legendValues.map((value) => 
-            this.applyScaling(value, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions)
-        );
+        const sortedValues = [...validDataValues].sort((a, b) => a - b);
+        
+        // Use the SAME scaling range as the map circles (5th-95th percentile)
+        const mapScalingMaxValue = maxCircleSizeValue;  // 95th percentile - creates largest map circles
+        const mapScalingMinValue = minCircleSizeValue;  // 5th percentile - creates smallest map circles
+        
+        // Get the actual maximum value for labeling
+        const actualMaxValue = Math.max(...validDataValues);
+        
+        // Calculate the radius that the map's largest circles actually have
+        const maxMapCircleRadius = this.applyScaling(mapScalingMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions);
+        
+        // Create visually proportional legend circles with clear diameter ratios:
+        // Large = maxMapCircleRadius (diameter = 2 * maxMapCircleRadius)
+        // Medium = radius for 1/2 diameter of large (diameter = maxMapCircleRadius)
+        // Small = radius for 1/4 diameter of large (diameter = 0.5 * maxMapCircleRadius)
+        
+        const largeLegendRadius = maxMapCircleRadius;
+        const mediumLegendRadius = maxMapCircleRadius * 0.5;  // 1/2 diameter = 1/2 radius
+        const smallLegendRadius = maxMapCircleRadius * 0.25;  // 1/4 diameter = 1/4 radius
+        
+        // Find the data values that would produce these exact visual radii
+        // Working backwards from desired radius to required data value
+        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+        
+        // For large circle: use the scaling max value (95th percentile)
+        const largeValue = mapScalingMaxValue;
+        
+        // For medium circle: find data value that produces mediumLegendRadius
+        const mediumValue = ((mediumLegendRadius * mediumLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
+        const clampedMediumValue = Math.max(mapScalingMinValue, Math.min(mediumValue, mapScalingMaxValue));
+        const closestMediumValue = this.findClosestValue(sortedValues, clampedMediumValue);
+        
+        // For small circle: find data value that produces smallLegendRadius
+        const smallValue = ((smallLegendRadius * smallLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
+        const clampedSmallValue = Math.max(mapScalingMinValue, Math.min(smallValue, mapScalingMaxValue));
+        const closestSmallValue = this.findClosestValue(sortedValues, clampedSmallValue);
+        
+        // Use the calculated values for perfect visual proportions
+        const finalValues = [closestSmallValue, closestMediumValue, largeValue];
+        
+        // Calculate the exact radii we want (should match our target proportions)
+        const finalRadii = [smallLegendRadius, mediumLegendRadius, largeLegendRadius];
+        
+        // Create labels: use actual max value for the largest circle label if significantly different
+        const labelValues = [...finalValues];
+        if (Math.abs(actualMaxValue - mapScalingMaxValue) / actualMaxValue > 0.1) {
+            // If actual max is >10% different from scaling max, show actual max in label
+            labelValues[2] = actualMaxValue;
+        }
 
         this.legendService.createProportionalCircleLegend(
-            legendValues,
-            legendRadii,
+            labelValues,
+            finalRadii,
             numberofCircleCategories,
             circleOptions
         );
 
         this.legendService.showLegend("circle");
+    }
+
+    private findClosestValue(sortedValues: number[], targetValue: number): number {
+        let closest = sortedValues[0];
+        let minDiff = Math.abs(targetValue - closest);
+        
+        for (const value of sortedValues) {
+            const diff = Math.abs(targetValue - value);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = value;
+            }
+        }
+        
+        return closest;
     }
 
     private formatLegendValue(value: number): string {
@@ -1008,7 +1021,7 @@ export class MaplumiVisual implements IVisual {
             yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
             xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value,
             chartType: circleSettings.proportalCirclesDisplaySettingsGroup.chartType.value.value.toString(),
-            scalingMethod: circleSettings.proportalCirclesDisplaySettingsGroup.scalingMethod.value.value.toString()
+            scalingMethod: 'square-root' // Fixed scaling method for optimal visual perception
 
         };
     }

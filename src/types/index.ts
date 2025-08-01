@@ -189,7 +189,7 @@ export interface CircleOptions {
     xPadding: number;
     labelSpacing: number;
     chartType: string; // "nested-circle" | "donut-chart" | "pie-chart"
-    scalingMethod: string; // "linear" | "square-root" | "logarithmic" | "power"
+    scalingMethod: string; // Fixed to 'square-root' for optimal area-based scaling
 }
 
 export interface ChoroplethOptions {
