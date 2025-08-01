@@ -16,7 +16,8 @@ export class LegendService {
         radii: number[],
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
-        formatTemplate: string = "{:.0f}"
+        formatTemplate: string = "{:.0f}",
+        customLabels?: string[]
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -72,6 +73,18 @@ export class LegendService {
         // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
         const sortedLegendData = [...legendData].sort((a, b) => b.radius - a.radius);
 
+        // If custom labels are provided, match them to the sorted data
+        let sortedCustomLabels: string[] | undefined;
+        if (customLabels && customLabels.length === legendData.length) {
+            // Create a mapping from original legendData to customLabels
+            const labelMap = new Map();
+            legendData.forEach((item, index) => {
+                labelMap.set(item, customLabels[index]);
+            });
+            // Apply the mapping to sorted data
+            sortedCustomLabels = sortedLegendData.map(item => labelMap.get(item));
+        }
+
         // Set SVG dimensions with minimal left padding
         const minLeftPadding = 2; // minimal left space
         const newCenterX = minLeftPadding + maxRadius;
@@ -82,7 +95,7 @@ export class LegendService {
             svg.removeChild(svg.firstChild);
         }
         maxLabelWidth = 0;
-        sortedLegendData.forEach((item) => {
+        sortedLegendData.forEach((item, index) => {
             // Calculate the Y position so all circles are aligned at the bottom
             const currentY = bottomY - item.radius;
 
@@ -130,7 +143,10 @@ export class LegendService {
 
             svg.appendChild(line);
 
-            const formattedLabel = format.formatValue(item.size, formatTemplate);
+            // Use custom label if provided, otherwise format the value
+            const labelText = sortedCustomLabels && sortedCustomLabels[index] 
+                ? sortedCustomLabels[index]
+                : format.formatValue(item.size, formatTemplate);
 
             // Add the corresponding label (aligned to the top of the circle)
             const text = document.createElementNS(
@@ -142,7 +158,7 @@ export class LegendService {
             text.setAttribute("alignment-baseline", "middle");
             text.setAttribute("fill", circleOptions.labelTextColor);
             text.setAttribute("font-size", "10px");
-            text.textContent = `${formattedLabel}`;
+            text.textContent = labelText;
 
             svg.appendChild(text);
 
@@ -151,7 +167,7 @@ export class LegendService {
             tempLabel.style.position = "absolute";
             tempLabel.style.visibility = "hidden";
             tempLabel.style.whiteSpace = "nowrap";
-            tempLabel.textContent = `${item.size}`;
+            tempLabel.textContent = labelText;
             document.body.appendChild(tempLabel);
 
             const labelWidth = tempLabel.offsetWidth;
@@ -351,6 +367,18 @@ export class LegendService {
             return [];
         }
 
+        // If we have exactly 3 values (min, mid, max), use them directly
+        // This is the case when called from the updated renderCircleLegend method
+        if (validData.length === 3) {
+            const sortedData = [...validData].sort((a, b) => a.size - b.size);
+            let result = sortedData.map(item => ({
+                size: roundOffLegendValues ? this.roundToNiceNumber(item.size) : item.size,
+                radius: item.radius
+            }));
+            return result;
+        }
+
+        // Legacy logic for when full data arrays are passed
         // Sort by size
         const sortedData = [...validData].sort((a, b) => a.size - b.size);
         let min = sortedData[0];
@@ -413,9 +441,7 @@ export class LegendService {
             { size: mediumSizeOut, radius: mediumRadius },
             { size: maxSizeOut, radius: max.radius }
         ];
-    }
-
-    private createChoroplethLegendItem(
+    }    private createChoroplethLegendItem(
         labelText: string,
         color: string,
         opacity: string,

@@ -591,22 +591,37 @@ export class MaplumiVisual implements IVisual {
         circleOptions: CircleOptions
     ): void {
         
-        const clampedValues = combinedCircleSizeValues.map(value => 
-            Math.max(minCircleSizeValue, Math.min(value, maxCircleSizeValue))
-        );
+        // For legend, we want to show the actual scaling range being used
+        // Create representative values at min, mid, and max of the scaling range
+        const legendValues = [minCircleSizeValue, maxCircleSizeValue];
         
-        const radii = clampedValues.map((value) => 
+        // Add a middle value for better representation
+        const midValue = (minCircleSizeValue + maxCircleSizeValue) / 2;
+        legendValues.splice(1, 0, midValue);
+        
+        const legendRadii = legendValues.map((value) => 
             this.applyScaling(value, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions)
         );
 
         this.legendService.createProportionalCircleLegend(
-            clampedValues,
-            radii,
+            legendValues,
+            legendRadii,
             numberofCircleCategories,
             circleOptions
         );
 
         this.legendService.showLegend("circle");
+    }
+
+    private formatLegendValue(value: number): string {
+        // Use the same formatting logic as the format utility
+        if (value >= 1000000) {
+            return `${Math.round(value / 1000000)}M`;
+        } else if (value >= 1000) {
+            return `${Math.round(value / 1000)}K`;
+        } else {
+            return Math.round(value).toString();
+        }
     }
 
     // *** END CIRCLE LAYER ***
