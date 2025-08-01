@@ -1,4 +1,4 @@
-# ![Maplumi Visual Icon](assets/icon.png) Maplumi Power BI Visual 
+# Maplumi Power BI Visual <img src="assets/icon.png" alt="Maplumi Visual Icon" width="64" height="64" align="right">
 
 **Transform your geographic data into compelling visual stories with Maplumi - the ultimate mapping solution for Power BI.**
 

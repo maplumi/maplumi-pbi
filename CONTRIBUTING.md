@@ -257,6 +257,8 @@ Include screenshots for visual changes.
 - Prefer **const** over **let** where possible
 - Use **async/await** over Promises when possible
 
+**Note on AI-Assisted Development**: Contributors are welcome to use AI tools (GitHub Copilot, ChatGPT, etc.) to assist with code generation, but you remain fully responsible for understanding, testing, and maintaining the quality of all submitted code.
+
 ```typescript
 /**
  * Calculates the scaled radius for a circle based on data value
