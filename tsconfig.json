@@ -49,7 +49,12 @@
         "tests/mocks/powerBIMocks.ts",
         "tests/fixtures/testData.ts",
         "tests/unit/circleScaling.test.ts",
+        "tests/unit/circleScaling.simple.test.ts",
         "tests/unit/choroplethDataService.test.ts",
+        "tests/unit/legendService.test.ts",
+        "tests/unit/mapService.test.ts",
+        "tests/integration/circleLayer.integration.test.ts",
+        "tests/integration/choroplethLayer.integration.test.ts",
         "tests/visual.test.ts"
     ]
 }
