@@ -2,6 +2,8 @@
 
 Thank you for your interest in contributing to Maplumi! We welcome contributions from developers, designers, documentation writers, and Power BI users. This guide will help you get started.
 
+> **Note on AI-Assisted Development**: Contributors are welcome to use AI tools (GitHub Copilot, ChatGPT, etc.) to assist with code generation, but you remain fully responsible for understanding, testing, and maintaining the quality of all submitted code.
+
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
@@ -396,18 +398,6 @@ export function calculateScaledRadius(
 ```
 
 ### CSS/LESS
-```
-
-**Note on AI-Assisted Development**: Contributors are welcome to use AI tools (GitHub Copilot, ChatGPT, etc.) to assist with code generation, but you remain fully responsible for understanding, testing, and maintaining the quality of all submitted code.
-
-### TypeScript/JavaScript Standards
-
-- Use **TypeScript** for all new code
-- Follow **ESLint** configuration  
-- Use **meaningful variable names**
-- Add **JSDoc comments** for public methods
-- Prefer **const** over **let** where possible
-- Use **async/await** over Promises when possible
 
 - Use **LESS** for styling
 - Follow **BEM naming convention**
@@ -586,10 +576,40 @@ Contributors are recognized through:
 
 ### Versioning
 
-We follow [Semantic Versioning](https://semver.org/):
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
+**Power BI Visual Versioning (Required by Microsoft):**
+
+Power BI visuals must follow Microsoft's specific versioning requirements:
+
+- **Format**: Four digits in the format `x.x.x.x` (e.g., `1.0.0.0`, `1.2.1.0`)
+- **Required**: If your visual only has three digits, add a `.0` at the end
+- **pbiviz.json**: Version must be updated in the `visual.version` field
+- **Marketplace**: Version changes are required for AppSource submissions
+
+**Recommended Approach:**
+- **MAJOR.MINOR.PATCH.BUILD** (e.g., `1.2.3.0`)
+  - **MAJOR**: Breaking changes that affect existing functionality
+  - **MINOR**: New features (backward compatible)
+  - **PATCH**: Bug fixes (backward compatible)  
+  - **BUILD**: Internal builds, hotfixes, or metadata changes
+
+**Examples:**
+```json
+// pbiviz.json
+{
+  "visual": {
+    "version": "1.0.0.0"  // Initial release
+    "version": "1.1.0.0"  // New feature added
+    "version": "1.1.1.0"  // Bug fix
+    "version": "2.0.0.0"  // Breaking changes
+  }
+}
+```
+
+**Important Notes:**
+- Never change the GUID when updating versions
+- Ensure version consistency between `pbiviz.json` and `package.json`
+- AppSource submissions require version increments
+- Test new versions thoroughly before submission
 
 ### Release Schedule
 
