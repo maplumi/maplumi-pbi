@@ -1,4 +1,4 @@
-# Maplumi Power BI Visual ![Maplumi Visual Icon](assets/icon.png)
+# ![Maplumi Visual Icon](assets/icon.png) Maplumi Power BI Visual 
 
 **Transform your geographic data into compelling visual stories with Maplumi - the ultimate mapping solution for Power BI.**
 
