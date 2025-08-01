@@ -6,8 +6,8 @@
         "visualClassName":"MaplumiVisual",
         "version":"1.0.0.0",
         "description":"Enhanced Map Visual for Power BI",
-        "supportUrl":"https://github.com/datoslumi/maplumi-pbi/issues",
-        "gitHubUrl":"https://github.com/datoslumi/maplumi-pbi"
+        "supportUrl":"https://github.com/ayiemba/maplumi-pbi/issues",
+        "gitHubUrl":"https://github.com/ayiemba/maplumi-pbi"
     },
     "apiVersion":"5.11.0",
     "author":{
