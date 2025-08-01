@@ -61,40 +61,23 @@ export class CircleLayer extends Layer {
         const scale = 6378137 / resolution;
         const d3Projection = geoMercator().scale(scale).center(center).translate([width / 2, height / 2]);
 
-        const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions } = this.options;
+        const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions, minCircleSizeValue = 0, maxCircleSizeValue = 100, circleScale: scaleFactor = 1 } = this.options;
         const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth, chartType } = circleOptions;
 
-        // Use the scaling parameters passed from visual.ts to ensure consistency with legend
-        const { minCircleSizeValue = 0, maxCircleSizeValue = 100, circleScale: scaleFactor = 1 } = this.options;
-        
-        const circleScale = (value: number) => {
-            const clampedValue = Math.max(minCircleSizeValue, Math.min(value, maxCircleSizeValue));
-            
-            switch (circleOptions.scalingMethod) {
-                case 'linear':
-                    return circleOptions.minRadius + (clampedValue - minCircleSizeValue) * scaleFactor;
-                    
-                case 'square-root':
-                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                    const scaledAreaSquared = minRadiusSquared + (clampedValue - minCircleSizeValue) * scaleFactor;
-                    return Math.sqrt(scaledAreaSquared);
-                    
-                case 'logarithmic':
-                    const logValue = Math.log(Math.max(clampedValue, 0.1));
-                    const logMinValue = Math.log(Math.max(minCircleSizeValue, 0.1));
-                    return circleOptions.minRadius + (logValue - logMinValue) * scaleFactor;
-                    
-                case 'power':
-                    const powValue = Math.pow(clampedValue, 1.5);
-                    const powMinValue = Math.pow(minCircleSizeValue, 1.5);
-                    return circleOptions.minRadius + (powValue - powMinValue) * scaleFactor;
-                    
-                default:
-                    // Default to square root
-                    const defaultMinRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                    const defaultScaledAreaSquared = defaultMinRadiusSquared + (clampedValue - minCircleSizeValue) * scaleFactor;
-                    return Math.sqrt(defaultScaledAreaSquared);
+        // For donut/pie charts, we need to include the totals in our scaling calculations
+        const allRelevantValues = [...combinedCircleSizeValues];
+        if (chartType === 'donut-chart' || chartType === 'pie-chart') {
+            // Add the totals of both values for each data point to our scaling context
+            for (let i = 0; i < Math.min(circle1SizeValues.length, circle2SizeValues.length); i++) {
+                if (circle1SizeValues[i] !== undefined && circle2SizeValues[i] !== undefined) {
+                    allRelevantValues.push(circle1SizeValues[i] + circle2SizeValues[i]);
+                }
             }
+        }
+
+        const circleScale = (value: number) => {
+            // Use adaptive scaling logic consistent with visual.ts, but with all relevant values
+            return this.applyAdaptiveScaling(value, minCircleSizeValue, maxCircleSizeValue, scaleFactor, circleOptions, allRelevantValues);
         };
 
         const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
@@ -416,6 +399,51 @@ export class CircleLayer extends Layer {
 
     setSelectedIds(selectionIds: powerbi.extensibility.ISelectionId[]) {
         this.selectedIds = selectionIds;
+    }
+
+    // Adaptive scaling method that matches the logic in visual.ts
+    private applyAdaptiveScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, circleOptions: any, allDataValues: number[]): number {
+        // Handle adaptive scaling for outliers - same logic as visual.ts
+        // When adaptive scaling is active, maxValue represents the 95th percentile
+        // Values beyond this should get additional radius scaling
+        
+        if (value > maxValue && allDataValues && allDataValues.length > 0) {
+            const actualMax = Math.max(...allDataValues);
+            
+            if (actualMax > maxValue) {
+                // We're in adaptive scaling mode - apply outlier scaling for values beyond 95th percentile
+                const outlierRange = actualMax - maxValue;
+                
+                if (outlierRange > 0) {
+                    const outlierPosition = Math.min((value - maxValue) / outlierRange, 1); // 0-1 position in outlier range
+                    
+                    // Calculate radius at the 95th percentile (maxValue)
+                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+                    const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
+                    
+                    // Apply compressed outlier scaling beyond 95th percentile
+                    // Use 60% of remaining radius space for outliers
+                    const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
+                    const maxOutlierBonus = remainingRadiusSpace * 0.6;
+                    const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
+                    
+                    const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
+                    
+                    // Debug logging for outlier scaling
+                    console.log(`CircleLayer outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
+                    
+                    return finalRadius;
+                }
+            }
+        }
+        
+        // Standard scaling for values within normal range (5th percentile to 95th percentile)
+        const clampedValue = Math.max(minValue, Math.min(value, maxValue));
+        
+        // Use square-root scaling (area scales linearly with data values)
+        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+        const scaledAreaSquared = minRadiusSquared + (clampedValue - minValue) * scaleFactor;
+        return Math.sqrt(scaledAreaSquared);
     }
 
 }

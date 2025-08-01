@@ -395,10 +395,26 @@ export class MaplumiVisual implements IVisual {
     }
 
     private combineCircleSizeValues(circleSizeValuesObjects: any[]): number[] {
-        return [
+        const individual = [
             ...(circleSizeValuesObjects[0]?.values || []),
             ...(circleSizeValuesObjects[1]?.values || []),
         ].map(Number); // Ensure all elements are numbers
+        
+        // For donut/pie charts, also include the totals in the scaling calculation
+        const circleOptions = this.getCircleOptions();
+        if (circleOptions.chartType === 'donut-chart' || circleOptions.chartType === 'pie-chart') {
+            const values1 = circleSizeValuesObjects[0]?.values || [];
+            const values2 = circleSizeValuesObjects[1]?.values || [];
+            const minLength = Math.min(values1.length, values2.length);
+            
+            for (let i = 0; i < minLength; i++) {
+                if (values1[i] !== undefined && values2[i] !== undefined) {
+                    individual.push(Number(values1[i]) + Number(values2[i]));
+                }
+            }
+        }
+        
+        return individual;
     }
 
     private calculateCircleScale(
@@ -417,18 +433,42 @@ export class MaplumiVisual implements IVisual {
         const sortedValues = [...validValues].sort((a, b) => a - b);
         const n = sortedValues.length;
         
-        // Use percentiles instead of min/max to handle outliers
+        // Calculate key percentiles and extremes
         const percentile5 = sortedValues[Math.floor(n * 0.05)];
         const percentile95 = sortedValues[Math.floor(n * 0.95)];
+        const actualMin = Math.min(...validValues);
+        const actualMax = Math.max(...validValues);
         
-        // Fallback to min/max if percentiles are too close
-        const minCircleSizeValue = percentile95 - percentile5 < 0.001 ? 
-            Math.min(...validValues) : percentile5;
-        const maxCircleSizeValue = percentile95 - percentile5 < 0.001 ? 
-            Math.max(...validValues) : percentile95;
+        // Check if there's a significant gap between 95th percentile and maximum
+        const percentileRange = percentile95 - percentile5;
+        const outlierGap = actualMax - percentile95;
+        const outlierGapRatio = percentileRange > 0 ? outlierGap / percentileRange : 0;
+        
+        let minCircleSizeValue: number;
+        let maxCircleSizeValue: number;
+        
+        // Adaptive scaling strategy
+        if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
+            // Significant outliers detected - use hybrid approach
+            // This preserves visual differentiation for extreme values while maintaining robust scaling
+            
+            // Use 5th percentile as minimum (standard robust approach)
+            minCircleSizeValue = percentile5;
+            
+            // For adaptive scaling, we use the 95th percentile as our "maxValue" for the main scaling range
+            // The applyScaling method will handle values above this with compressed outlier scaling
+            maxCircleSizeValue = percentile95;
+            
+            console.log(`Adaptive scaling: P5=${percentile5}, P95=${percentile95}, Max=${actualMax}, Gap ratio=${outlierGapRatio.toFixed(2)}, Using adaptive outlier scaling`);
+            
+        } else {
+            // Normal case - use percentile-based scaling
+            // Fallback to min/max if percentiles are too close
+            minCircleSizeValue = percentile95 - percentile5 < 0.001 ? actualMin : percentile5;
+            maxCircleSizeValue = percentile95 - percentile5 < 0.001 ? actualMax : percentile95;
+        }
 
         // Use square-root scaling as the default (area scales linearly with data)
-        // This provides good visual perception for most data types
         let selectedScalingMethod = 'square-root';
 
         let circleScale: number;
@@ -436,7 +476,6 @@ export class MaplumiVisual implements IVisual {
             circleScale = 1; // No scaling needed, use the minimum radius
         } else {
             // Calculate scale factor based on square-root scaling method
-            // Square-root scaling maps data values to circle areas linearly
             const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
             const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
             circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
@@ -445,7 +484,42 @@ export class MaplumiVisual implements IVisual {
         return { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod };
     }
 
-    private applyScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, scalingMethod: string, circleOptions: CircleOptions): number {
+    private applyScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, scalingMethod: string, circleOptions: CircleOptions, allDataValues?: number[]): number {
+        // Handle adaptive scaling for outliers
+        // When adaptive scaling is active, maxValue represents the 95th percentile
+        // Values beyond this should get additional radius scaling
+        
+        if (value > maxValue && allDataValues && allDataValues.length > 0) {
+            const actualMax = Math.max(...allDataValues);
+            
+            if (actualMax > maxValue) {
+                // We're in adaptive scaling mode - apply outlier scaling for values beyond 95th percentile
+                const outlierRange = actualMax - maxValue;
+                
+                if (outlierRange > 0) {
+                    const outlierPosition = Math.min((value - maxValue) / outlierRange, 1); // 0-1 position in outlier range
+                    
+                    // Calculate radius at the 95th percentile (maxValue)
+                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+                    const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
+                    
+                    // Apply compressed outlier scaling beyond 95th percentile
+                    // Use 60% of remaining radius space for outliers
+                    const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
+                    const maxOutlierBonus = remainingRadiusSpace * 0.6;
+                    const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
+                    
+                    const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
+                    
+                    // Debug logging for outlier scaling
+                    console.log(`Visual outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
+                    
+                    return finalRadius;
+                }
+            }
+        }
+        
+        // Standard scaling for values within normal range (5th percentile to 95th percentile)
         const clampedValue = Math.max(minValue, Math.min(value, maxValue));
         
         // Use square-root scaling (area scales linearly with data values)
@@ -556,34 +630,49 @@ export class MaplumiVisual implements IVisual {
         const mapScalingMaxValue = maxCircleSizeValue;  // 95th percentile - creates largest map circles
         const mapScalingMinValue = minCircleSizeValue;  // 5th percentile - creates smallest map circles
         
-        // Get the actual maximum value for labeling
+        // Get the actual maximum value for proper legend representation
         const actualMaxValue = Math.max(...validDataValues);
         
-        // Calculate the radius that the map's largest circles actually have
-        const maxMapCircleRadius = this.applyScaling(mapScalingMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions);
+        // Check if we're in adaptive scaling mode (outliers beyond 95th percentile)
+        const n = sortedValues.length;
+        const percentile95 = sortedValues[Math.floor(n * 0.95)];
+        const isAdaptiveScaling = actualMaxValue > maxCircleSizeValue; // maxCircleSizeValue is 95th percentile in adaptive mode
+        
+        let maxMapCircleRadius: number;
+        let maxLegendValue: number;
+        
+        if (isAdaptiveScaling) {
+            // In adaptive scaling: show the actual maximum value with its true visual radius
+            maxMapCircleRadius = this.applyScaling(actualMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions, validDataValues);
+            maxLegendValue = actualMaxValue;
+        } else {
+            // Normal scaling: use the scaling maximum (which is the 95th percentile)
+            maxMapCircleRadius = this.applyScaling(mapScalingMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions, validDataValues);
+            maxLegendValue = mapScalingMaxValue;
+        }
         
         // Create visually proportional legend circles with clear diameter ratios:
-        // Large = maxMapCircleRadius (diameter = 2 * maxMapCircleRadius)
-        // Medium = radius for 1/2 diameter of large (diameter = maxMapCircleRadius)
-        // Small = radius for 1/4 diameter of large (diameter = 0.5 * maxMapCircleRadius)
+        // Large = maxMapCircleRadius (represents the actual largest circles on the map)
+        // Medium = radius for 1/2 diameter of large
+        // Small = radius for 1/4 diameter of large
         
         const largeLegendRadius = maxMapCircleRadius;
         const mediumLegendRadius = maxMapCircleRadius * 0.5;  // 1/2 diameter = 1/2 radius
         const smallLegendRadius = maxMapCircleRadius * 0.25;  // 1/4 diameter = 1/4 radius
         
-        // Find the data values that would produce these exact visual radii
-        // Working backwards from desired radius to required data value
+        // Find data values that would produce these exact visual radii for medium and small circles
+        // Work backwards from desired radius to required data value using the inverse scaling formula
         const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
         
-        // For large circle: use the scaling max value (95th percentile)
-        const largeValue = mapScalingMaxValue;
+        // For large circle: use the value that actually produces the largest map circles
+        const largeValue = maxLegendValue;
         
-        // For medium circle: find data value that produces mediumLegendRadius
+        // For medium and small circles: find values that produce the desired proportional radii
+        // We need to ensure these fall within the normal scaling range (not outlier range)
         const mediumValue = ((mediumLegendRadius * mediumLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
         const clampedMediumValue = Math.max(mapScalingMinValue, Math.min(mediumValue, mapScalingMaxValue));
         const closestMediumValue = this.findClosestValue(sortedValues, clampedMediumValue);
         
-        // For small circle: find data value that produces smallLegendRadius
         const smallValue = ((smallLegendRadius * smallLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
         const clampedSmallValue = Math.max(mapScalingMinValue, Math.min(smallValue, mapScalingMaxValue));
         const closestSmallValue = this.findClosestValue(sortedValues, clampedSmallValue);
@@ -591,18 +680,14 @@ export class MaplumiVisual implements IVisual {
         // Use the calculated values for perfect visual proportions
         const finalValues = [closestSmallValue, closestMediumValue, largeValue];
         
-        // Calculate the exact radii we want (should match our target proportions)
-        const finalRadii = [smallLegendRadius, mediumLegendRadius, largeLegendRadius];
-        
-        // Create labels: use actual max value for the largest circle label if significantly different
-        const labelValues = [...finalValues];
-        if (Math.abs(actualMaxValue - mapScalingMaxValue) / actualMaxValue > 0.1) {
-            // If actual max is >10% different from scaling max, show actual max in label
-            labelValues[2] = actualMaxValue;
-        }
+        // Calculate the exact radii using the same scaling function as the map
+        // This ensures the legend matches exactly what's shown on the map
+        const finalRadii = finalValues.map(value => 
+            this.applyScaling(value, minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod, circleOptions, validDataValues)
+        );
 
         this.legendService.createProportionalCircleLegend(
-            labelValues,
+            finalValues,  // Use actual data values for labels
             finalRadii,
             numberofCircleCategories,
             circleOptions
