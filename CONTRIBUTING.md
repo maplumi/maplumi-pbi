@@ -96,6 +96,12 @@ We welcome code contributions! See the [Development Setup](#development-setup) s
 - **npm** (v8 or higher)
 - **Git**
 - **Power BI Desktop** (for testing)
+- **powerbi-visuals-tools** (pbiviz CLI)
+
+Install the Power BI visual tools globally:
+```bash
+npm install -g powerbi-visuals-tools
+```
 
 ### Getting Started
 
@@ -161,10 +167,29 @@ maplumi-pbi/
 
 3. **Test your changes**
    ```bash
+   # Run unit tests
    npm test
+   
+   # Lint code for style issues
    npm run lint
+   
+   # Build the visual package
    npm run build
+   
+   # Validate Power BI visual package
+   pbiviz package
+   
+   # Start development server for testing
+   pbiviz start
    ```
+
+4. **Power BI Testing**
+   - Load the visual in Power BI Desktop
+   - Test with sample data from different sources
+   - Verify cross-filtering and interactions work
+   - Test performance with large datasets
+   - Validate accessibility features
+   - Check mobile responsiveness
 
 4. **Commit your changes**
    ```bash
@@ -186,6 +211,11 @@ maplumi-pbi/
 - [ ] Code follows our style guidelines
 - [ ] Tests pass locally (`npm test`)
 - [ ] Code builds successfully (`npm run build`)
+- [ ] Visual package builds without errors (`pbiviz package`)
+- [ ] Visual loads correctly in Power BI Desktop
+- [ ] Cross-filtering and interactions work properly
+- [ ] Performance tested with large datasets (1000+ rows)
+- [ ] Accessibility features validated
 - [ ] Documentation is updated (if needed)
 - [ ] Commit messages follow our format
 - [ ] Branch is up to date with main
@@ -232,9 +262,13 @@ Brief description of changes made.
 - [ ] Documentation update
 
 ## Testing
-- [ ] Tests pass locally
+- [ ] Tests pass locally (`npm test`)
+- [ ] Visual package builds successfully (`pbiviz package`)
+- [ ] Manual testing completed in Power BI Desktop
+- [ ] Cross-filtering functionality verified
+- [ ] Performance tested with large datasets
 - [ ] New tests added (if applicable)
-- [ ] Manual testing completed
+- [ ] Accessibility features validated
 
 ## Screenshots
 Include screenshots for visual changes.
@@ -248,6 +282,20 @@ Include screenshots for visual changes.
 
 ## Coding Standards
 
+### Power BI Visual Specific Guidelines
+
+Following Microsoft's Power BI custom visual development guidelines:
+
+- **Performance**: Visuals must render within 1000ms for datasets up to 30,000 rows
+- **Memory Usage**: Keep memory footprint under 50MB
+- **API Compliance**: Use only supported Power BI Visual API methods
+- **Cross-filtering**: Implement proper selection manager integration
+- **Accessibility**: Support screen readers and keyboard navigation
+- **Responsive Design**: Visual must work on mobile devices
+- **Error Handling**: Graceful degradation when data is invalid or missing
+- **Security**: No external HTTP requests without user consent
+- **Localization**: Support RTL languages and locale-specific formatting
+
 ### TypeScript/JavaScript
 
 - Use **TypeScript** for all new code
@@ -257,8 +305,63 @@ Include screenshots for visual changes.
 - Prefer **const** over **let** where possible
 - Use **async/await** over Promises when possible
 
-**Note on AI-Assisted Development**: Contributors are welcome to use AI tools (GitHub Copilot, ChatGPT, etc.) to assist with code generation, but you remain fully responsible for understanding, testing, and maintaining the quality of all submitted code.
+### Power BI Specific Standards
 
+**Capabilities.json**:
+- Keep data roles minimal and well-documented
+- Use appropriate data type restrictions
+- Implement proper grouping and sorting options
+- Follow naming conventions for roles and properties
+
+**Visual Settings**:
+- Use Power BI's formatting model API
+- Implement proper validation for user inputs
+- Provide meaningful default values
+- Group related settings logically
+
+**Data Processing**:
+- Handle large datasets efficiently using data view streaming
+- Implement proper null/undefined checks
+- Use appropriate data transformation techniques
+- Optimize for Power BI's columnar data structure
+
+**Rendering**:
+- Use requestAnimationFrame for smooth animations
+- Implement proper cleanup in destroy() method
+- Handle viewport changes gracefully
+- Optimize SVG/canvas usage for performance
+
+```typescript
+// Example of proper Power BI visual lifecycle management
+export class Visual implements IVisual {
+    private target: HTMLElement;
+    private selectionManager: ISelectionManager;
+    
+    constructor(options: VisualConstructorOptions) {
+        this.target = options.element;
+        this.selectionManager = options.host.createSelectionManager();
+    }
+    
+    public update(options: VisualUpdateOptions) {
+        // Handle null/undefined data gracefully
+        if (!options.dataViews || !options.dataViews[0]) {
+            this.clearVisual();
+            return;
+        }
+        
+        // Process data efficiently
+        const dataView = options.dataViews[0];
+        this.renderVisual(dataView, options.viewport);
+    }
+    
+    public destroy(): void {
+        // Clean up resources
+        this.target.innerHTML = '';
+    }
+}
+```
+
+```typescript
 ```typescript
 /**
  * Calculates the scaled radius for a circle based on data value
@@ -276,11 +379,35 @@ export function calculateScaledRadius(
   minRadius: number,
   maxRadius: number
 ): number {
-  // Implementation here
+  // Validate inputs
+  if (value == null || minValue == null || maxValue == null) {
+    return minRadius;
+  }
+  
+  // Handle edge cases
+  if (maxValue === minValue) {
+    return minRadius;
+  }
+  
+  // Calculate proportional scaling
+  const ratio = (value - minValue) / (maxValue - minValue);
+  return minRadius + (ratio * (maxRadius - minRadius));
 }
 ```
 
 ### CSS/LESS
+```
+
+**Note on AI-Assisted Development**: Contributors are welcome to use AI tools (GitHub Copilot, ChatGPT, etc.) to assist with code generation, but you remain fully responsible for understanding, testing, and maintaining the quality of all submitted code.
+
+### TypeScript/JavaScript Standards
+
+- Use **TypeScript** for all new code
+- Follow **ESLint** configuration  
+- Use **meaningful variable names**
+- Add **JSDoc comments** for public methods
+- Prefer **const** over **let** where possible
+- Use **async/await** over Promises when possible
 
 - Use **LESS** for styling
 - Follow **BEM naming convention**
@@ -339,6 +466,34 @@ describe('ColorRampManager', () => {
 - Focus on **critical business logic**
 - Test **edge cases** and **error conditions**
 - Mock **external dependencies**
+
+### Power BI Visual Testing
+
+In addition to unit tests, test your visual with:
+
+```bash
+# Start development server
+pbiviz start
+
+# Package visual for testing
+pbiviz package
+
+# Validate capabilities.json
+pbiviz validate
+```
+
+**Manual Testing Checklist:**
+- [ ] Visual loads in Power BI Desktop
+- [ ] Data binding works with different field types
+- [ ] Cross-filtering with other visuals functions correctly
+- [ ] Selection manager interactions work properly
+- [ ] Visual handles null/empty data gracefully
+- [ ] Performance is acceptable with large datasets
+- [ ] Visual is responsive on different screen sizes
+- [ ] Accessibility features work (screen readers, keyboard navigation)
+- [ ] Visual respects Power BI theme colors
+- [ ] Tooltips display correctly
+- [ ] Export functionality works (if implemented)
 
 ## Documentation Guidelines
 
