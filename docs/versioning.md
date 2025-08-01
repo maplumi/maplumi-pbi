@@ -217,6 +217,7 @@ The TypeScript `ci-version.ts` script recognizes these environment variables:
 The workflow automatically installs:
 - **tsx** - TypeScript runner
 - **@types/node** - Node.js type definitions
+- **powerbi-visuals-tools** - Power BI visual CLI tools
 - All project dependencies
 
 ## Manual Override
@@ -417,8 +418,9 @@ pbiviz.json                 # 4-digit versioning throughout
 ```json
 // package.json devDependencies
 {
-  "tsx": "^4.0.0",           // TypeScript runner
-  "@types/node": "^20.0.0"   // Node.js type definitions
+  "tsx": "^4.0.0",                    // TypeScript runner
+  "@types/node": "^20.0.0",           // Node.js type definitions
+  "powerbi-visuals-tools": "^6.1.3"   // Power BI visual CLI tools
 }
 ```
 
