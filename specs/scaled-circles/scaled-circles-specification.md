@@ -120,37 +120,61 @@ const scaleFactor = (maxRadiusSquared - minRadiusSquared) / (maxValue - minValue
 
 The legend maintains strict visual hierarchy with mathematically precise proportions:
 
-- **Large Circle**: Full size (represents data maximum or 95th percentile)
+- **Large Circle**: Represents the actual largest circles visible on the map
 - **Medium Circle**: 50% diameter of large circle
 - **Small Circle**: 25% diameter of large circle
 
-### Legend Generation Algorithm
+### Adaptive Legend Generation Algorithm
 
 ```typescript
-// 1. Calculate maximum map circle radius
-const maxMapCircleRadius = applyScaling(mapScalingMaxValue, ...);
+// 1. Detect if adaptive scaling is active
+const actualMaxValue = Math.max(...validDataValues);
+const isAdaptiveScaling = actualMaxValue > maxCircleSizeValue; // 95th percentile
 
-// 2. Define proportional radii
+// 2. Calculate maximum map circle radius (accounting for outlier scaling)
+let maxMapCircleRadius: number;
+let maxLegendValue: number;
+
+if (isAdaptiveScaling) {
+    // Show actual maximum value with its true visual radius
+    maxMapCircleRadius = applyScaling(actualMaxValue, minValue, maxValue, scaleFactor, 
+                                     scalingMethod, circleOptions, validDataValues);
+    maxLegendValue = actualMaxValue;
+} else {
+    // Normal scaling: use scaling maximum (95th percentile)
+    maxMapCircleRadius = applyScaling(mapScalingMaxValue, minValue, maxValue, scaleFactor, 
+                                     scalingMethod, circleOptions, validDataValues);
+    maxLegendValue = mapScalingMaxValue;
+}
+
+// 3. Define proportional radii
 const largeLegendRadius = maxMapCircleRadius;
 const mediumLegendRadius = maxMapCircleRadius * 0.5;  // 50% diameter
 const smallLegendRadius = maxMapCircleRadius * 0.25;  // 25% diameter
 
-// 3. Find corresponding data values
+// 4. Find corresponding data values (medium and small within normal range)
 const mediumValue = calculateValueForRadius(mediumLegendRadius);
 const smallValue = calculateValueForRadius(smallLegendRadius);
 
-// 4. Map to closest actual data values
+// 5. Map to closest actual data values
 const finalValues = [
     findClosestValue(sortedData, smallValue),
     findClosestValue(sortedData, mediumValue),
-    mapScalingMaxValue
+    maxLegendValue  // Actual max value for adaptive scaling
 ];
+
+// 6. Calculate exact radii using same scaling as map
+const finalRadii = finalValues.map(value => 
+    applyScaling(value, minValue, maxValue, scaleFactor, scalingMethod, 
+                circleOptions, validDataValues)
+);
 ```
 
 ### Legend Labeling
 
-- **Standard Mode**: Uses calculated values from scaling algorithm
-- **Outlier Mode**: Shows actual maximum value when >10% different from scaling maximum
+- **Adaptive Mode**: Shows actual maximum value when outliers are present
+- **Standard Mode**: Uses 95th percentile value for maximum
+- **Visual Consistency**: Legend circles match exact sizes visible on map
 - **Formatting**: Automatic K/M notation for large numbers (1000 → 1K, 1000000 → 1M)
 
 ---
@@ -159,7 +183,7 @@ const finalValues = [
 
 ### Adaptive Scaling Strategy
 
-The system automatically detects and handles outliers using a sophisticated adaptive approach:
+The system automatically detects and handles outliers using a sophisticated adaptive approach that ensures maximum value circles are always visibly larger than 95th percentile circles while maintaining robust scaling for the main data distribution.
 
 #### Detection Algorithm
 
@@ -172,39 +196,68 @@ const outlierGapRatio = outlierGap / percentileRange;
 const useAdaptiveScaling = outlierGapRatio > 0.2 && percentileRange > 0.001;
 ```
 
-#### Adaptive Scaling Response
+#### Simplified Adaptive Scaling (v2.2+)
 
-When outliers are detected:
+When outliers are detected, the system uses a simplified and more effective approach:
 
-1. **Robust Range**: 5th-95th percentile uses 80% of radius space
-2. **Compressed Outliers**: Outliers beyond 95th percentile use remaining 20% of radius space
-3. **Visual Differentiation**: Outliers remain visually distinct but proportionally compressed
+1. **Main Scaling Range**: 5th-95th percentile defines the primary scaling range
+2. **Direct Outlier Scaling**: Values beyond 95th percentile get additional radius scaling
+3. **Visual Guarantee**: Maximum values are guaranteed to appear larger than 95th percentile values
 
 #### Mathematical Implementation
 
 ```typescript
 if (value > maxValue && allDataValues) {
     const actualMax = Math.max(...allDataValues);
-    const outlierRange = actualMax - maxValue;
-    const outlierPosition = Math.min((value - maxValue) / outlierRange, 1);
+    const outlierRange = actualMax - maxValue; // maxValue = 95th percentile
     
-    // Base radius for 95th percentile
-    const baseRadius = calculateStandardRadius(maxValue);
-    
-    // Compressed outlier bonus (up to 60% of remaining radius space)
-    const maxOutlierBonus = (circleOptions.maxRadius - baseRadius) * 0.6;
-    const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
-    
-    return Math.min(baseRadius + outlierRadiusBonus, circleOptions.maxRadius);
+    if (outlierRange > 0) {
+        const outlierPosition = Math.min((value - maxValue) / outlierRange, 1);
+        
+        // Calculate radius at 95th percentile
+        const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
+        
+        // Apply compressed outlier scaling beyond 95th percentile
+        // Use 60% of remaining radius space for outliers
+        const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
+        const maxOutlierBonus = remainingRadiusSpace * 0.6;
+        const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
+        
+        return Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
+    }
+}
+
+// Standard scaling for values within 5th-95th percentile range
+const clampedValue = Math.max(minValue, Math.min(value, maxValue));
+const scaledAreaSquared = minRadiusSquared + (clampedValue - minValue) * scaleFactor;
+return Math.sqrt(scaledAreaSquared);
+```
+
+#### Chart Type Considerations
+
+For donut and pie charts where circle size is determined by the sum of two values:
+
+```typescript
+// Enhanced data context for adaptive scaling
+const allRelevantValues = [...combinedCircleSizeValues];
+if (chartType === 'donut-chart' || chartType === 'pie-chart') {
+    // Include totals in scaling calculations
+    for (let i = 0; i < Math.min(circle1Values.length, circle2Values.length); i++) {
+        if (circle1Values[i] !== undefined && circle2Values[i] !== undefined) {
+            allRelevantValues.push(circle1Values[i] + circle2Values[i]);
+        }
+    }
 }
 ```
 
 ### Benefits of Adaptive Scaling
 
-- **Preserves Detail**: Main data distribution remains well-scaled
-- **Maintains Differentiation**: Outliers are still visually distinct
-- **Prevents Distortion**: Extreme outliers don't make other values invisible
+- **Guaranteed Visual Hierarchy**: Maximum values always appear larger than 95th percentile
+- **Preserves Detail**: Main data distribution (5th-95th percentile) remains well-scaled
+- **Maintains Differentiation**: Outliers are visually distinct with compressed scaling
+- **Chart Type Agnostic**: Works consistently across single circles, donut charts, and pie charts
 - **Automatic Operation**: No user configuration required
+- **Debug Support**: Console logging helps verify scaling behavior
 
 ---
 
@@ -257,13 +310,16 @@ interface LegendSettings {
 
 ```typescript
 class MaplumiVisual {
-    // Core scaling calculation
+    // Enhanced data combination including chart totals for donut/pie charts
+    private combineCircleSizeValues(circleSizeValuesObjects): number[]
+    
+    // Core scaling calculation with adaptive outlier detection
     private calculateCircleScale(values, options): ScalingParams
     
-    // Adaptive scaling with outlier handling
+    // Simplified adaptive scaling with guaranteed outlier visibility
     private applyScaling(value, min, max, scale, method, options, allValues?): number
     
-    // Legend generation with proportional sizing
+    // Adaptive legend generation matching map circle sizes
     private renderCircleLegend(values, categories, min, max, scale, method, options): void
     
     // Data value to radius mapping helper
@@ -271,11 +327,43 @@ class MaplumiVisual {
 }
 
 class CircleLayer extends Layer {
-    // OpenLayers integration
+    // Enhanced data context for all chart types
+    private buildAllRelevantValues(combinedValues, circle1Values, circle2Values, chartType): number[]
+    
+    // Adaptive scaling matching visual.ts implementation
     private applyAdaptiveScaling(value, min, max, scale, options, allValues): number
     
-    // Circle rendering with tooltips and selection
+    // Circle rendering with tooltips and selection for all chart types
     private renderCircles(features, projection): void
+}
+```
+
+### Enhanced Data Processing
+
+#### Chart Type Handling
+```typescript
+// For donut/pie charts, include totals in scaling calculations
+private combineCircleSizeValues(circleSizeValuesObjects: any[]): number[] {
+    const individual = [
+        ...(circleSizeValuesObjects[0]?.values || []),
+        ...(circleSizeValuesObjects[1]?.values || []),
+    ].map(Number);
+    
+    // Include chart totals for adaptive scaling
+    const circleOptions = this.getCircleOptions();
+    if (circleOptions.chartType === 'donut-chart' || circleOptions.chartType === 'pie-chart') {
+        const values1 = circleSizeValuesObjects[0]?.values || [];
+        const values2 = circleSizeValuesObjects[1]?.values || [];
+        const minLength = Math.min(values1.length, values2.length);
+        
+        for (let i = 0; i < minLength; i++) {
+            if (values1[i] !== undefined && values2[i] !== undefined) {
+                individual.push(Number(values1[i]) + Number(values2[i]));
+            }
+        }
+    }
+    
+    return individual;
 }
 ```
 
@@ -287,7 +375,7 @@ class CircleLayer extends Layer {
 - **Size**: Numeric value for circle scaling (at least one required)
 
 #### Optional Fields
-- **Size (Secondary)**: Second numeric value for nested circles
+- **Size (Secondary)**: Second numeric value for nested/donut/pie charts
 - **Tooltips**: Additional fields for hover information
 
 #### Data Validation
@@ -296,6 +384,19 @@ class CircleLayer extends Layer {
 const validValues = combinedCircleSizeValues.filter(v => 
     !isNaN(v) && isFinite(v) && v !== null && v !== undefined
 );
+```
+
+### Debug Logging
+
+```typescript
+// Adaptive scaling detection
+console.log(`Adaptive scaling: P5=${percentile5}, P95=${percentile95}, Max=${actualMax}, Gap ratio=${outlierGapRatio.toFixed(2)}, Using adaptive outlier scaling`);
+
+// Outlier scaling application (visual.ts)
+console.log(`Visual outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
+
+// Outlier scaling application (circleLayer.ts)
+console.log(`CircleLayer outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
 ```
 
 ---
