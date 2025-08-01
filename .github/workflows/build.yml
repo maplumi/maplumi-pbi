@@ -95,7 +95,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ steps.get_version.outputs.version }}
-        name: Maplumi Power BI Visual v${{ steps.get_version.outputs.version }}
+        name: maplumi-pbi v${{ steps.get_version.outputs.version }}
         body: |
           🎨 **Maplumi Power BI Visual Release**
           
