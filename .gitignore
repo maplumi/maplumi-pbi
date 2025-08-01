@@ -75,4 +75,4 @@ dist/
 # API build
 .api/
 
-package-lock.json
+# package-lock.json  # Commented out - now tracking lock file for reproducible CI builds
