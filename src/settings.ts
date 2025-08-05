@@ -28,6 +28,7 @@
 
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
+import { VisualConfig } from "./config/VisualConfig";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -498,66 +499,86 @@ class proportionalCirclesVisualCardSettings extends formattingSettings.Composite
 
 class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
 
-
-
     boundaryDataSource: DropDown = new DropDown({
         name: "boundaryDataSource",
         displayName: "Boundary Source",
         value: {
-            value: "maplumi",  //default value
-            displayName: "Maplumi"
+            value: "geoboundaries",  //default value
+            displayName: "GeoBoundaries"
         },
         items: [
-            { value: "maplumi", displayName: "Maplumi" },
-            { value: "hdx", displayName: "HDX" },
-            { value: "geoboundaried", displayName: "GeoBoundaries" },
+            { value: "geoboundaries", displayName: "GeoBoundaries" },
             { value: "custom", displayName: "Custom" }
         ]
     });
 
-    // Store all possible field options for each data source
-    private sourceFieldOptions: { [key: string]: { value: string, displayName: string }[] } = {
-        maplumi: [
-            { value: "shapeGroup", displayName: "shapeGroup" },
-            { value: "pcode", displayName: "pcode" },
-            { value: "country", displayName: "country" },
-            { value: "admin1", displayName: "admin1" },
-            { value: "admin2", displayName: "admin2" },
-            { value: "custom", displayName: "Custom" }
-        ],
-        hdx: [
-            { value: "pcode", displayName: "pcode" },
-            { value: "country", displayName: "country" },
-            { value: "admin1", displayName: "admin1" },
-            { value: "admin2", displayName: "admin2" },
-            { value: "custom", displayName: "Custom" }
-        ],
-        geoboundaried: [
-            { value: "country", displayName: "country" },
-            { value: "admin1", displayName: "admin1" },
-            { value: "admin2", displayName: "admin2" },
-            { value: "custom", displayName: "Custom" }
-        ],
-        custom: [
-            { value: "custom", displayName: "Custom" }
-        ]
-    };
-
-    sourceFieldID: DropDown = new DropDown({
-        name: "sourceFieldID",
-        displayName: "Boundary ID Field",
+    // Country/Region Selection for GeoBoundaries
+    geoBoundariesCountry: DropDown = new DropDown({
+        name: "geoBoundariesCountry",
+        displayName: "Country/Region",
         value: {
-            value: "shapeGroup",  //default value
-            displayName: "shapeGroup"
+            value: "KEN",
+            displayName: "Kenya"
+        },
+        items: VisualConfig.GEOBOUNDARIES.COUNTRIES
+    });
+
+    // GeoBoundaries Release Type Selection (comes after country selection)
+    geoBoundariesReleaseType: DropDown = new DropDown({
+        name: "geoBoundariesReleaseType",
+        displayName: "Release Type",
+        value: {
+            value: "gbOpen",
+            displayName: "gbOpen (CC-BY 4.0)"
         },
         items: [
-            { value: "shapeGroup", displayName: "shapeGroup" },
-            { value: "pcode", displayName: "pcode" },
-            { value: "country", displayName: "country" },
-            { value: "admin1", displayName: "admin1" },
-            { value: "admin2", displayName: "admin2" },
-            { value: "custom", displayName: "Custom" }
+            { value: "gbOpen", displayName: "gbOpen (CC-BY 4.0)" },
+            { value: "gbHumanitarian", displayName: "gbHumanitarian (UN OCHA)" },
+            { value: "gbAuthoritative", displayName: "gbAuthoritative (UN SALB)" }
         ]
+    });
+
+    // Administrative Level Selection for GeoBoundaries
+    geoBoundariesAdminLevel: DropDown = new DropDown({
+        name: "geoBoundariesAdminLevel",
+        displayName: "Administrative Level",
+        value: {
+            value: "ADM0",
+            displayName: "ADM0 (Country Borders)"
+        },
+        items: [
+            { value: "ADM0", displayName: "ADM0 (Country Borders)" },
+            { value: "ADM1", displayName: "ADM1 (States/Provinces)" },
+            { value: "ADM2", displayName: "ADM2 (Counties/Districts)" },
+            { value: "ADM3", displayName: "ADM3 (Municipalities)" }           
+        ]
+    });
+
+    // Store all possible field options for each data source
+    private sourceFieldOptions = VisualConfig.GEOBOUNDARIES.SOURCE_FIELD_OPTIONS;
+
+    // Combined Boundary ID Field - dropdown for GeoBoundaries, text input for custom
+    boundaryIdField: DropDown = new DropDown({
+        name: "boundaryIdField",
+        displayName: "Boundary ID Field",
+        value: {
+            value: "shapeISO",  // Default to first GeoBoundaries option
+            displayName: "shapeISO (ISO Code)"
+        },
+        items: [
+            { value: "shapeISO", displayName: "shapeISO (ISO Code)" },
+            { value: "shapeName", displayName: "shapeName (Name)" },
+            { value: "shapeID", displayName: "shapeID (Unique ID)" },
+            { value: "shapeGroup", displayName: "shapeGroup (Country)" }
+        ]
+    });
+
+    // Text input for custom boundary ID field (only shown for custom sources)
+    customBoundaryIdField: formattingSettings.TextInput = new TextInput({
+        name: "customBoundaryIdField",
+        displayName: "Boundary ID Field",
+        value: "",
+        placeholder: "Enter field name"
     });
 
     topoJSON_geoJSON_FileUrl: formattingSettings.TextInput = new TextInput({
@@ -567,42 +588,71 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         placeholder: "" // Placeholder text
     });
 
-    locationPcodeNameId: formattingSettings.TextInput = new TextInput({
-        name: "locationPcodeNameId",
-        displayName: "Boundary ID Field",
-        value: "",
-        placeholder: "Field Name"
-    });
-
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
-    slices: formattingSettings.Slice[] = [this.boundaryDataSource,this.sourceFieldID, this.topoJSON_geoJSON_FileUrl, this.locationPcodeNameId];
+    slices: formattingSettings.Slice[] = [
+        this.boundaryDataSource,
+        this.geoBoundariesCountry,
+        this.geoBoundariesReleaseType,
+        this.geoBoundariesAdminLevel,
+        this.topoJSON_geoJSON_FileUrl, 
+        this.boundaryIdField,
+        this.customBoundaryIdField
+    ];
 
     public applyConditionalDisplayRules(): void {
 
         const selectedSource = this.boundaryDataSource.value?.value;
 
-        // Dynamically update sourceFieldID items based on selected boundaryDataSource
-        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
+        // Show/hide geoBoundaries-specific fields
+        const isGeoBoundaries = selectedSource === "geoboundaries";
+        this.geoBoundariesCountry.visible = isGeoBoundaries;
+        this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
-            this.sourceFieldID.items = this.sourceFieldOptions[selectedSource];
+        // Handle "All Countries" special case
+        const isAllCountries = isGeoBoundaries && this.geoBoundariesCountry.value?.value === "ALL";
+        
+        // Hide Release Type when "All Countries" is selected (since custom URL doesn't use release type)
+        this.geoBoundariesReleaseType.visible = isGeoBoundaries && !isAllCountries;
+
+        if (isAllCountries) {
+            // Restrict admin level options to ADM0 only when "All Countries" is selected
+            this.geoBoundariesAdminLevel.items = [
+                { value: "ADM0", displayName: "ADM0 (Country Borders)" }
+            ];
+            // Force ADM0 selection if not already selected
+            if (this.geoBoundariesAdminLevel.value?.value !== "ADM0") {
+                this.geoBoundariesAdminLevel.value = { value: "ADM0", displayName: "ADM0 (Country Borders)" };
+            }
+        } else if (isGeoBoundaries) {
+            // Restore full admin level options for specific countries
+            this.geoBoundariesAdminLevel.items = [
+                { value: "ADM0", displayName: "ADM0 (Country Borders)" },
+                { value: "ADM1", displayName: "ADM1 (States/Provinces)" },
+                { value: "ADM2", displayName: "ADM2 (Counties/Districts)" },
+                { value: "ADM3", displayName: "ADM3 (Municipalities)" }
+            ];
+        }
+
+        // Dynamically update boundaryIdField items based on selected boundaryDataSource
+        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
+            this.boundaryIdField.items = this.sourceFieldOptions[selectedSource];
 
             // If current value is not in the new items, reset to first
             const validValues = this.sourceFieldOptions[selectedSource].map(opt => opt.value);
-
-            if (!validValues.includes(String(this.sourceFieldID.value.value))) {
-                this.sourceFieldID.value = { ...this.sourceFieldID.items[0] };
+            if (!validValues.includes(String(this.boundaryIdField.value.value))) {
+                this.boundaryIdField.value = { ...this.boundaryIdField.items[0] };
             }
         }
 
-        if (selectedSource === "custom") {
-            this.topoJSON_geoJSON_FileUrl.visible = true;
-            this.locationPcodeNameId.visible = true;
-        } else {
-            this.topoJSON_geoJSON_FileUrl.visible = false;
-            this.locationPcodeNameId.visible = false;
-        }
+        // Handle visibility based on data source
+        const isCustomSource = selectedSource === "custom";
+        
+        // Show/hide fields based on data source
+        this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
+        this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
+        this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
     }
 }
 

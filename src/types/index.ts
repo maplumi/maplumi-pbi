@@ -195,6 +195,15 @@ export interface CircleOptions {
 export interface ChoroplethOptions {
     layerControl: boolean;
 
+    // Boundary data source options
+    boundaryDataSource: string;
+    
+    // GeoBoundaries-specific options
+    geoBoundariesReleaseType: string;
+    geoBoundariesCountry: string;
+    geoBoundariesAdminLevel: string;
+    sourceFieldID: string;
+
     locationPcodeNameId: string,
     topoJSON_geoJSON_FileUrl: string,
 

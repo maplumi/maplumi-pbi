@@ -51,6 +51,7 @@ import { LegendService } from "./services/LegendService";
 import { MapService } from "./services/MapService";
 import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
+import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
 import { CacheService } from "./services/CacheService";
@@ -876,8 +877,56 @@ export class MaplumiVisual implements IVisual {
         dataPoints: any[]
     ): Promise<void> {
 
-        const serviceUrl: string = choroplethOptions.topoJSON_geoJSON_FileUrl;
-        const cacheKey = `${choroplethOptions.locationPcodeNameId}`;
+        let serviceUrl: string;
+        let cacheKey: string;
+
+        // Determine the data source and URL
+        if (choroplethOptions.boundaryDataSource === "geoboundaries") {
+            // Handle geoBoundaries API
+            const validation = GeoBoundariesService.validateOptions(choroplethOptions);
+            if (!validation.isValid) {
+                this.host.displayWarningIcon(
+                    "GeoBoundaries Configuration Error",
+                    `maplumiWarning: ${validation.message}`
+                );
+                return;
+            }
+
+            try {
+                const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
+                if (!metadata) {
+                    this.host.displayWarningIcon(
+                        "GeoBoundaries API Error",
+                        "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings."
+                    );
+                    return;
+                }
+
+                // Prefer TopoJSON for smaller file size, fallback to GeoJSON
+                serviceUrl = GeoBoundariesService.getDownloadUrl(metadata, true);
+                
+                // Update the boundary field name based on the selected field
+                const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
+                pcodeKey = boundaryFieldName;
+
+                // Create cache key based on geoBoundaries parameters
+                cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
+
+                // Display information about the data being loaded
+                console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata)}`);
+
+            } catch (error) {
+                this.host.displayWarningIcon(
+                    "GeoBoundaries API Error",
+                    "maplumiWarning: Error connecting to GeoBoundaries API. Please check your network connection."
+                );
+                return;
+            }
+        } else {
+            // Handle custom URLs (existing functionality)
+            serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl;
+            cacheKey = `custom_${choroplethOptions.locationPcodeNameId}`;
+        }
 
         // Cancel previous fetch
         if (this.abortController) {
@@ -927,7 +976,7 @@ export class MaplumiVisual implements IVisual {
 
             const processedGeoData = this.dataService.processGeoData(
                 data,
-                choroplethOptions.locationPcodeNameId,
+                pcodeKey, // Use the dynamically determined field name
                 AdminPCodeNameIDCategory.values
             );
 
@@ -1121,7 +1170,22 @@ export class MaplumiVisual implements IVisual {
         return {
             layerControl: choroplethSettings.topLevelSlice.value,
 
-            locationPcodeNameId: choroplethLocationSettings.locationPcodeNameId.value.toString(),
+            // Boundary data source options
+            boundaryDataSource: choroplethLocationSettings.boundaryDataSource.value.value.toString(),
+            
+            // GeoBoundaries-specific options
+            geoBoundariesReleaseType: choroplethLocationSettings.geoBoundariesReleaseType.value.value.toString(),
+            geoBoundariesCountry: choroplethLocationSettings.geoBoundariesCountry.value.value.toString(),
+            geoBoundariesAdminLevel: choroplethLocationSettings.geoBoundariesAdminLevel.value.value.toString(),
+            
+            // Get boundary field ID from appropriate field based on data source
+            sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom" 
+                ? choroplethLocationSettings.customBoundaryIdField.value 
+                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
+
+            locationPcodeNameId: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
+                ? choroplethLocationSettings.customBoundaryIdField.value
+                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
 
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,

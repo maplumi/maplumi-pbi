@@ -373,12 +373,27 @@
             "enumeration": []
           }
         },
-        "sourceFieldID": {
+        "boundaryIdField": {
           "type": {
             "enumeration": []
           }
         },
-        "locationPcodeNameId": {
+        "geoBoundariesReleaseType": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "geoBoundariesCountry": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "geoBoundariesAdminLevel": {
+          "type": {
+            "enumeration": []
+          }
+        },
+        "customBoundaryIdField": {
           "type": {
             "text": true
           }
