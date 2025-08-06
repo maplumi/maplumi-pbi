@@ -12,8 +12,9 @@ Maplumi is a comprehensive Power BI custom visual for advanced geographic data v
 4. [Visualization Types](#visualization-types)
 5. [Services Architecture](#services-architecture)
 6. [Configuration System](#configuration-system)
-7. [Integration Points](#integration-points)
-8. [Performance Considerations](#performance-considerations)
+7. [Power BI Capabilities](#power-bi-capabilities)
+8. [Integration Points](#integration-points)
+9. [Performance Considerations](#performance-considerations)
 
 ---
 
@@ -337,6 +338,49 @@ interface VisualOptions {
 
 ---
 
+## Power BI Capabilities
+
+### Data Roles
+
+The visual defines specific data roles for optimal Power BI integration:
+
+```typescript
+interface DataRoles {
+    AdminPCodeNameID: string;    // Boundary ID for choropleth mapping
+    Longitude: number;           // Geographic X coordinate (decimal degrees)
+    Latitude: number;            // Geographic Y coordinate (decimal degrees)
+    Size: number;               // Circle size values (supports up to 2 measures)
+    Color: number;              // Choropleth color values
+    Tooltips: any;              // Additional tooltip information
+}
+```
+
+### Required Privileges
+
+#### WebAccess Privilege
+Essential for accessing external mapping and boundary data services:
+
+- **Map Tile Providers**: OpenStreetMap, Mapbox, MapTiler, ESRI ArcGIS
+- **Boundary Data**: GeoBoundaries API, HDX, custom GeoJSON/TopoJSON sources
+- **CDN Services**: GitHub, AWS, Azure, CloudFront for hosted boundary files
+- **Security**: HTTPS-only access to whitelisted domains
+
+#### LocalStorage Privilege
+Essential for caching boundary data and user preferences:
+
+- **Boundary Data Caching**: Reduces API calls and improves performance
+- **User Settings**: Persists map view state and configuration
+- **Performance**: Enables offline-capable visualization for cached data
+
+#### ExportContent Privilege
+Essential for Power BI export functionality:
+
+- **Report Export**: Enables visual inclusion in PDF/PowerPoint exports
+- **High-Resolution Output**: Supports print-quality map visualizations
+- **Data Preservation**: Maintains visual fidelity across export formats
+
+---
+
 ## Integration Points
 
 ### Power BI Host Integration
@@ -379,6 +423,72 @@ interface VisualOptions {
 - **Mapbox**: Style-based tile serving with access token authentication
 - **MapTiler**: Custom map styles with API key integration
 - **OpenStreetMap**: Open-source tile serving (no authentication)
+
+#### WebAccess Privileges
+
+The visual requires web access to external services for full functionality. The following domains are whitelisted in the Power BI capabilities:
+
+**Map Tile Providers:**
+- `https://*.openstreetmap.org` - OpenStreetMap tile servers
+- `https://*.arcgisonline.com` - ESRI ArcGIS Online services
+- `https://*.arcgis.com` - ESRI ArcGIS services
+- `https://*.mapbox.com` - Mapbox map tiles and APIs
+- `https://api.maptiler.com` - MapTiler API and tile services
+
+**Boundary Data Sources:**
+- `https://*.humdata.org` - Humanitarian Data Exchange (HDX) boundary data
+- `https://*.itos.uga.edu` - University of Georgia GeoBoundaries project
+- `https://*.datauga.com` - Custom GeoBoundaries aggregated datasets
+
+**General Web Services:**
+- `https://*.githubusercontent.com` - GitHub raw content for boundary files
+- `https://*.googleapis.com` - Google APIs and services
+- `https://*.amazonaws.com` - Amazon Web Services hosted data
+- `https://*.blob.core.windows.net` - Azure Blob Storage
+- `https://*.github.io` - GitHub Pages hosted content
+- `https://*.cloudfront.net` - Amazon CloudFront CDN
+- `https://*.r2.dev` - Cloudflare R2 storage
+
+**Security Considerations:**
+- All requests use HTTPS for secure data transmission
+- Access is limited to specified domain patterns using wildcards
+- No sensitive authentication data is transmitted to unauthorized endpoints
+- Custom boundary data URLs must match approved domain patterns
+- API keys (Mapbox, MapTiler) are entered by users in Power BI format pane settings
+- API keys are stored in Power BI's visual settings and transmitted securely to tile providers
+- LocalStorage access is sandboxed to the visual's domain context
+
+**Compliance Notes:**
+- Domain patterns follow Power BI security best practices
+- Wildcards enable CDN and subdomain flexibility while maintaining security
+- GeoBoundaries integration provides auditable, open-source boundary data
+- Custom data sources require user validation of URL trustworthiness
+
+**API Key Management:**
+In Power BI visuals, API keys are handled through the formatting settings system:
+
+1. **User Input**: API keys are entered by users through text input fields in the Power BI format pane
+2. **Storage**: Keys are stored within the Power BI report/dataset as part of the visual's configuration
+3. **Transmission**: Keys are securely transmitted to external services (Mapbox, MapTiler) over HTTPS
+4. **Scope**: API keys are scoped to the specific visual instance and report
+5. **Access Control**: Only users with edit permissions on the report can view/modify API keys
+6. **No Server Storage**: The visual itself doesn't store API keys; they're managed by Power BI's settings system
+
+**API Key Security Model:**
+```typescript
+// API keys are accessed through Power BI's formatting settings
+const mapboxAccessToken = basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString();
+const maptilerApiKey = basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString();
+
+// Keys are used directly in tile service requests
+const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptilerApiKey}`;
+```
+
+This approach ensures that:
+- API keys remain within the Power BI security boundary
+- Keys are not exposed to intermediate servers or services
+- Users maintain control over their own API credentials
+- Enterprise security policies can govern API key usage through Power BI governance
 
 ---
 
