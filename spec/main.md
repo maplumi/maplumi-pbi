@@ -36,8 +36,9 @@ graph TD
     D --> J[Choropleth Layer]
     
     F --> K[Choropleth Data Service]
-    F --> L[Cache Service]
-    F --> M[Color Ramp Manager]
+    F --> L[GeoBoundaries Service]
+    F --> M[Cache Service]
+    F --> N[Color Ramp Manager]
     
     G --> N[SVG Overlay]
     N --> O[D3.js Rendering]
@@ -67,6 +68,7 @@ class MaplumiVisual implements IVisual {
     
     // Data Management
     private dataService: ChoroplethDataService;
+    private geoBoundariesService: GeoBoundariesService;
     private cacheService: CacheService;
     private colorRampManager: ColorRampManager;
     
@@ -96,8 +98,11 @@ class MaplumiVisual implements IVisual {
 
 #### Choropleth Mapping
 - Area-based data visualization using GeoJSON boundaries
+- **Integrated GeoBoundaries Support**: Built-in access to 91+ countries' administrative boundaries
+- **Multiple Data Sources**: GeoBoundaries API or custom TopoJSON/GeoJSON URLs
+- **Dynamic Field Mapping**: Automatic field options based on data source selection
 - Statistical classification methods (Equal Interval, Quantile, Natural Breaks)
-- Dynamic color ramp application
+- Dynamic color ramp application with accessibility considerations
 - Spatial indexing for performance optimization
 
 ### 3. Advanced Legend System
@@ -107,7 +112,16 @@ class MaplumiVisual implements IVisual {
 - **Adaptive Generation**: Automatically adjusts to outlier detection
 - **Positioning Control**: Flexible legend placement and styling
 
-### 4. Data Processing Pipeline
+### 4. GeoBoundaries Integration
+
+- **Built-in API Access**: Direct integration with GeoBoundaries.org for standardized administrative boundaries
+- **Comprehensive Coverage**: Support for 91+ countries across multiple administrative levels
+- **Multiple Release Types**: Access to gbOpen, gbHumanitarian, and gbAuthoritative boundary datasets
+- **Smart UI**: Conditional field visibility and validation based on user selections
+- **Global Support**: Special "All Countries" dataset for worldwide visualizations
+- **Field Flexibility**: Dynamic boundary field mapping (shapeISO, shapeName, shapeID, shapeGroup)
+
+### 5. Data Processing Pipeline
 
 ```mermaid
 graph LR
@@ -133,7 +147,15 @@ graph LR
 - **Size (Primary)**: Numeric values for circle scaling
 - **Size (Secondary)**: Optional second numeric value for nested visualizations
 - **Choropleth Value**: Numeric values for area coloring
-- **Location Code**: Administrative codes for choropleth boundary matching
+- **Location Code**: Administrative codes for boundary matching (supports GeoBoundaries field formats)
+
+#### Boundary Data Sources
+- **GeoBoundaries**: Integrated API access to standardized administrative boundaries
+  - 91+ countries with multiple administrative levels (ADM0-ADM3)
+  - Three release types: gbOpen, gbHumanitarian, gbAuthoritative
+  - Consistent field structure: shapeISO, shapeName, shapeID, shapeGroup
+  - Special "All Countries" global dataset support
+- **Custom Sources**: User-provided TopoJSON/GeoJSON URLs with configurable field mapping
 
 #### Optional Fields
 - **Tooltips**: Additional fields for hover information
@@ -151,6 +173,8 @@ interface ProcessedData {
     choroplethValues: {
         locationCodes: string[];
         measureValues: number[];
+        boundarySource: 'geoboundaries' | 'custom';
+        fieldMapping: string; // shapeISO, shapeName, shapeID, shapeGroup, or custom field
     };
     tooltipData: any[][];
 }
@@ -212,10 +236,22 @@ interface ProcessedData {
 ### ChoroplethDataService
 - **Purpose**: Boundary data retrieval and processing
 - **Capabilities**:
-  - Async GeoJSON fetching from external sources
+  - Async boundary data fetching from multiple sources
+  - GeoBoundaries API integration with 91+ country support
+  - Custom TopoJSON/GeoJSON URL processing
   - Data caching for performance
   - Spatial-attribute joining
   - Error handling and fallbacks
+
+### GeoBoundariesService
+- **Purpose**: GeoBoundaries API integration and management
+- **Features**:
+  - Dynamic API URL construction for different release types
+  - Metadata fetching and validation
+  - Support for gbOpen, gbHumanitarian, and gbAuthoritative releases
+  - "All Countries" aggregated dataset handling
+  - Field mapping for shapeISO, shapeName, shapeID, and shapeGroup
+  - Administrative level validation (ADM0-ADM3)
 
 ### ColorRampManager
 - **Purpose**: Color scheme management and application
@@ -266,6 +302,17 @@ class ChoroplethVisualCardSettings extends formattingSettings.SimpleCard {
     choroplethDisplaySettingsGroup: choroplethDisplaySettingsGroup;
     choroplethLegendSettingsGroup: choroplethLegendSettingsGroup;
 }
+
+// Boundary settings with GeoBoundaries integration
+class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
+    boundaryDataSource: DropDown;        // GeoBoundaries or Custom
+    geoBoundariesCountry: DropDown;      // 91+ countries + "All Countries"
+    geoBoundariesReleaseType: DropDown;  // gbOpen, gbHumanitarian, gbAuthoritative
+    geoBoundariesAdminLevel: DropDown;   // ADM0-ADM3 with conditional restrictions
+    boundaryIdField: DropDown;           // Dynamic field options based on source
+    customBoundaryIdField: TextInput;    // Custom field mapping for non-GeoBoundaries
+    topoJSON_geoJSON_FileUrl: TextInput; // Custom boundary data URL
+}
 ```
 
 #### Map Control Settings
@@ -311,9 +358,21 @@ interface VisualOptions {
 
 ### External Data Sources
 
-#### Boundary Data Integration
-- REST API endpoints for GeoJSON boundary data
-- Configurable endpoint URLs for different administrative levels
+#### GeoBoundaries API Integration
+- **API Endpoint**: `https://www.geoboundaries.org/api/current`
+- **Coverage**: 91+ countries with comprehensive administrative boundaries
+- **Release Types**: 
+  - gbOpen (CC-BY 4.0): General use with fastest updates
+  - gbHumanitarian (UN OCHA): Optimized for humanitarian operations
+  - gbAuthoritative (UN SALB): Official government boundaries
+- **Administrative Levels**: ADM0 (countries) through ADM3 (municipalities)
+- **Field Structure**: Consistent shapeISO, shapeName, shapeID, shapeGroup fields
+- **Special Features**: "All Countries" aggregated dataset for global visualizations
+
+#### Custom Boundary Data
+- User-provided TopoJSON/GeoJSON URLs for specialized boundary datasets
+- Configurable field mapping for location code matching
+- Automatic format detection and conversion
 - Fallback mechanisms for connectivity issues
 
 #### Basemap Providers
@@ -406,4 +465,4 @@ npm run lint
 
 ---
 
-*This specification serves as the primary reference for the Maplumi Power BI visual architecture and should be updated as the implementation evolves.*
+*This specification serves as the primary reference for the Maplumi Power BI visual architecture. Recent major updates include integrated GeoBoundaries API support, streamlined boundary data configuration, dynamic field mapping, and enhanced user experience with conditional UI elements. The specification should be updated as the implementation continues to evolve.*
