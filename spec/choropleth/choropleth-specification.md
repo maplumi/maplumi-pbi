@@ -76,6 +76,7 @@ class ChoroplethDataService {
 ### 1. Geographic Data Processing
 
 #### Input Data Formats
+- **GeoBoundaries API**: Direct API integration with metadata and boundary data
 - **GeoJSON**: Direct support for FeatureCollection format
 - **TopoJSON**: Automatic conversion to GeoJSON with topology preservation
 - **Feature Filtering**: Boundary features filtered by valid administrative codes
@@ -83,9 +84,12 @@ class ChoroplethDataService {
 #### Data Flow
 ```typescript
 // Geographic data processing workflow
-Raw Boundary Data (GeoJSON/TopoJSON)
+Boundary Data Source Selection (GeoBoundaries vs Custom)
     ↓
-Format Detection & Conversion
+GeoBoundaries: API Metadata Fetch → Boundary Data Download
+Custom: Direct GeoJSON/TopoJSON URL Fetch
+    ↓
+Format Detection & Conversion (TopoJSON → GeoJSON)
     ↓
 Feature Filtering (by administrative codes)
     ↓
@@ -98,11 +102,38 @@ Rendering-Ready FeatureCollection
 
 #### Processing Implementation
 ```typescript
-public processGeoData(data: any, pcodeKey: string, validPCodes: string[]): FeatureCollection {
-    // Handle TopoJSON conversion if needed
-    let geojson: FeatureCollection = this.isTopoJSON(data)
-        ? this.convertTopoJSONToGeoJSON(data)
-        : data as FeatureCollection;
+public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection> {
+    let geojson: FeatureCollection;
+    
+    // Determine data source and fetch boundary data
+    if (options.boundaryDataSource === 'geoboundaries') {
+        // Use GeoBoundaries API
+        const metadata = await GeoBoundariesService.fetchMetadata(options);
+        if (!metadata) {
+            throw new Error('Failed to fetch GeoBoundaries metadata');
+        }
+        
+        const boundaryDataUrl = GeoBoundariesService.getDownloadUrl(metadata);
+        const response = await fetch(boundaryDataUrl);
+        const data = await response.json();
+        
+        geojson = this.isTopoJSON(data) 
+            ? this.convertTopoJSONToGeoJSON(data)
+            : data as FeatureCollection;
+    } else {
+        // Use custom URL
+        const response = await fetch(options.topoJSON_geoJSON_FileUrl);
+        const data = await response.json();
+        
+        geojson = this.isTopoJSON(data)
+            ? this.convertTopoJSONToGeoJSON(data)
+            : data as FeatureCollection;
+    }
+
+    // Get the appropriate field key for filtering
+    const pcodeKey = options.boundaryDataSource === 'geoboundaries' 
+        ? GeoBoundariesService.getBoundaryFieldName(options)
+        : options.locationPcodeNameId;
 
     // Filter features based on valid administrative codes
     return {
@@ -373,11 +404,19 @@ if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
 #### 1. Location Boundary Settings
 ```typescript
 class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
-    layerControl: ToggleSwitch;          // Enable/disable choropleth layer
-    apiEndpoint: TextInput;              // Boundary data API endpoint
-    locationLevel: ItemDropdown;         // Administrative level (country, region, etc.)
-    pcodeColumn: TextInput;              // Column name for administrative codes
-    mapDataKey: TextInput;              // Key field in boundary data
+    boundaryDataSource: ItemDropdown;        // GeoBoundaries or Custom source
+    
+    // GeoBoundaries-specific settings
+    geoBoundariesCountry: ItemDropdown;      // Country/Region selection (91+ countries)
+    geoBoundariesReleaseType: ItemDropdown;  // gbOpen, gbHumanitarian, gbAuthoritative
+    geoBoundariesAdminLevel: ItemDropdown;   // ADM0-ADM3 administrative levels
+    
+    // Boundary field mapping (dynamic based on source)
+    boundaryIdField: ItemDropdown;           // Field mapping for GeoBoundaries
+    customBoundaryIdField: TextInput;        // Custom field name for custom sources
+    
+    // Custom boundary data
+    topoJSON_geoJSON_FileUrl: TextInput;     // Custom TopoJSON/GeoJSON URL
 }
 ```
 
@@ -421,18 +460,196 @@ private getChoroplethOptions(): ChoroplethOptions {
     const settings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
     
     return {
-        layerControl: settings.choroplethLocationBoundarySettingsGroup.layerControl.value,
-        apiEndpoint: settings.choroplethLocationBoundarySettingsGroup.apiEndpoint.value,
-        locationLevel: settings.choroplethLocationBoundarySettingsGroup.locationLevel.value.value,
+        layerControl: settings.choroplethLocationBoundarySettingsGroup.layerControl?.value || true,
+        
+        // Boundary data source configuration
+        boundaryDataSource: settings.choroplethLocationBoundarySettingsGroup.boundaryDataSource.value.value,
+        
+        // GeoBoundaries-specific options
+        geoBoundariesCountry: settings.choroplethLocationBoundarySettingsGroup.geoBoundariesCountry.value.value,
+        geoBoundariesReleaseType: settings.choroplethLocationBoundarySettingsGroup.geoBoundariesReleaseType.value.value,
+        geoBoundariesAdminLevel: settings.choroplethLocationBoundarySettingsGroup.geoBoundariesAdminLevel.value.value,
+        
+        // Dynamic boundary field mapping
+        sourceFieldID: settings.choroplethLocationBoundarySettingsGroup.boundaryIdField.value.value,
+        locationPcodeNameId: settings.choroplethLocationBoundarySettingsGroup.customBoundaryIdField.value,
+        
+        // Custom boundary data URL
+        topoJSON_geoJSON_FileUrl: settings.choroplethLocationBoundarySettingsGroup.topoJSON_geoJSON_FileUrl.value,
+        
+        // Classification and display settings
         classificationMethod: settings.choroplethClassificationSettingsGroup.classificationMethod.value.value,
-        numberOfClasses: settings.choroplethClassificationSettingsGroup.numberOfClasses.value,
+        classes: settings.choroplethClassificationSettingsGroup.numberOfClasses.value,
         colorRamp: settings.choroplethDisplaySettingsGroup.colorRamp.value.value,
         customColorRamp: settings.choroplethDisplaySettingsGroup.customColorRamp.value,
         strokeColor: settings.choroplethDisplaySettingsGroup.strokeColor.value.value,
         strokeWidth: settings.choroplethDisplaySettingsGroup.strokeWidth.value,
-        fillOpacity: settings.choroplethDisplaySettingsGroup.fillOpacity.value / 100,
+        layerOpacity: settings.choroplethDisplaySettingsGroup.fillOpacity.value / 100,
         // ... additional options mapping
     };
+}
+```
+
+---
+
+## GeoBoundaries Integration
+
+### Overview
+
+The Maplumi Power BI visual now includes built-in integration with the [GeoBoundaries](https://www.geoboundaries.org/) API, providing access to high-quality administrative boundary data for 91+ countries without requiring external data preparation.
+
+### GeoBoundaries Service Architecture
+
+#### GeoBoundariesService Class
+```typescript
+export class GeoBoundariesService {
+    public static buildApiUrl(options: ChoroplethOptions): string;
+    public static fetchMetadata(options: ChoroplethOptions): Promise<GeoBoundariesMetadata | null>;
+    public static getBoundaryFieldName(options: ChoroplethOptions): string;
+    public static validateOptions(options: ChoroplethOptions): { isValid: boolean; message?: string };
+    public static isAllCountriesRequest(options: ChoroplethOptions): boolean;
+    public static getAllCountriesUrl(): string;
+}
+```
+
+### Data Source Configuration
+
+#### 1. Boundary Data Sources
+- **GeoBoundaries**: Integrated API access to standardized boundary data
+- **Custom**: User-provided TopoJSON/GeoJSON URLs
+
+#### 2. GeoBoundaries Release Types
+```typescript
+const RELEASE_TYPES = {
+    gbOpen: "gbOpen (CC-BY 4.0)",           // Open license, fastest updates
+    gbHumanitarian: "gbHumanitarian (UN OCHA)", // Humanitarian use optimized
+    gbAuthoritative: "gbAuthoritative (UN SALB)" // Official government boundaries
+};
+```
+
+#### 3. Administrative Levels
+```typescript
+const ADMIN_LEVELS = {
+    ADM0: "ADM0 (Country Borders)",      // National boundaries
+    ADM1: "ADM1 (States/Provinces)",     // First-level subdivisions
+    ADM2: "ADM2 (Counties/Districts)",   // Second-level subdivisions
+    ADM3: "ADM3 (Municipalities)"       // Third-level subdivisions
+};
+```
+
+### Field Mapping System
+
+#### Dynamic Field Options
+The boundary ID field options change dynamically based on the selected data source:
+
+**GeoBoundaries Fields:**
+- `shapeISO`: ISO codes (e.g., "KE-01", "US-CA")
+- `shapeName`: Human-readable names (e.g., "Nairobi", "California")
+- `shapeID`: Unique identifiers within the dataset
+- `shapeGroup`: Parent administrative unit (typically country)
+
+**Custom Source Fields:**
+- `customBoundaryIdField`: User-defined field name for custom data sources
+
+#### Conditional Field Visibility
+```typescript
+public applyConditionalDisplayRules(): void {
+    const selectedSource = this.boundaryDataSource.value?.value;
+    const isGeoBoundaries = selectedSource === "geoboundaries";
+    const isAllCountries = isGeoBoundaries && this.geoBoundariesCountry.value?.value === "ALL";
+    
+    // Show/hide GeoBoundaries-specific fields
+    this.geoBoundariesCountry.visible = isGeoBoundaries;
+    this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
+    this.geoBoundariesReleaseType.visible = isGeoBoundaries && !isAllCountries;
+    
+    // Handle "All Countries" restrictions
+    if (isAllCountries) {
+        this.geoBoundariesAdminLevel.items = [
+            { value: "ADM0", displayName: "ADM0 (Country Borders)" }
+        ];
+    }
+}
+```
+
+### API Integration
+
+#### URL Construction
+```typescript
+public static buildApiUrl(options: ChoroplethOptions): string {
+    const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
+    
+    // Special case: "All Countries" uses custom aggregated dataset
+    if (geoBoundariesCountry === "ALL") {
+        return VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL;
+    }
+    
+    // Standard GeoBoundaries API URL
+    return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
+}
+```
+
+#### Metadata Fetching
+```typescript
+public static async fetchMetadata(options: ChoroplethOptions): Promise<GeoBoundariesMetadata | null> {
+    try {
+        if (options.geoBoundariesCountry === "ALL") {
+            // Return mock metadata for "All Countries" dataset
+            return {
+                boundaryID: "ALL-COUNTRIES",
+                boundaryName: "All Countries",
+                staticDownloadLink: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL,
+                // ... additional metadata
+            };
+        }
+
+        const apiUrl = this.buildApiUrl(options);
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching geoBoundaries metadata:", error);
+        return null;
+    }
+}
+```
+
+### Special Features
+
+#### 1. "All Countries" Support
+- Provides access to world-wide country boundaries in a single dataset
+- Automatically restricts to ADM0 level only
+- Uses custom aggregated data source for better performance
+- Hides release type selection (not applicable to aggregated data)
+
+#### 2. Country/Region Coverage
+Currently supports 91 countries including:
+- **Major Economies**: USA, China, India, Germany, Japan, Brazil, UK, France
+- **Regions**: Complete coverage for Africa, Europe, Asia, Americas
+- **Special Territories**: Comprehensive administrative boundary data
+- **Humanitarian Focus**: Countries with active humanitarian operations
+
+#### 3. Data Validation
+```typescript
+public static validateOptions(options: ChoroplethOptions): { isValid: boolean; message?: string } {
+    // Validate required fields
+    if (!options.geoBoundariesReleaseType) {
+        return { isValid: false, message: "Release type is required" };
+    }
+    
+    // Special validation for "All Countries"
+    if (options.geoBoundariesCountry === "ALL" && options.geoBoundariesAdminLevel !== "ADM0") {
+        return { 
+            isValid: false, 
+            message: "When 'All Countries' is selected, only ADM0 level is supported" 
+        };
+    }
+    
+    return { isValid: true };
 }
 ```
 
@@ -533,25 +750,66 @@ this.selectionManager.registerOnSelectCallback(() => {
 });
 ```
 
-### 2. External Boundary Data
+### 2. Boundary Data Sources
 
-#### API Integration
+#### GeoBoundaries API Integration
 ```typescript
-// Async boundary data fetching
-private async fetchChoroplethData(
-    endpoint: string, 
-    locationLevel: string, 
-    signal?: AbortSignal
-): Promise<any> {
+// GeoBoundaries service integration
+private async fetchGeoBoundariesData(options: ChoroplethOptions): Promise<any> {
     try {
-        const response = await fetch(`${endpoint}/${locationLevel}`, { signal });
+        // Validate options first
+        const validation = GeoBoundariesService.validateOptions(options);
+        if (!validation.isValid) {
+            throw new Error(validation.message);
+        }
+
+        // Fetch metadata to get download URL
+        const metadata = await GeoBoundariesService.fetchMetadata(options);
+        if (!metadata) {
+            throw new Error('Failed to fetch GeoBoundaries metadata');
+        }
+
+        // Download boundary data
+        const downloadUrl = GeoBoundariesService.getDownloadUrl(metadata, true); // Prefer TopoJSON
+        const response = await fetch(downloadUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('GeoBoundaries data fetch failed:', error);
+        throw error;
+    }
+}
+```
+
+#### Custom URL Integration
+```typescript
+// Custom boundary data fetching
+private async fetchCustomBoundaryData(url: string, signal?: AbortSignal): Promise<any> {
+    try {
+        const response = await fetch(url, { signal });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         return await response.json();
     } catch (error) {
-        console.error('Choropleth data fetch failed:', error);
+        console.error('Custom boundary data fetch failed:', error);
         throw error;
+    }
+}
+```
+
+#### Unified Data Fetching
+```typescript
+// Unified boundary data fetching based on source
+private async fetchBoundaryData(options: ChoroplethOptions, signal?: AbortSignal): Promise<any> {
+    if (options.boundaryDataSource === 'geoboundaries') {
+        return await this.fetchGeoBoundariesData(options);
+    } else {
+        return await this.fetchCustomBoundaryData(options.topoJSON_geoJSON_FileUrl, signal);
     }
 }
 ```
@@ -560,12 +818,15 @@ private async fetchChoroplethData(
 
 #### Intelligent Caching Strategy
 ```typescript
-// Cache boundary data for performance
-const cacheKey = `${endpoint}_${locationLevel}`;
+// Cache boundary data for performance with source-aware keys
+const cacheKey = options.boundaryDataSource === 'geoboundaries'
+    ? `geoboundaries_${options.geoBoundariesReleaseType}_${options.geoBoundariesCountry}_${options.geoBoundariesAdminLevel}`
+    : `custom_${options.topoJSON_geoJSON_FileUrl}`;
+
 let geojsonData = this.cacheService.get(cacheKey);
 
 if (!geojsonData) {
-    geojsonData = await this.fetchChoroplethData(endpoint, locationLevel, signal);
+    geojsonData = await this.fetchBoundaryData(options, signal);
     this.cacheService.set(cacheKey, geojsonData);
 }
 ```
@@ -671,4 +932,13 @@ interface CustomClassification {
 
 ---
 
-*This specification documents the current implementation of the choropleth visualization system and should be updated as new features are added or existing functionality is modified.*
+*This specification documents the current implementation of the choropleth visualization system with integrated GeoBoundaries support. Key recent updates include:*
+
+- **GeoBoundaries API Integration**: Built-in support for 91+ countries with multiple release types
+- **Dynamic Field Mapping**: Automatic field options based on selected data source  
+- **"All Countries" Support**: Optimized global dataset with custom aggregated boundaries
+- **Streamlined UI**: Conditional field visibility and intelligent admin level restrictions
+- **Combined Boundary Fields**: Context-aware field selection for GeoBoundaries vs custom sources
+- **Enhanced Validation**: Comprehensive option validation with user-friendly error messages
+
+*The specification should be updated as new features are added or existing functionality is modified.*

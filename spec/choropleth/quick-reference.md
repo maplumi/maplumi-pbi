@@ -16,26 +16,34 @@ Quick reference guide for Power BI developers using the choropleth (area-based m
 
 ### 2. Basic Configuration
 
-1. **Enable Choropleth**: Format Pane → Choropleth → Location & Boundary → Layer Control: `On`
-2. **Set API Endpoint**: Enter boundary data API URL
-3. **Choose Admin Level**: Select geographic level (country, region, district)
-4. **Configure P-code Column**: Set column name containing location codes
+1. **Select Data Source**: Format Pane → Choropleth → Boundary → Boundary Source: `GeoBoundaries` or `Custom`
+
+**For GeoBoundaries:**
+2. **Choose Country**: Select from 91+ available countries or "All Countries"
+3. **Set Admin Level**: Choose ADM0-ADM3 administrative level
+4. **Select Release Type**: gbOpen, gbHumanitarian, or gbAuthoritative
+5. **Pick Field Mapping**: Choose shapeISO, shapeName, shapeID, or shapeGroup
+
+**For Custom Sources:**
+2. **Enter URL**: Provide TopoJSON/GeoJSON URL
+3. **Set Field Name**: Specify the boundary ID field in your data
 
 ### 3. Essential Settings
 
 ```
 Choropleth Settings:
-├── Location & Boundary
-│   ├── Layer Control: On
-│   ├── API Endpoint: https://api.example.com/boundaries
-│   ├── Location Level: admin1
-│   └── P-code Column: ADM1_PCODE
+├── Boundary
+│   ├── Boundary Source: GeoBoundaries/Custom
+│   ├── Country/Region: Kenya (or All Countries)
+│   ├── Release Type: gbOpen
+│   ├── Administrative Level: ADM1
+│   └── Boundary ID Field: shapeISO
 ├── Classification
 │   ├── Method: Natural Breaks
 │   └── Classes: 5
 └── Display
     ├── Color Ramp: Blues
-    └── Fill Opacity: 70%
+    └── Layer Opacity: 70%
 ```
 
 ---
@@ -46,21 +54,50 @@ Choropleth Settings:
 
 Ensure your location codes match the boundary data format:
 
-| Admin Level | Example Code | Description |
-|-------------|--------------|-------------|
-| Country | `AFG`, `USA` | ISO 3-letter codes |
-| Admin 1 | `AF001`, `US.NY` | Region/state codes |
-| Admin 2 | `AF001001` | District/county codes |
-| Admin 3 | `AF001001001` | Sub-district codes |
+| Data Source | Field Options | Example Codes | Description |
+|-------------|---------------|---------------|-------------|
+| **GeoBoundaries** | shapeISO | `KE-01`, `US-CA`, `NG-LA` | ISO codes with country prefix |
+| | shapeName | `Nairobi`, `California`, `Lagos` | Human-readable names |
+| | shapeID | `123456`, `789012` | Unique identifiers |
+| | shapeGroup | `KEN`, `USA`, `NGA` | Parent country codes |
+| **Custom** | (user-defined) | `AF001`, `custom_001` | Based on your data |
+
+### GeoBoundaries Coverage
+
+#### Administrative Levels by Country
+- **ADM0**: All 91+ countries (country boundaries)
+- **ADM1**: States/provinces/regions for most countries
+- **ADM2**: Counties/districts for major countries
+- **ADM3**: Municipalities for select countries
+
+#### Release Types
+- **gbOpen**: CC-BY 4.0 license, fastest updates, general use
+- **gbHumanitarian**: UN OCHA licensed, optimized for humanitarian use
+- **gbAuthoritative**: UN SALB licensed, official government boundaries
+
+#### Special Features
+- **"All Countries"**: Pre-aggregated world dataset (ADM0 only)
+- **Automatic field detection**: Consistent field structure across all data
+- **Built-in validation**: Prevents invalid country/admin level combinations
 
 ### Sample Data Structure
 
+**For GeoBoundaries (Kenya ADM1 with shapeISO):**
 ```
 Location    | Choropleth Value | Tooltip Info
-------------|-----------------|-------------
-AF001       | 150            | Kabul Province
-AF002       | 89             | Kandahar Province
-AF003       | 234            | Herat Province
+------------|------------------|-------------
+KE-01       | 150             | Baringo County
+KE-02       | 89              | Bomet County  
+KE-03       | 234             | Bungoma County
+```
+
+**For Custom Data:**
+```
+Location    | Choropleth Value | Tooltip Info
+------------|------------------|-------------
+AF001       | 150             | Kabul Province
+AF002       | 89              | Kandahar Province
+AF003       | 234             | Herat Province
 ```
 
 ---
@@ -100,22 +137,51 @@ Enter comma-separated hex values: `#fee5d9,#fcae91,#fb6a4a,#cb181d`
 
 **Problem**: Choropleth layer enabled but no colored areas visible
 
-**Solutions:**
-- ✅ Check API endpoint is accessible
-- ✅ Verify location codes match boundary data
-- ✅ Ensure P-code column name is correct
-- ✅ Check data values are not all null/zero
+**For GeoBoundaries:**
+- ✅ Ensure country and admin level combination is valid
+- ✅ Verify location codes match selected field mapping (shapeISO, shapeName, etc.)
+- ✅ Check if "All Countries" is selected (only ADM0 supported)
+- ✅ Try different release type (gbOpen has best coverage)
 
-### 2. Wrong Geographic Level
+**For Custom Data:**
+- ✅ Verify URL is accessible and returns valid GeoJSON/TopoJSON
+- ✅ Check custom boundary ID field matches your data
+- ✅ Ensure feature properties contain the specified field
+
+### 2. Location Code Mismatches
+
+**Problem**: Data not linking to boundary areas
+
+**GeoBoundaries Solutions:**
+- ✅ Switch between field mappings (shapeISO ↔ shapeName ↔ shapeID)
+- ✅ Preview GeoBoundaries data to understand field values
+- ✅ Use GeoBoundaries field reference for your country/admin level
+
+**Custom Data Solutions:**
+- ✅ Inspect your boundary data properties
+- ✅ Ensure field name matches exactly (case-sensitive)
+- ✅ Verify location codes don't have extra formatting
+
+### 3. GeoBoundaries API Issues
+
+**Problem**: "Failed to fetch" or connection errors
+
+**Solutions:**
+- ✅ Check internet connection
+- ✅ Try different release type if current one fails
+- ✅ Verify country code is supported (91+ countries available)
+- ✅ Use "All Countries" for global datasets
+
+### 4. Wrong Geographic Level
 
 **Problem**: Areas too large/small or unexpected boundaries
 
 **Solutions:**
-- ✅ Change Location Level (country → admin1 → admin2 → admin3)
+- ✅ Change administrative level (ADM0 → ADM1 → ADM2 → ADM3)
 - ✅ Verify location codes match selected admin level
-- ✅ Check API endpoint supports requested level
+- ✅ For "All Countries", only ADM0 is available
 
-### 3. Colors Not Applied
+### 5. Colors Not Applied
 
 **Problem**: Areas showing as grey or single color
 
@@ -125,17 +191,17 @@ Enter comma-separated hex values: `#fee5d9,#fcae91,#fb6a4a,#cb181d`
 - ✅ Ensure color ramp has sufficient colors
 - ✅ Review custom color ramp format (hex codes)
 
-### 4. Performance Issues
+### 6. Performance Issues
 
 **Problem**: Slow rendering or browser freezing
 
 **Solutions:**
-- ✅ Reduce number of geographic features
-- ✅ Use higher admin level (less detail)
-- ✅ Check network connection for API calls
+- ✅ Use higher admin level (ADM0 instead of ADM3) for better performance
+- ✅ Try "All Countries" for global visualizations (optimized dataset)
+- ✅ Prefer TopoJSON over GeoJSON for custom sources
 - ✅ Clear browser cache
 
-### 5. Selection Not Working
+### 7. Selection Not Working
 
 **Problem**: Clicking areas doesn't select/filter
 
@@ -149,18 +215,83 @@ Enter comma-separated hex values: `#fee5d9,#fcae91,#fb6a4a,#cb181d`
 
 ## Best Practices
 
+### GeoBoundaries Usage
+
+1. **Data Source Selection**
+   - Use GeoBoundaries for standard administrative boundaries
+   - Choose gbOpen for general use (best coverage and performance)
+   - Select gbHumanitarian for humanitarian/emergency contexts
+   - Use gbAuthoritative for official government reporting
+
+2. **Field Mapping Strategy**
+   - **shapeISO**: Best for structured administrative codes (KE-01, US-CA)
+   - **shapeName**: Ideal for human-readable names (Nairobi, California)
+   - **shapeID**: Use for unique identifiers when ISO codes unavailable
+   - **shapeGroup**: Good for country-level grouping and validation
+
+3. **Administrative Level Guidelines**
+   - **ADM0**: Country-level analysis, global comparisons
+   - **ADM1**: State/province analysis, regional studies
+   - **ADM2**: County/district analysis, local administration
+   - **ADM3**: Municipal analysis, detailed local studies
+
+4. **Special Considerations**
+   - Use "All Countries" for global datasets (ADM0 only, optimized)
+   - Test field mappings with small datasets first
+   - Validate country/admin level combinations before deployment
+
 ### Data Quality
 
 1. **Clean Location Codes**
    - Remove leading/trailing spaces
    - Use consistent format (uppercase/lowercase)
-   - Validate against boundary data
+   - Match GeoBoundaries field format exactly
 
 2. **Handle Missing Values**
    - Use transparent fill for missing data
    - Consider showing in legend as "No data"
+   - Validate against GeoBoundaries coverage
 
 3. **Optimize Value Ranges**
+   - Remove extreme outliers when appropriate
+   - Use log scales for highly skewed data
+   - Consider data transformation for better visualization
+
+### Classification Strategy
+
+1. **Method Selection**
+   - Natural Breaks for general-purpose mapping
+   - Equal Interval for comparison across time/regions
+   - Quantile for skewed distributions
+   - Unique Values for categorical data
+
+2. **Class Configuration**
+   - Use 3-7 classes for optimal readability
+   - Ensure classes have meaningful interpretation
+   - Consider color accessibility (colorblind-friendly)
+
+3. **Legend Best Practices**
+   - Show meaningful value ranges
+   - Include units in legend title
+   - Position legend to avoid data overlap
+
+### Performance
+
+1. **Data Volume**
+   - Use appropriate admin level for map scale
+   - "All Countries" is optimized for global views
+   - ADM0-ADM1 for continental/regional views
+   - ADM2-ADM3 for national/local views
+
+2. **Network Optimization**
+   - GeoBoundaries API is optimized and cached
+   - Custom URLs should be reliable and fast
+   - Consider TopoJSON for smaller file sizes
+
+3. **Caching**
+   - Boundary data is automatically cached
+   - Clear cache if switching data sources frequently
+   - Monitor network requests in browser dev tools
    - Remove extreme outliers if needed
    - Consider log transformation for wide ranges
 
@@ -198,19 +329,25 @@ Enter comma-separated hex values: `#fee5d9,#fcae91,#fb6a4a,#cb181d`
 ## Troubleshooting Checklist
 
 ### Initial Setup
-- [ ] Choropleth layer enabled in format pane
-- [ ] API endpoint URL accessible
-- [ ] Location Level matches data codes
-- [ ] P-code Column name correct
+- [ ] Boundary source selected (GeoBoundaries vs Custom)
+- [ ] For GeoBoundaries: Country, admin level, release type configured
+- [ ] For Custom: URL accessible and field name specified
+- [ ] Field mapping matches your data format
 
-### Data Validation
-- [ ] Location codes format consistent
+### Data Validation  
+- [ ] Location codes format matches boundary data
 - [ ] Choropleth values are numeric
 - [ ] No duplicate location codes
-- [ ] Data relationships properly configured
+- [ ] Data relationships properly configured in Power BI
+
+### GeoBoundaries Specific
+- [ ] Country and admin level combination supported
+- [ ] Release type available for selected country
+- [ ] Field mapping (shapeISO/shapeName/shapeID) matches data
+- [ ] "All Countries" restricted to ADM0 level only
 
 ### Visual Configuration
-- [ ] Classification method appropriate for data
+- [ ] Classification method appropriate for data distribution
 - [ ] Number of classes suitable (3-7 recommended)
 - [ ] Color scheme provides good contrast
 - [ ] Fill opacity allows underlying features to show

@@ -2,7 +2,29 @@
 
 ## Overview
 
-This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual. It covers all public methods, interfaces, configuration options, and integration patterns for developers working with or extending the choropleth functionality.
+This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual. I##### `processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection>`
+Processes geographic boundary data from GeoBoundaries API or custom sources.
+
+**Parameters:**
+- `options: ChoroplethOptions` - Configuration options including data source settings
+- `validPCodes: string[]` - Array of valid administrative codes to include
+
+**Returns:**
+- `Promise<FeatureCollection>` - Processed GeoJSON feature collection
+
+**Example:**
+```typescript
+const processedData = await dataService.processGeoData(
+    {
+        boundaryDataSource: 'geoboundaries',
+        geoBoundariesCountry: 'KEN',
+        geoBoundariesReleaseType: 'gbOpen',
+        geoBoundariesAdminLevel: 'ADM1',
+        sourceFieldID: 'shapeISO'
+    },
+    ['KE-01', 'KE-02', 'KE-03']
+);
+``` methods, interfaces, configuration options, and integration patterns for developers working with or extending the choropleth functionality.
 
 ## Table of Contents
 
@@ -48,6 +70,83 @@ const renderedElement = layer.render(frameState);
 
 ##### `setSelectedIds(selectionIds: ISelectionId[]): void`
 Updates the visual selection state for choropleth features.
+
+### GeoBoundariesService
+
+Static service class for GeoBoundaries API integration.
+
+#### Static Methods
+
+##### `buildApiUrl(options: ChoroplethOptions): string`
+Constructs the GeoBoundaries API URL or returns custom URL.
+
+**Parameters:**
+- `options: ChoroplethOptions` - Choropleth configuration options
+
+**Returns:**
+- `string` - Complete API URL or custom data URL
+
+**Example:**
+```typescript
+const url = GeoBoundariesService.buildApiUrl({
+    boundaryDataSource: 'geoboundaries',
+    geoBoundariesReleaseType: 'gbOpen',
+    geoBoundariesCountry: 'KEN',
+    geoBoundariesAdminLevel: 'ADM1'
+});
+// Returns: "https://www.geoboundaries.org/api/current/gbOpen/KEN/ADM1/"
+```
+
+##### `fetchMetadata(options: ChoroplethOptions): Promise<GeoBoundariesMetadata | null>`
+Fetches metadata from GeoBoundaries API or returns mock metadata for "All Countries".
+
+**Parameters:**
+- `options: ChoroplethOptions` - Choropleth configuration options
+
+**Returns:**
+- `Promise<GeoBoundariesMetadata | null>` - Metadata object or null on error
+
+##### `getBoundaryFieldName(options: ChoroplethOptions): string`
+Returns the appropriate field name for boundary data based on user selection.
+
+**Parameters:**
+- `options: ChoroplethOptions` - Choropleth configuration options
+
+**Returns:**
+- `string` - Field name (shapeISO, shapeName, shapeID, or shapeGroup)
+
+##### `validateOptions(options: ChoroplethOptions): { isValid: boolean; message?: string }`
+Validates GeoBoundaries configuration options.
+
+**Parameters:**
+- `options: ChoroplethOptions` - Choropleth configuration options
+
+**Returns:**
+- `{ isValid: boolean; message?: string }` - Validation result with optional error message
+
+**Example:**
+```typescript
+const validation = GeoBoundariesService.validateOptions(options);
+if (!validation.isValid) {
+    console.error(validation.message);
+}
+```
+
+##### `isAllCountriesRequest(options: ChoroplethOptions): boolean`
+Checks if the request is for the "All Countries" dataset.
+
+##### `getAllCountriesUrl(): string`
+Returns the URL for the "All Countries" aggregated dataset.
+
+##### `getDownloadUrl(metadata: GeoBoundariesMetadata, preferTopoJSON: boolean = true): string`
+Gets the appropriate download URL from metadata, with format preference.
+
+**Parameters:**
+- `metadata: GeoBoundariesMetadata` - Metadata object from API
+- `preferTopoJSON: boolean` - Whether to prefer TopoJSON over GeoJSON
+
+**Returns:**
+- `string` - Download URL for boundary data
 
 **Parameters:**
 - `selectionIds: ISelectionId[]` - Array of Power BI selection identifiers
@@ -222,31 +321,94 @@ interface ChoroplethOptions {
     // Layer control
     layerControl: boolean;
     
-    // Data source
-    apiEndpoint: string;
-    locationLevel: string;
-    pcodeColumn: string;
-    mapDataKey: string;
+    // Boundary data source
+    boundaryDataSource: string; // 'geoboundaries' | 'custom'
+    
+    // GeoBoundaries-specific options
+    geoBoundariesReleaseType: string; // 'gbOpen' | 'gbHumanitarian' | 'gbAuthoritative'
+    geoBoundariesCountry: string; // ISO country code or 'ALL'
+    geoBoundariesAdminLevel: string; // 'ADM0' | 'ADM1' | 'ADM2' | 'ADM3'
+    sourceFieldID: string; // 'shapeISO' | 'shapeName' | 'shapeID' | 'shapeGroup'
+    
+    // Custom data source options
+    topoJSON_geoJSON_FileUrl: string; // Custom boundary data URL
+    locationPcodeNameId: string; // Custom field name for P-codes
     
     // Classification
     classificationMethod: string;
-    numberOfClasses: number;
+    classes: number;
     
     // Visual styling
+    colorMode: string;
     colorRamp: string;
     customColorRamp: string;
-    reverseColorRamp: boolean;
+    invertColorRamp: boolean;
     strokeColor: string;
     strokeWidth: number;
-    fillOpacity: number;
+    layerOpacity: number;
     
     // Legend
     showLegend: boolean;
     legendTitle: string;
     legendTitleColor: string;
+    legendLabelsColor: string;
     legendPosition: string;
     legendOrientation: string;
-    labelFormat: string;
+    legendTitleAlignment: string;
+    legendItemMargin: number;
+}
+```
+
+### GeoBoundariesMetadata
+
+Metadata interface returned by GeoBoundaries API.
+
+```typescript
+interface GeoBoundariesMetadata {
+    // Core identification
+    boundaryID: string;
+    boundaryName: string;
+    boundaryISO: string;
+    
+    // Temporal information
+    boundaryYearRepresented: string;
+    buildDate: string;
+    sourceDataUpdateDate: string;
+    
+    // Administrative details
+    boundaryType: string; // ADM level
+    boundaryCanonical: string;
+    
+    // Legal and licensing
+    boundarySource: string;
+    boundaryLicense: string;
+    licenseDetail: string;
+    licenseSource: string;
+    
+    // Geographic context
+    Continent: string;
+    "UNSDG-region": string;
+    "UNSDG-subregion": string;
+    worldBankIncomeGroup: string;
+    
+    // Statistical metrics
+    admUnitCount: string;
+    meanVertices: string;
+    minVertices: string;
+    maxVertices: string;
+    meanPerimeterLengthKM: string;
+    minPerimeterLengthKM: string;
+    maxPerimeterLengthKM: string;
+    meanAreaSqKM: string;
+    minAreaSqKM: string;
+    maxAreaSqKM: string;
+    
+    // Download URLs
+    staticDownloadLink: string;
+    gjDownloadURL: string; // GeoJSON
+    tjDownloadURL: string; // TopoJSON
+    simplifiedGeometryGeoJSON: string;
+    imagePreview: string;
 }
 ```
 
@@ -267,18 +429,88 @@ interface ChoroplethDataPoint {
 
 ## External API Integration
 
-### Boundary Data APIs
+### GeoBoundaries API
 
-#### Standard Endpoint Structure
+#### API Structure
 ```typescript
-// Base URL pattern
-const API_BASE = 'https://api.example.com/boundaries';
+// GeoBoundaries API base URL
+const GEOBOUNDARIES_API = 'https://www.geoboundaries.org/api/current';
 
-// Administrative levels
-const ENDPOINTS = {
-    country: `${API_BASE}/countries`,
-    region: `${API_BASE}/admin1`,
-    district: `${API_BASE}/admin2`,
+// API endpoint construction
+const endpoint = `${GEOBOUNDARIES_API}/${releaseType}/${countryCode}/${adminLevel}/`;
+
+// Example endpoints
+const examples = {
+    kenya_admin1: 'https://www.geoboundaries.org/api/current/gbOpen/KEN/ADM1/',
+    usa_admin2: 'https://www.geoboundaries.org/api/current/gbHumanitarian/USA/ADM2/',
+    all_countries: 'https://geodata-bi.datauga.com/geoBoundariesCGAZ_ADM0.json'
+};
+```
+
+#### Release Types
+```typescript
+const RELEASE_TYPES = {
+    gbOpen: {
+        license: 'CC-BY 4.0',
+        description: 'Open license boundaries with fastest updates',
+        usage: 'General use, commercial applications'
+    },
+    gbHumanitarian: {
+        license: 'UN OCHA',
+        description: 'Humanitarian use optimized boundaries',
+        usage: 'Humanitarian operations, emergency response'
+    },
+    gbAuthoritative: {
+        license: 'UN SALB',
+        description: 'Official government boundaries',
+        usage: 'Official reporting, government use'
+    }
+};
+```
+
+#### Administrative Levels
+```typescript
+const ADMIN_LEVELS = {
+    ADM0: {
+        description: 'Country/National boundaries',
+        examples: ['Countries', 'Sovereign states']
+    },
+    ADM1: {
+        description: 'First-level administrative divisions',
+        examples: ['States', 'Provinces', 'Regions']
+    },
+    ADM2: {
+        description: 'Second-level administrative divisions',
+        examples: ['Counties', 'Districts', 'Departments']
+    },
+    ADM3: {
+        description: 'Third-level administrative divisions',
+        examples: ['Municipalities', 'Sub-districts', 'Communes']
+    }
+};
+```
+
+### Custom Boundary Data
+
+#### Supported Formats
+- **GeoJSON**: RFC 7946 compliant feature collections
+- **TopoJSON**: Topology-preserving format with automatic conversion
+
+#### URL Requirements
+```typescript
+// Valid URL patterns
+const customUrlExamples = [
+    'https://api.example.com/boundaries/admin1.geojson',
+    'https://data.example.org/topojson/districts.json',
+    'https://raw.githubusercontent.com/user/repo/main/boundaries.topojson'
+];
+
+// Required properties in GeoJSON features
+interface RequiredFeatureProperties {
+    [pcodeField: string]: string; // Must match locationPcodeNameId setting
+    // Additional properties for tooltips (optional)
+}
+```
     subdistrict: `${API_BASE}/admin3`
 };
 ```
