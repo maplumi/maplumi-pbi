@@ -210,6 +210,15 @@ Troubleshooting
 | MapTiler      | MapTiler API key         | Basemap → MapTiler API Key                  | Select a MapTiler Style                         |
 | None          | None                     | —                                           | Renders layers without a basemap                |
 
+Quick links
+- Mapbox access tokens: https://account.mapbox.com/access-tokens/
+- Mapbox Studio (styles): https://studio.mapbox.com/
+- MapTiler API keys: https://cloud.maptiler.com/account/keys/
+- MapTiler Maps (styles): https://cloud.maptiler.com/maps/
+
+Note
+- Custom Mapbox style URLs must start with `mapbox://`. Paste the URL in Format pane → Basemap → Mapbox Custom Style URL (and provide your Mapbox Access Token).
+
 See our **[Contributing Guidelines](CONTRIBUTING.md)** for detailed information about our development process.
 
 ### 🌟 Recognition
