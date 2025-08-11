@@ -6,8 +6,8 @@
         "visualClassName": "MaplumiVisual",
         "version": "1.0.0.0-beta",
         "description": "Minimal Map Visual for Power BI",
-        "supportUrl": "https://github.com/ayiemba/maplumi-pbi/issues",
-        "gitHubUrl": "https://github.com/ayiemba/maplumi-pbi"
+    "supportUrl": "https://github.com/maplumi/maplumi-pbi/issues",
+    "gitHubUrl": "https://github.com/maplumi/maplumi-pbi"
     },
     "apiVersion": "5.11.0",
     "author": {

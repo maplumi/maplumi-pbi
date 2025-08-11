@@ -87,6 +87,33 @@ Your map is now ready! Use it to:
 - Zoom to focus on specific areas
 - Export or share your insights
 
+## Data roles
+
+Assign fields to these roles in the Visualizations pane. You can enable only the layers you need; roles for disabled layers are optional.
+
+- Boundary ID (AdminPCodeNameID)
+	- Grouping. Used to join your data to boundary features for choropleth.
+	- Must match a property in your GeoJSON/TopoJSON. Configure the property name in Choropleth settings (Boundary ID Field / Custom Boundary ID Field).
+	- Max: 1 field.
+- Latitude
+	- Grouping, numeric/geography latitude. Required for proportional circles.
+	- Max: 1 field.
+- Longitude
+	- Grouping, numeric/geography longitude. Required for proportional circles.
+	- Max: 1 field.
+- Size
+	- Measure. Used to size proportional circles. Supports one or two measures (two series).
+	- Max: 2 fields.
+- Color
+	- Measure. Numeric measure used to classify/paint choropleth colors.
+	- Max: 1 field.
+- Tooltips
+	- Measures to include in the tooltip on hover.
+
+Notes
+- Data reduction: up to ~30,000 category rows are sampled (subject to Power BI limits and environment).
+- If only choropleth is enabled, Latitude/Longitude/Size are not required. If only circles are enabled, Boundary ID isn’t required.
+
 ## Real-World Examples
 
 ### Business Dashboard
@@ -104,18 +131,18 @@ Your map is now ready! Use it to:
 ## Getting Help & Support
 
 ### 📚 Documentation
-- **[Complete Specifications](specs/main.md)** - Detailed technical documentation
-- **[Choropleth Guide](specs/choropleth/choropleth-specification.md)** - Everything about region mapping
-- **[Circle Maps Guide](specs/scaled-circles/scaled-circles-specification.md)** - Point data visualization
-- **[API Reference](specs/choropleth/api-reference.md)** - For developers and advanced users
+- **[Complete Specifications](spec/main.md)** - Detailed technical documentation
+- **[Choropleth Guide](spec/choropleth/choropleth-specification.md)** - Everything about region mapping
+- **[Circle Maps Guide](spec/scaled-circles/scaled-circles-specification.md)** - Point data visualization
+- **[API Reference](spec/choropleth/api-reference.md)** - For developers and advanced users
 
 ### 🐛 Issues & Feature Requests
 Found a bug or have an idea? We'd love to hear from you!
-- **[Report Issues](https://github.com/ayiemba/maplumi-pbi/issues)**
-- **[Request Features](https://github.com/ayiemba/maplumi-pbi/issues/new?template=feature_request.md)**
+- **[Report Issues](https://github.com/maplumi/maplumi-pbi/issues)**
+- **[Request Features](https://github.com/maplumi/maplumi-pbi/issues/new)**
 
 ### 💬 Community & Discussion
-- **[GitHub Discussions](https://github.com/ayiemba/maplumi-pbi/discussions)** - Ask questions, share examples
+- **[GitHub Discussions](https://github.com/maplumi/maplumi-pbi/discussions)** - Ask questions, share examples
 - **[Power BI Community](https://community.powerbi.com/)** - Connect with other Power BI users
 
 ## Contributing to Maplumi
@@ -137,7 +164,7 @@ We welcome contributions from the community! Here's how you can help make Maplum
 #### Development Setup
 ```bash
 # Clone the repository
-git clone https://github.com/ayiemba/maplumi-pbi.git
+git clone https://github.com/maplumi/maplumi-pbi.git
 
 # Install dependencies
 npm install
@@ -148,6 +175,40 @@ npm start
 # Run tests
 npm test
 ```
+
+## Developer mode usage
+
+Use Developer Mode in Power BI Desktop for live-reload while building the visual.
+
+Prerequisites
+- Power BI Desktop (latest)
+- Enable Developer mode: File > Options and settings > Options > Preview features > Developer mode (and allow uncertified visuals if required by your environment)
+
+Run the dev server
+```powershell
+npm install
+npm start
+```
+
+In Power BI Desktop
+- Open your report.
+- In the Visualizations pane, use the Developer/Build visual option to add a local visual.
+- When prompted, provide the localhost URL shown in the terminal by the dev server.
+- The visual will hot-reload as you edit the code.
+
+Troubleshooting
+- Trust the dev SSL certificate when prompted.
+- If port 8080 is busy, the dev server will choose another; use the exact URL printed in the terminal.
+- Ensure Power BI Desktop can access https://localhost (no proxy/firewall blocking).
+
+### Basemap options & credentials
+
+| Basemap       | Credential needed        | Where to set (Format pane)                  | Notes                                           |
+|---------------|--------------------------|---------------------------------------------|-------------------------------------------------|
+| OpenStreetMap | None                     | —                                           | Default basemap, no key required                |
+| Mapbox        | Mapbox access token      | Basemap → Mapbox Access Token               | Choose a Mapbox Style or provide a custom style URL (mapbox://...) |
+| MapTiler      | MapTiler API key         | Basemap → MapTiler API Key                  | Select a MapTiler Style                         |
+| None          | None                     | —                                           | Renders layers without a basemap                |
 
 See our **[Contributing Guidelines](CONTRIBUTING.md)** for detailed information about our development process.
 
@@ -176,16 +237,28 @@ We're constantly working to improve Maplumi based on your feedback. Here's what'
 - Machine learning insights integration
 - Extended customization options
 
-**Vote on features and track progress in our [GitHub Issues](https://github.com/ayiemba/maplumi-pbi/issues)**
+**Vote on features and track progress in our [GitHub Issues](https://github.com/maplumi/maplumi-pbi/issues)**
+
+## License & privacy
+
+- License: MIT. See [LICENSE](LICENSE).
+- Network access: This visual may fetch basemaps/boundaries/styles only from the domains declared in capabilities (WebAccess):
+	- https://*.openstreetmap.org, https://*.arcgisonline.com, https://*.arcgis.com, https://*.mapbox.com, https://api.maptiler.com
+	- https://*.humdata.org, https://*.itos.uga.edu, https://*.githubusercontent.com, https://*.github.io
+	- https://*.googleapis.com, https://*.amazonaws.com, https://*.blob.core.windows.net, https://*.cloudfront.net, https://*.r2.dev, https://*.datauga.com
+	Requests occur only when you enable the respective provider or configure a custom GeoJSON/TopoJSON URL.
+- Local storage: Uses localStorage (when available in Power BI) to cache non-sensitive settings/resources for performance. No PII is stored by default.
+- Data flow: Your dataset stays within Power BI. The visual does not transmit your data to third-party services; it only downloads external map/geometry resources you configure. Avoid embedding sensitive data in external URLs.
+- Export: Supports report export (ExportContent). Exported artifacts may include the rendered map and legends.
 
 ## About the Project
 
 **Author**: Elvis Ayiemba ([@ayiemba](https://github.com/ayiemba))  
 **License**: MIT  
-**Version**: 1.0.0
+**Version**: 1.0.0.0-beta
 
 Maplumi is an open-source project built with ❤️ for the Power BI community. We believe that powerful geographic visualization should be accessible to everyone, not just GIS experts.
 
 ---
 
-**Ready to transform your geographic data?** Download Maplumi from the [Power BI Marketplace](https://appsource.microsoft.com/) or [build from source](https://github.com/ayiemba/maplumi-pbi) today!
+**Ready to transform your geographic data?** Download Maplumi from the [Power BI Marketplace](https://appsource.microsoft.com/) or [build from source](https://github.com/maplumi/maplumi-pbi) today!
