@@ -5,7 +5,7 @@
         "guid": "maplumi7708541FB6F548EAA4FDBD3BB2AB1811",
         "visualClassName": "MaplumiVisual",
         "version": "1.0.0.0-beta",
-        "description": "Enhanced Map Visual for Power BI",
+        "description": "Minimal Map Visual for Power BI",
         "supportUrl": "https://github.com/ayiemba/maplumi-pbi/issues",
         "gitHubUrl": "https://github.com/ayiemba/maplumi-pbi"
     },
