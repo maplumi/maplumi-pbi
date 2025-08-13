@@ -422,9 +422,9 @@ export class CircleLayer extends Layer {
                     const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
                     
                     // Apply compressed outlier scaling beyond 95th percentile
-                    // Use 60% of remaining radius space for outliers
+                    // Use 80% of remaining radius space for outliers (increased from 60%)
                     const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
-                    const maxOutlierBonus = remainingRadiusSpace * 0.6;
+                    const maxOutlierBonus = remainingRadiusSpace * 0.8;
                     const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
                     
                     const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);

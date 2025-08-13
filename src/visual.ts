@@ -473,13 +473,23 @@ export class MaplumiVisual implements IVisual {
         let selectedScalingMethod = 'square-root';
 
         let circleScale: number;
+        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
+        const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
         if (maxCircleSizeValue === minCircleSizeValue) {
             circleScale = 1; // No scaling needed, use the minimum radius
         } else {
-            // Calculate scale factor based on square-root scaling method
-            const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-            const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
-            circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
+            // In adaptive mode, intentionally reserve visual headroom so p95 < max radius
+            // Map p95 to an area-linear fraction of the max radius area to ensure separation
+            const isAdaptive = outlierGapRatio > 0.2 && percentileRange > 0.001;
+            if (isAdaptive) {
+                // Fraction of the (max area - min area) assigned to p95 in adaptive mode
+                const p95AreaFraction = 0.8; // 80% of area span for p95; remaining 20% left for outliers
+                const effectiveMaxRadiusSquared = minRadiusSquared + (maxRadiusSquared - minRadiusSquared) * p95AreaFraction;
+                circleScale = (effectiveMaxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
+            } else {
+                // Standard mapping: p95 → max radius
+                circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
+            }
         }
 
         return { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod };
@@ -505,9 +515,9 @@ export class MaplumiVisual implements IVisual {
                     const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
                     
                     // Apply compressed outlier scaling beyond 95th percentile
-                    // Use 60% of remaining radius space for outliers
+                    // Use 80% of remaining radius space for outliers (increased from 60%)
                     const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
-                    const maxOutlierBonus = remainingRadiusSpace * 0.6;
+                    const maxOutlierBonus = remainingRadiusSpace * 0.8;
                     const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
                     
                     const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
