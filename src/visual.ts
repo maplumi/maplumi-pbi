@@ -55,7 +55,10 @@ import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
 import { CacheService } from "./services/cacheService";
+import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
+import { ChoroplethOrchestrator } from "./orchestration/ChoroplethOrchestrator";
+import { CircleOrchestrator } from "./orchestration/CircleOrchestrator";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -86,8 +89,9 @@ export class MaplumiVisual implements IVisual {
     private circleGroup2: string = "#circles-group-2";
     private choroplethGroup: string = "#choropleth-group";
     private previousLockMapExtent: boolean | undefined;
-    private postRenderHandler?: (e: any) => void;
-    private postRenderDebounce?: number;
+    private mapToolsOrchestrator: MapToolsOrchestrator;
+    private circleOrchestrator: CircleOrchestrator;
+    private choroplethOrchestrator: ChoroplethOrchestrator;
 
     constructor(options: VisualConstructorOptions) {
 
@@ -116,8 +120,9 @@ export class MaplumiVisual implements IVisual {
         this.legendService = new LegendService(this.legendContainer);
 
         this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
-        this.map = this.mapService.getMap();
-        this.view = this.mapService.getView();
+    this.map = this.mapService.getMap();
+    this.view = this.mapService.getView();
+    this.mapToolsOrchestrator = new MapToolsOrchestrator(this.map, this.mapService);
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -141,17 +146,40 @@ export class MaplumiVisual implements IVisual {
             const selectionIds = this.selectionManager.getSelectionIds();
 
             // Update both layers if they exist
-            if (this.circleLayer) {
-                this.circleLayer.setSelectedIds(selectionIds);
-                this.circleLayer.changed();
+            if (this.circleOrchestrator) {
+                this.circleOrchestrator.setSelectedIds(selectionIds as any);
+                this.circleLayer?.changed();
             }
-            if (this.choroplethLayer) {
-                this.choroplethLayer.setSelectedIds(selectionIds);
-                this.choroplethLayer.changed();
+            if (this.choroplethOrchestrator) {
+                this.choroplethOrchestrator.setSelectedIds(selectionIds as any);
+                this.choroplethLayer?.changed();
             }
         });
 
         this.cacheService = new CacheService();
+
+        // Instantiate orchestrators after svg and services are ready
+        this.circleOrchestrator = new CircleOrchestrator({
+            svg: this.svg as unknown as d3.Selection<SVGElement, unknown, HTMLElement, any>,
+            svgOverlay: this.svgOverlay,
+            svgContainer: this.svgContainer,
+            legendService: this.legendService,
+            host: this.host,
+            map: this.map,
+            selectionManager: this.selectionManager,
+            tooltipServiceWrapper: this.tooltipServiceWrapper,
+        });
+        this.choroplethOrchestrator = new ChoroplethOrchestrator({
+            svg: this.svg as unknown as d3.Selection<SVGElement, unknown, HTMLElement, any>,
+            svgOverlay: this.svgOverlay,
+            svgContainer: this.svgContainer,
+            legendService: this.legendService,
+            host: this.host,
+            map: this.map,
+            selectionManager: this.selectionManager,
+            tooltipServiceWrapper: this.tooltipServiceWrapper,
+            cacheService: this.cacheService,
+        });
     }
 
     public update(options: VisualUpdateOptions) {
@@ -235,9 +263,13 @@ export class MaplumiVisual implements IVisual {
 
         // Render layers based on settings
         if (choroplethOptions.layerControl == true) {
-
-            this.renderChoroplethLayer(dataView.categorical, choroplethOptions);
-
+            // Delegate to orchestrator
+            this.choroplethOrchestrator.render(
+                dataView.categorical,
+                choroplethOptions,
+                this.dataService,
+                this.mapToolsOptions
+            ).then(layer => { this.choroplethLayer = layer; });
         } else {
 
             const group = this.svg.select(`#choropleth-group`);
@@ -253,9 +285,15 @@ export class MaplumiVisual implements IVisual {
         }
 
         if (circleOptions.layerControl == true) {
-
-            this.renderCircleLayer(dataView.categorical, circleOptions);
-
+            // Delegate to orchestrator
+            const layer = this.circleOrchestrator.render(
+                dataView.categorical,
+                circleOptions,
+                this.dataService,
+                this.mapToolsOptions,
+                this.choroplethDisplayed
+            );
+            this.circleLayer = layer;
         } else {
 
             const group1 = this.svg.select(`#circles-group-1`);
@@ -280,59 +318,10 @@ export class MaplumiVisual implements IVisual {
 
         this.map.updateSize();
 
-        // Handle map extent locking
-        if (this.mapToolsOptions.lockMapExtent == true) {
-
-            // Register a single postrender handler to persist extent/zoom
-            if (!this.postRenderHandler) {
-                this.postRenderHandler = () => {
-                    if (this.postRenderDebounce) {
-                        window.clearTimeout(this.postRenderDebounce);
-                    }
-                    this.postRenderDebounce = window.setTimeout(() => {
-                        const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
-                        const currentExtentString = currentExtent.join(",");
-                        const currentZoom = this.map.getView().getZoom();
-                        if (currentExtentString !== this.mapToolsOptions.lockedMapExtent ||
-                            currentZoom !== this.mapToolsOptions.lockedMapZoom
-                        ) {
-                            this.persistCurrentExtentAsLocked(currentExtentString, currentZoom);
-                        }
-                    }, VisualConfig.MAP.POSTRENDER_DEBOUNCE_MS);
-                };
-                this.map.on('postrender', this.postRenderHandler);
-            }
-
-            let lockedExtent: [number, number, number, number] | undefined = undefined;
-            if (typeof this.mapToolsOptions.lockedMapExtent === 'string' && this.mapToolsOptions.lockedMapExtent.trim() !== '') {
-                lockedExtent = this.mapToolsOptions.lockedMapExtent.split(",").map(Number) as [number, number, number, number];
-            }
-            if (this.mapToolsOptions.lockMapExtent === true && lockedExtent && lockedExtent.length === 4) {
-                const center: [number, number] = [
-                    (lockedExtent[0] + lockedExtent[2]) / 2,
-                    (lockedExtent[1] + lockedExtent[3]) / 2
-                ];
-                let zoom = this.map.getView().getZoom();
-                if (typeof this.mapToolsOptions.lockedMapZoom === 'number' && !isNaN(this.mapToolsOptions.lockedMapZoom)) {
-                    zoom = this.mapToolsOptions.lockedMapZoom;
-                }
-                this.mapService.lockExtent(lockedExtent, center, zoom);
-                this.map.getView().fit(lockedExtent, VisualConfig.MAP.FIT_OPTIONS);
-                this.mapService.setZoomControlVisible(false);
-            }
-
-        } else {
-            // Unlock: remove postrender handler if present and reset constraints
-            if (this.postRenderHandler) {
-                this.map.un('postrender', this.postRenderHandler);
-                this.postRenderHandler = undefined;
-                if (this.postRenderDebounce) {
-                    window.clearTimeout(this.postRenderDebounce);
-                    this.postRenderDebounce = undefined;
-                }
-            }
-            this.map.getView().setProperties({ extent: undefined, minZoom: 0, maxZoom: 28 });
-        }
+        // Handle map extent locking via orchestrator
+        this.mapToolsOrchestrator.attach(this.mapToolsOptions, (extentStr, zoom) =>
+            this.persistCurrentExtentAsLocked(extentStr, zoom)
+        );
 
         this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
         this.events.renderingFinished(options);
@@ -759,37 +748,10 @@ export class MaplumiVisual implements IVisual {
     // This function is responsible for rendering the choropleth layer on the map
     private renderChoroplethLayer(categorical: any, choroplethOptions: ChoroplethOptions): void {
 
-        if (choroplethOptions.layerControl == false) return; // Early exit if the layer is disabled
+        if (choroplethOptions.layerControl == false) return; // kept for compatibility; not used now
 
-        const group = this.svg.select(`#choropleth-group`);
-
-        // Always clean up before re-rendering to avoid duplication
-        group.selectAll("*").remove();  // Clear children, not the group itself
-
-        this.svgOverlay.style.display = 'flex';
-        this.legendContainer.style.display = "block";
-
-        if (!this.validateChoroplethInputData(categorical)) return;
-
-        const { AdminPCodeNameIDCategory, colorMeasure, pCodes } = this.extractChoroplethData(categorical);
-        if (!AdminPCodeNameIDCategory || !colorMeasure || !pCodes) return;
-
-        const validPCodes = this.filterValidPCodes(pCodes);
-        if (validPCodes.length === 0) return;
-
-        const { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } =
-            this.prepareChoroplethData(categorical, choroplethOptions, AdminPCodeNameIDCategory, colorMeasure, pCodes);
-
-        this.fetchAndRenderChoroplethLayer(
-            choroplethOptions,
-            AdminPCodeNameIDCategory,
-            colorMeasure,
-            colorValues,
-            classBreaks,
-            colorScale,
-            pcodeKey,
-            dataPoints
-        );
+    // kept for backward compatibility; orchestration path now used in update()
+    this.choroplethOrchestrator.render(categorical, choroplethOptions, this.dataService, this.mapToolsOptions);
     }
 
 

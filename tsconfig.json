@@ -27,6 +27,9 @@
     "src/services/cacheService.ts",
         "src/services/ZoomControlManager.ts",
         "src/services/ColorRampManager.ts",
+    "src/orchestration/MapToolsOrchestrator.ts",
+    "src/orchestration/CircleOrchestrator.ts",
+    "src/orchestration/ChoroplethOrchestrator.ts",
         "src/config/VisualConfig.ts", 
         
         "src/utils/requestHelpers.ts",
