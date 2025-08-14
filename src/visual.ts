@@ -54,7 +54,7 @@ import { ColorRampManager } from "./services/ColorRampManager";
 import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
-import { CacheService } from "./services/CacheService";
+import { CacheService } from "./services/cacheService";
 import { View } from "ol";
 export class MaplumiVisual implements IVisual {
 
@@ -86,6 +86,8 @@ export class MaplumiVisual implements IVisual {
     private circleGroup2: string = "#circles-group-2";
     private choroplethGroup: string = "#choropleth-group";
     private previousLockMapExtent: boolean | undefined;
+    private postRenderHandler?: (e: any) => void;
+    private postRenderDebounce?: number;
 
     constructor(options: VisualConstructorOptions) {
 
@@ -281,16 +283,25 @@ export class MaplumiVisual implements IVisual {
         // Handle map extent locking
         if (this.mapToolsOptions.lockMapExtent == true) {
 
-            this.map.on('postrender', () => {
-                const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
-                const currentExtentString = currentExtent.join(",");
-                const currentZoom = this.map.getView().getZoom();
-                if (currentExtentString !== this.mapToolsOptions.lockedMapExtent ||
-                    currentZoom !== this.mapToolsOptions.lockedMapZoom
-                ) {
-                    this.persistCurrentExtentAsLocked(currentExtentString, currentZoom);
-                }
-            });
+            // Register a single postrender handler to persist extent/zoom
+            if (!this.postRenderHandler) {
+                this.postRenderHandler = () => {
+                    if (this.postRenderDebounce) {
+                        window.clearTimeout(this.postRenderDebounce);
+                    }
+                    this.postRenderDebounce = window.setTimeout(() => {
+                        const currentExtent = this.map.getView().calculateExtent(this.map.getSize());
+                        const currentExtentString = currentExtent.join(",");
+                        const currentZoom = this.map.getView().getZoom();
+                        if (currentExtentString !== this.mapToolsOptions.lockedMapExtent ||
+                            currentZoom !== this.mapToolsOptions.lockedMapZoom
+                        ) {
+                            this.persistCurrentExtentAsLocked(currentExtentString, currentZoom);
+                        }
+                    }, VisualConfig.MAP.POSTRENDER_DEBOUNCE_MS);
+                };
+                this.map.on('postrender', this.postRenderHandler);
+            }
 
             let lockedExtent: [number, number, number, number] | undefined = undefined;
             if (typeof this.mapToolsOptions.lockedMapExtent === 'string' && this.mapToolsOptions.lockedMapExtent.trim() !== '') {
@@ -311,6 +322,15 @@ export class MaplumiVisual implements IVisual {
             }
 
         } else {
+            // Unlock: remove postrender handler if present and reset constraints
+            if (this.postRenderHandler) {
+                this.map.un('postrender', this.postRenderHandler);
+                this.postRenderHandler = undefined;
+                if (this.postRenderDebounce) {
+                    window.clearTimeout(this.postRenderDebounce);
+                    this.postRenderDebounce = undefined;
+                }
+            }
             this.map.getView().setProperties({ extent: undefined, minZoom: 0, maxZoom: 28 });
         }
 

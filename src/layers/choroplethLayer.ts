@@ -19,6 +19,7 @@ export class ChoroplethLayer extends Layer {
     private d3Path: any;
     private selectedIds: powerbi.extensibility.ISelectionId[] = [];
     private isActive: boolean = true;
+    private simplifiedCache: Map<number, any>;
 
     constructor(options: ChoroplethLayerOptions) {
         super({ ...options, zIndex: options.zIndex || 10 });
@@ -50,6 +51,7 @@ export class ChoroplethLayer extends Layer {
         this.spatialIndex.load(features);
 
         this.d3Path = null;
+    this.simplifiedCache = new Map();
 
         this.changed();
     }
@@ -99,14 +101,12 @@ export class ChoroplethLayer extends Layer {
             return acc;
         }, {} as { [key: string]: any }) || {};
 
-        // Simplify features dynamically based on zoom level
-        const tolerance = this.getSimplificationTolerance(resolution);
-        
-        const options = { tolerance: tolerance, highQuality: false };
-        const simplifiedFeatures = simplify(this.geojson, options);
+    // Simplify features dynamically based on zoom level with caching
+    const tolerance = this.getSimplificationTolerance(resolution);
+    const simplified = this.getSimplifiedGeoJson(tolerance);
 
         // Render features
-        simplifiedFeatures.features.forEach((feature: GeoJSONFeature) => {
+    simplified.features.forEach((feature: GeoJSONFeature) => {
             const pCode = feature.properties[this.options.dataKey];
             const valueRaw = this.valueLookup[pCode];
             
@@ -175,6 +175,25 @@ export class ChoroplethLayer extends Layer {
         this.options.svgContainer.appendChild(this.svg.node());
 
         return this.options.svgContainer;
+    }
+
+    // Retrieve a simplified GeoJSON from cache or compute and cache by rounded tolerance
+    private getSimplifiedGeoJson(tolerance: number) {
+        // Quantize tolerance to reduce cache key cardinality
+        const key = Number(tolerance.toFixed(4));
+        const cached = this.simplifiedCache.get(key);
+        if (cached) return cached;
+
+        const simplified = simplify(this.geojson, { tolerance: key, highQuality: false });
+
+        // Simple size cap to avoid unbounded growth
+        const MAX_ENTRIES = 12;
+        if (this.simplifiedCache.size >= MAX_ENTRIES) {
+            const oldestKey = this.simplifiedCache.keys().next().value;
+            this.simplifiedCache.delete(oldestKey);
+        }
+        this.simplifiedCache.set(key, simplified);
+        return simplified;
     }
 
     getSpatialIndex() {

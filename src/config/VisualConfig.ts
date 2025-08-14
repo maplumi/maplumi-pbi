@@ -7,6 +7,7 @@ export const VisualConfig = {
     MAP: {
         DEFAULT_CENTER: [0, 0],
         DEFAULT_ZOOM: 2,
+    POSTRENDER_DEBOUNCE_MS: 300,
         FIT_OPTIONS: {
             padding: [20, 10, 20, 10],// top, right, bottom, left
             duration: 0 // No animation

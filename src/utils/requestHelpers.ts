@@ -20,12 +20,71 @@ export function enforceHttps(url: string): boolean {
 export function hasOpenRedirect(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
-        // Dynamically extract the base domain from the provided URL
-        const baseDomain = parsedUrl.hostname;
-        // Ensure the URL's hostname matches its base domain
-        return parsedUrl.hostname !== baseDomain;
+
+        // Common query parameter names used for redirects
+        const redirectParams = [
+            "redirect",
+            "redirect_uri",
+            "redirect_url",
+            "return",
+            "returnUrl",
+            "next",
+            "url",
+            "target",
+            "continue",
+            "dest",
+            "destination",
+            "forward",
+            "to"
+        ];
+
+        const params = parsedUrl.searchParams;
+
+        const isSuspiciousProtocol = (value: string) => /^(javascript:|data:|vbscript:)/i.test(value.trim());
+        const isAbsoluteLike = (value: string) => /^(https?:)?\/\//i.test(value) || /^[a-z][a-z0-9+.-]*:/i.test(value);
+
+        for (const key of redirectParams) {
+            const raw = params.get(key);
+            if (!raw) continue;
+
+            let value = raw;
+            // Best-effort decode once; if it fails, keep raw
+            try { value = decodeURIComponent(raw); } catch {}
+
+            // Immediate risk: javascript/data URLs
+            if (isSuspiciousProtocol(value)) {
+                return true;
+            }
+
+            // Build a target URL, resolving relative paths against the current origin
+            let targetUrl: URL | null = null;
+            try {
+                if (value.startsWith("//")) {
+                    // Protocol-relative URL, assume https for safety check
+                    targetUrl = new URL(`https:${value}`);
+                } else if (isAbsoluteLike(value)) {
+                    targetUrl = new URL(value);
+                } else {
+                    targetUrl = new URL(value, parsedUrl.origin);
+                }
+            } catch {
+                // Unparseable target – treat as unsafe if it looked absolute or protocol-like
+                if (isAbsoluteLike(value) || isSuspiciousProtocol(value)) {
+                    return true;
+                }
+                continue;
+            }
+
+            // Consider it an open redirect if the target origin differs from the URL's own origin
+            if (targetUrl.origin !== parsedUrl.origin) {
+                return true;
+            }
+        }
+
+        return false;
     } catch {
-        return true; // Return true if the URL is invalid
+        // If the base URL itself is invalid, treat as unsafe
+        return true;
     }
 }
 
@@ -61,8 +120,8 @@ async function cacheJsonData(cache: Record<string, { data: any; timestamp: numbe
     try {
         const db = await openDatabase();
         // Start a transaction and get the object store
-        const transaction = db.transaction("jsonBoundaryData", "readwrite");
-        const store = transaction.objectStore("jsonBoundaryData");
+    const transaction = db.transaction("geoJsonData", "readwrite");
+    const store = transaction.objectStore("geoJsonData");
         // Check for existing data
         const existingData = await new Promise<any | undefined>((resolve) => {
             const getRequest = store.get(key);
