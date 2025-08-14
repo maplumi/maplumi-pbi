@@ -40,8 +40,10 @@ import IVisualEventService = powerbi.extensibility.IVisualEventService;
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
-import { BasemapOptions, ChoroplethOptions, 
-    CircleOptions, MapToolsOptions } from "./types/index";
+import {
+    BasemapOptions, ChoroplethOptions,
+    CircleOptions, MapToolsOptions
+} from "./types/index";
 import type { CircleLayer } from "./layers/circleLayer";
 import type { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
@@ -117,9 +119,9 @@ export class MaplumiVisual implements IVisual {
         this.legendService = new LegendService(this.legendContainer);
 
         this.mapService = new MapService(this.container, this.mapToolsOptions?.showZoomControl !== false, this.host);
-    this.map = this.mapService.getMap();
-    this.view = this.mapService.getView();
-    this.mapToolsOrchestrator = new MapToolsOrchestrator(this.map, this.mapService);
+        this.map = this.mapService.getMap();
+        this.view = this.mapService.getView();
+        this.mapToolsOrchestrator = new MapToolsOrchestrator(this.map, this.mapService);
 
         // svg layer overlay
         this.svgOverlay = this.container.querySelector('svg');
@@ -461,15 +463,15 @@ export class MaplumiVisual implements IVisual {
 
             // Boundary data source options
             boundaryDataSource: choroplethLocationSettings.boundaryDataSource.value.value.toString(),
-            
+
             // GeoBoundaries-specific options
             geoBoundariesReleaseType: choroplethLocationSettings.geoBoundariesReleaseType.value.value.toString(),
             geoBoundariesCountry: choroplethLocationSettings.geoBoundariesCountry.value.value.toString(),
             geoBoundariesAdminLevel: choroplethLocationSettings.geoBoundariesAdminLevel.value.value.toString(),
-            
+
             // Get boundary field ID from appropriate field based on data source
-            sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom" 
-                ? choroplethLocationSettings.customBoundaryIdField.value 
+            sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
+                ? choroplethLocationSettings.customBoundaryIdField.value
                 : choroplethLocationSettings.boundaryIdField.value.value.toString(),
 
             locationPcodeNameId: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
