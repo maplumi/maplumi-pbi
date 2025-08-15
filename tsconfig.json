@@ -27,6 +27,7 @@
     "src/services/ColorRampManager.ts",
     "src/services/MessageService.ts",
     "src/services/LayerOptionBuilders.ts",
+  "src/services/OptionsService.ts",
     "src/orchestration/MapToolsOrchestrator.ts",
     "src/orchestration/BaseOrchestrator.ts",
     "src/orchestration/CircleOrchestrator.ts",
