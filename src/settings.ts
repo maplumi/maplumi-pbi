@@ -29,7 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
-import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions } from "./constants/strings";
+import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -41,14 +41,14 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         name: "selectedBasemap",
         displayName: "Select Basemap",
         value: {
-            value: "openstreetmap",  // The actual value
+            value: BasemapNames.OpenStreetMap,  // The actual value
             displayName: "OpenStreetMap" // The display name
         },
         items: [
-            { value: "openstreetmap", displayName: "OpenStreetMap" },
-            { value: "mapbox", displayName: "Mapbox" },
-            { value: "maptiler", displayName: "MapTiler" },
-            { value: "none", displayName: "No Basemap" }
+            { value: BasemapNames.OpenStreetMap, displayName: "OpenStreetMap" },
+            { value: BasemapNames.Mapbox, displayName: "Mapbox" },
+            { value: BasemapNames.MapTiler, displayName: "MapTiler" },
+            { value: BasemapNames.None, displayName: "No Basemap" }
         ]
     });
 
@@ -172,11 +172,11 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
         const selectedBasemap = this.basemapSelectSettingsGroup.selectedBasemap.value?.value;
 
         // Show Mapbox settings only if Mapbox is selected
-        const isMapbox = selectedBasemap === "mapbox";
+    const isMapbox = selectedBasemap === BasemapNames.Mapbox;
         this.mapBoxSettingsGroup.visible = isMapbox;
 
         // Show MapTiler settings only if MapTiler is selected
-        const isMaptiler = selectedBasemap === "maptiler";
+    const isMaptiler = selectedBasemap === BasemapNames.MapTiler;
         this.maptilerSettingsGroup.visible = isMaptiler;
 
         // Show/hide custom attribution field (you can decide its logic)
@@ -839,13 +839,13 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendTitleAlignment",
         displayName: "Legend Title Alignment",
         value: {
-            value: "left",  //default value
+            value: TitleAlignments.Left,  //default value
             displayName: "Left"
         },
         items: [
-            { value: "left", displayName: "Left" },
-            { value: "center", displayName: "Center" },
-            { value: "right", displayName: "Right" }
+            { value: TitleAlignments.Left, displayName: "Left" },
+            { value: TitleAlignments.Center, displayName: "Center" },
+            { value: TitleAlignments.Right, displayName: "Right" }
         ]
     });
 

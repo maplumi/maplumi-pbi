@@ -23,14 +23,14 @@ This document describes the implementation and behavior of the scaled circle vis
 
 ```mermaid
 graph TD
-    A[Raw Data Input] --> B[Data Validation & Filtering]
+    A["Raw Data Input"] --> B["Data Validation & Filtering"]
     B --> C[Statistical Analysis]
-    C --> D[Outlier Detection]
-    D --> E[Adaptive Scaling Strategy]
-    E --> F[Circle Radius Calculation]
-    F --> G[Map Rendering]
-    F --> H[Legend Generation]
-    G --> I[Visual Output]
+    C --> D["Outlier Detection"]
+    D --> E["Adaptive Scaling Strategy"]
+    E --> F["Circle Radius Calculation"]
+    F --> G["Map Rendering"]
+    F --> H["Legend Generation"]
+    G --> I["Visual Output"]
     H --> I
 ```
 

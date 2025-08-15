@@ -8,6 +8,7 @@ import { MaplyticsAttributionControl } from "../utils/attribution";
 import TileLayer from "ol/layer/Tile";
 import { MapboxVectorLayer } from "ol-mapbox-style";
 import { BasemapOptions } from "../types/index";
+import { BasemapNames } from "../constants/strings";
 import OSM from "ol/source/OSM";
 import TileJSON from "ol/source/TileJSON";
 import Tile from "ol/layer/Tile";
@@ -145,13 +146,13 @@ export class MapService {
     private getBasemap(basemapOptions: BasemapOptions): TileLayer | MapboxVectorLayer | VectorTileLayer {
 
         switch (basemapOptions.selectedBasemap) {
-            case 'openstreetmap':
+            case BasemapNames.OpenStreetMap:
                 return this.getDefaultBasemap();
-            case 'mapbox':
+            case BasemapNames.Mapbox:
                 return this.getMapboxBasemap(basemapOptions);
-            case 'maptiler':
+            case BasemapNames.MapTiler:
                 return this.getMaptilerBasemap(basemapOptions);
-            case 'none':
+            case BasemapNames.None:
                 return new TileLayer({
                     source: null, // No source, so it remains empty
                     visible: false

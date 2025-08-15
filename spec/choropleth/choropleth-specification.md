@@ -27,20 +27,20 @@ graph TD
     A --> C[ChoroplethLayer]
     A --> D[ColorRampManager]
     
-    B --> E[GeoJSON Processing]
-    B --> F[Statistical Classification]
-    B --> G[Tooltip Generation]
+    B --> E["GeoJSON Processing"]
+    B --> F["Statistical Classification"]
+    B --> G["Tooltip Generation"]
     
-    C --> H[OpenLayers Integration]
-    C --> I[D3.js Rendering]
-    C --> J[Spatial Indexing]
+    C --> H["OpenLayers Integration"]
+    C --> I["D3.js Rendering"]
+    C --> J["Spatial Indexing"]
     
-    D --> K[Color Ramp Selection]
-    D --> L[Custom Color Validation]
+    D --> K["Color Ramp Selection"]
+    D --> L["Custom Color Validation"]
     
-    E --> M[Geographic Boundaries]
-    F --> N[Value-to-Color Mapping]
-    I --> O[Interactive SVG Elements]
+    E --> M["Geographic Boundaries"]
+    F --> N["Value-to-Color Mapping"]
+    I --> O["Interactive SVG Elements"]
 ```
 
 ### Core Classes

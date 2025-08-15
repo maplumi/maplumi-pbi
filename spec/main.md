@@ -21,7 +21,7 @@ Links:
 ```mermaid
 graph TD
   host[Power BI Host] --> visual[MaplumiVisual]
-  visual --> mapSvc[MapService (OpenLayers)]
+  visual --> mapSvc["MapService (OpenLayers)"]
   visual --> legends[LegendService]
   visual --> circlesOrch[Circle Orchestrator]
   visual --> choroOrch[Choropleth Orchestrator]
@@ -29,7 +29,7 @@ graph TD
   choroOrch --> geoSvc[GeoBoundariesService]
   choroOrch --> cache[CacheService]
   dataSvc --> ramps[ColorRampManager]
-  mapSvc --> map[OL Map + SVG Overlay]
+  mapSvc --> map["OL Map + SVG Overlay"]
   circlesOrch --> circleLayer[CircleLayer]
   choroOrch --> choroLayer[ChoroplethLayer]
 ```
@@ -38,15 +38,15 @@ graph TD
 
 ```mermaid
 flowchart LR
-  A[Data roles present?] -->|Lat & Lon| B[Auto-toggle Circles ON]
+  A["Data roles present?"] -->|Lat & Lon| B[Auto-toggle Circles ON]
   A -->|AdminPCodeNameID| C[Auto-toggle Choropleth ON]
-  B --> D{User "Show layer"?}
-  C --> E{User "Show layer"?}
+  B --> D{"User \"Show layer\"?"}
+  C --> E{"User \"Show layer\"?"}
   D -->|Yes| F[Circles render]
   D -->|No| G[Circles hidden]
   E -->|Yes| H[Choropleth render]
   E -->|No| I[Choropleth hidden]
-  F --> J[Legend visible if enabled]
+  F --> J["Legend visible if enabled"]
   H --> J
   G --> K[Legend hidden if no active layer]
   I --> K

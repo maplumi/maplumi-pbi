@@ -50,3 +50,16 @@ export const LegendLabelPositions = {
     Left: "left",
     Right: "right",
 } as const;
+
+export const BasemapNames = {
+    OpenStreetMap: "openstreetmap",
+    Mapbox: "mapbox",
+    MapTiler: "maptiler",
+    None: "none",
+} as const;
+
+export const TitleAlignments = {
+    Left: "left",
+    Center: "center",
+    Right: "right",
+} as const;

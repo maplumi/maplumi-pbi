@@ -6,10 +6,10 @@ Short guide to get choropleth maps running fast. See the full spec for details: 
 
 ```mermaid
 flowchart LR
-   A[AdminPCodeNameID (Location)] --> B[Auto-toggle Choropleth]
-   C[Choropleth Value (Number)] --> B
+  A["AdminPCodeNameID (Location)"] --> B[Auto-toggle Choropleth]
+  C["Choropleth Value (Number)"] --> B
    B --> D[Areas render]
-   D --> E[Legend (if enabled)]
+  D --> E["Legend (if enabled)"]
 ```
 
 Required
