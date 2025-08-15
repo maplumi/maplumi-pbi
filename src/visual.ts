@@ -53,7 +53,7 @@ import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
 import type { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
-import { CacheService } from "./services/cacheService";
+import { CacheService } from "./services/CacheService";
 import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
 import { ChoroplethOrchestrator } from "./orchestration/ChoroplethOrchestrator";

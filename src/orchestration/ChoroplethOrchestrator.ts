@@ -14,7 +14,7 @@ import ISelectionId = powerbi.extensibility.ISelectionId;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import * as requestHelpers from "../utils/requestHelpers";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
-import { CacheService } from "../services/cacheService";
+import { CacheService } from "../services/CacheService";
 
 export class ChoroplethOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
