@@ -16,6 +16,8 @@ import * as requestHelpers from "../utils/requestHelpers";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
 import { CacheService } from "../services/CacheService";
 import { parseChoroplethCategorical, validateChoroplethInput, filterValidPCodes } from "../data/choropleth";
+import { MessageService } from "../services/MessageService";
+import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
 
 export class ChoroplethOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -30,6 +32,8 @@ export class ChoroplethOrchestrator {
 
     private choroplethLayer: ChoroplethLayer | undefined;
     private abortController: AbortController | null = null;
+    private messages: MessageService;
+    private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
 
     constructor(args: {
         svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -51,6 +55,13 @@ export class ChoroplethOrchestrator {
         this.selectionManager = args.selectionManager;
         this.tooltipServiceWrapper = args.tooltipServiceWrapper;
         this.cacheService = args.cacheService;
+        this.messages = new MessageService(this.host);
+        this.choroplethOptsBuilder = new ChoroplethLayerOptionsBuilder({
+            svg: this.svg,
+            svgContainer: this.svgContainer,
+            selectionManager: this.selectionManager,
+            tooltipServiceWrapper: this.tooltipServiceWrapper,
+        });
     }
 
     public getLayer(): ChoroplethLayer | undefined {
@@ -82,20 +93,14 @@ export class ChoroplethOrchestrator {
         group.selectAll("*").remove();
         this.svgOverlay.style.display = 'flex';
 
-        const validation = validateChoroplethInput(categorical);
-        if (!validation.ok) {
-            this.host.displayWarningIcon("Measures not found", "maplumiWarning: Measures field is missing. Please ensure it is included in your data.");
-            return undefined;
-        }
+    const validation = validateChoroplethInput(categorical);
+    if (!validation.ok) { this.messages.missingMeasures(); return undefined; }
 
         const { AdminPCodeNameIDCategory, colorMeasure, pCodes } = parseChoroplethCategorical(categorical);
         if (!AdminPCodeNameIDCategory || !colorMeasure || !pCodes) return undefined;
 
-        const validPCodes = filterValidPCodes(pCodes);
-        if (validPCodes.length === 0) {
-            this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            return undefined;
-        }
+    const validPCodes = filterValidPCodes(pCodes);
+    if (validPCodes.length === 0) { this.messages.noValidPCodes(); return undefined; }
 
         const { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } =
             this.prepareChoroplethData(categorical, choroplethOptions, AdminPCodeNameIDCategory, colorMeasure, pCodes, dataService);
@@ -149,10 +154,7 @@ export class ChoroplethOrchestrator {
             return { pcode, value: colorValues[i], tooltip: tooltips[i], selectionId };
         });
         if (choroplethOptions.classificationMethod === "u" && (classBreaks as any[]).length > 7) {
-            this.host.displayWarningIcon(
-                "Too many unique values for unique value classification.",
-                "maplumiWarning: Only the top 7 unique values are mapped to colors; all others are shown in black. Please select a different classification method for better results."
-            );
+            this.messages.tooManyUniqueValues();
         }
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } as any;
     }
@@ -180,19 +182,13 @@ export class ChoroplethOrchestrator {
             }
             try {
                 const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
-                if (!metadata) {
-                    this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
-                    return;
-                }
+                if (!metadata) { this.messages.geoBoundariesMetadataError(); return; }
                 serviceUrl = GeoBoundariesService.getDownloadUrl(metadata, true);
                 const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                 pcodeKey = boundaryFieldName;
                 cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
                 console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata)}`);
-            } catch (error) {
-                this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Error connecting to GeoBoundaries API. Please check your network connection.");
-                return;
-            }
+            } catch (error) { this.messages.geoBoundariesConnectionError(); return; }
         } else {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
             cacheKey = `custom_${choroplethOptions.locationPcodeNameId}`;
@@ -203,26 +199,18 @@ export class ChoroplethOrchestrator {
 
         try {
             const data = await this.cacheService.getOrFetch(cacheKey, async () => {
-                if (!requestHelpers.isValidURL(serviceUrl)) {
-                    this.host.displayWarningIcon("Invalid Geo/TopoJSON URL", "maplumiWarning: The provided GeoJSON URL is not valid. Please check the data source URL.");
-                    return null;
-                }
+                if (!requestHelpers.isValidURL(serviceUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
                 let response: Response;
                 try {
                     response = await window.fetch(serviceUrl, { signal: this.abortController!.signal });
                 } catch (e) {
-                    this.host.displayWarningIcon("Geo/TopoJSON Fetch Error", "maplumiWarning: Failed to fetch Geo/TopoJSON data. Please check your network connection or the data source URL.");
-                    return null;
+                    this.messages.geoTopoFetchNetworkError(); return null;
                 }
                 if (!response.ok) {
-                    this.host.displayWarningIcon("Geo/TopoJSON Fetch Error", `maplumiWarning: Failed to fetch Geo/TopoJSON data. Server responded with status: ${response.status}`);
-                    return null;
+                    this.messages.geoTopoFetchStatusError(response.status); return null;
                 }
                 const json = await response.json();
-                if (!(await requestHelpers.isValidJsonResponse(json))) {
-                    this.host.displayWarningIcon("Invalid Geo/TopoJSON Data", "maplumiWarning: The fetched Geo/TopoJSON data is not valid. Please check the data source.");
-                    return null;
-                }
+                if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); return null; }
                 return json;
             });
 
@@ -234,27 +222,20 @@ export class ChoroplethOrchestrator {
                 AdminPCodeNameIDCategory.values
             );
 
-            const layerOptions: ChoroplethLayerOptions = {
+            const layerOptions: ChoroplethLayerOptions = this.choroplethOptsBuilder.build({
                 geojson: processedGeoData,
                 strokeColor: choroplethOptions.strokeColor,
                 strokeWidth: choroplethOptions.strokeWidth,
                 fillOpacity: choroplethOptions.layerOpacity,
                 colorScale: (value: any) => dataService.getColorFromClassBreaks(value, classBreaks, colorScale, choroplethOptions.classificationMethod),
                 dataKey: pcodeKey,
-                svg: this.svg,
-                svgContainer: this.svgContainer,
-                zIndex: 5,
                 categoryValues: AdminPCodeNameIDCategory.values,
                 measureValues: colorMeasure.values,
-                selectionManager: this.selectionManager,
-                tooltipServiceWrapper: this.tooltipServiceWrapper,
-                dataPoints
-            };
+                dataPoints,
+            });
 
             this.renderChoroplethLayerOnMap(layerOptions, mapToolsOptions);
-        } catch (error) {
-            this.host.displayWarningIcon("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
-        }
+    } catch (error) { this.messages.choroplethFetchError(); }
     }
 
     private renderChoroplethLayerOnMap(

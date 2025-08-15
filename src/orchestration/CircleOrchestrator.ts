@@ -14,6 +14,8 @@ import ISelectionId = powerbi.extensibility.ISelectionId;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import { parseCircleCategorical } from "../data/circle";
 import { calculateCircleScale, applyScaling, findClosestValue } from "../math/circles";
+import { MessageService } from "../services/MessageService";
+import { CircleLayerOptionsBuilder } from "../services/LayerOptionBuilders";
 
 export class CircleOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -24,6 +26,8 @@ export class CircleOrchestrator {
     private map: Map;
     private selectionManager: ISelectionManager;
     private tooltipServiceWrapper: ITooltipServiceWrapper;
+    private messages: MessageService;
+    private circleOptsBuilder: CircleLayerOptionsBuilder;
 
     private circleLayer: CircleLayer | undefined;
 
@@ -45,6 +49,13 @@ export class CircleOrchestrator {
         this.map = args.map;
         this.selectionManager = args.selectionManager;
         this.tooltipServiceWrapper = args.tooltipServiceWrapper;
+        this.messages = new MessageService(this.host);
+        this.circleOptsBuilder = new CircleLayerOptionsBuilder({
+            svg: this.svg,
+            svgContainer: this.svgContainer,
+            selectionManager: this.selectionManager,
+            tooltipServiceWrapper: this.tooltipServiceWrapper,
+        });
     }
 
     public getLayer(): CircleLayer | undefined {
@@ -85,10 +96,7 @@ export class CircleOrchestrator {
 
         const parsed = parseCircleCategorical(categorical);
         if (!parsed.hasLon || !parsed.hasLat) {
-            this.host.displayWarningIcon(
-                "Missing Longitude or Latitude roles",
-                "maplumiWarning: Both Longitude and Latitude roles must be assigned to view scaled cirles. Please check your data fields."
-            );
+            this.messages.missingLonLat();
             return undefined;
         }
         const { longitudes, latitudes, circleSizeValuesObjects } = parsed;
@@ -103,14 +111,11 @@ export class CircleOrchestrator {
         const dataPoints = this.createCircleDataPoints(longitudes, latitudes, circleSizeValuesObjects, categorical, dataService);
 
         if (longitudes.length !== latitudes.length) {
-            this.host.displayWarningIcon(
-                "Longitude and Latitude have different lengths.",
-                "maplumiWarning: Longitude and Latitude have different lengths. Please ensure that both fields are populated with the same number of values."
-            );
+            this.messages.lonLatLengthMismatch();
             return undefined;
         }
 
-        const layerOptions: CircleLayerOptions = this.createCircleLayerOptions(
+        const layerOptions: CircleLayerOptions = this.circleOptsBuilder.build({
             longitudes,
             latitudes,
             circleOptions,
@@ -119,9 +124,9 @@ export class CircleOrchestrator {
             maxCircleSizeValue,
             circleScale,
             dataPoints,
-            circleSizeValuesObjects[0]?.values as number[],
-            circleSizeValuesObjects[1]?.values as number[]
-        );
+            circle1SizeValues: circleSizeValuesObjects[0]?.values as number[],
+            circle2SizeValues: circleSizeValuesObjects[1]?.values as number[],
+        });
 
         this.renderCircleLayerOnMap(layerOptions, mapToolsOptions, choroplethDisplayed);
 
@@ -192,36 +197,7 @@ export class CircleOrchestrator {
         });
     }
 
-    private createCircleLayerOptions(
-        longitudes: number[],
-        latitudes: number[],
-        circleOptions: CircleOptions,
-        combinedCircleSizeValues: number[],
-        minCircleSizeValue: number,
-        maxCircleSizeValue: number,
-        circleScale: number,
-        dataPoints: any[],
-        circle1SizeValues?: number[],
-        circle2SizeValues?: number[]
-    ): CircleLayerOptions {
-        return {
-            longitudes,
-            latitudes,
-            circleOptions,
-            combinedCircleSizeValues,
-            circle1SizeValues,
-            circle2SizeValues,
-            minCircleSizeValue,
-            maxCircleSizeValue,
-            circleScale,
-            svg: this.svg,
-            svgContainer: this.svgContainer,
-            zIndex: 5,
-            dataPoints,
-            tooltipServiceWrapper: this.tooltipServiceWrapper,
-            selectionManager: this.selectionManager,
-        };
-    }
+    // Options construction moved to LayerOptionBuilders
 
     private renderCircleLayerOnMap(circleLayerOptions: CircleLayerOptions, mapToolsOptions: MapToolsOptions, choroplethDisplayed: boolean): void {
         if (this.circleLayer) {
