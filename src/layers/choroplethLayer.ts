@@ -26,6 +26,7 @@ export class ChoroplethLayer extends Layer {
     private topo: any;
     private topoPresimplified: any;
     private topoThresholds: { coarse: number; low: number; medium: number; high: number; max: number };
+    private simplificationStrength: number = 50; // 0-100
 
     constructor(options: ChoroplethLayerOptions) {
         super({ ...options, zIndex: options.zIndex || 10 });
@@ -33,6 +34,9 @@ export class ChoroplethLayer extends Layer {
         this.svg = options.svg;
         this.options = options;
         this.geojson = options.geojson;
+        if (typeof options.simplificationStrength === 'number') {
+            this.simplificationStrength = Math.max(0, Math.min(100, options.simplificationStrength));
+        }
 
         // Create a lookup table for measure values
         this.valueLookup = {};
@@ -65,13 +69,7 @@ export class ChoroplethLayer extends Layer {
             this.topo = topology({ layer: this.geojson });
             // Compute triangle areas for effective topology-preserving simplify
             this.topoPresimplified = presimplify(this.topo);
-            this.topoThresholds = {
-                coarse: topoQuantile(this.topoPresimplified, 0.8),
-                low:    topoQuantile(this.topoPresimplified, 0.6),
-                medium: topoQuantile(this.topoPresimplified, 0.4),
-                high:   topoQuantile(this.topoPresimplified, 0.2),
-                max:    topoQuantile(this.topoPresimplified, 0.0)
-            };
+            this.recomputeThresholds();
         } catch (e) {
             // Fallback: leave topo undefined; will render original GeoJSON
             this.topo = undefined;
@@ -237,6 +235,28 @@ export class ChoroplethLayer extends Layer {
 
     private getThresholdForLevel(level: 'coarse' | 'low' | 'medium' | 'high' | 'max'): number {
         return this.topoThresholds[level] || 0;
+    }
+
+    // Map user strength (0-100) to shifting quantiles per LOD; higher strength => larger threshold => more simplification
+    private recomputeThresholds() {
+        const s = this.simplificationStrength / 100; // 0..1
+        // Base quantiles for LODs, then lerp towards 0.95 (aggressive) as s increases
+        const base = { coarse: 0.8, low: 0.6, medium: 0.4, high: 0.2, max: 0.0 };
+        const target = 0.95; // very aggressive
+        const q = {
+            coarse: base.coarse + (target - base.coarse) * s,
+            low:    base.low    + (target - base.low)    * s,
+            medium: base.medium + (target - base.medium) * s,
+            high:   base.high   + (target - base.high)   * s,
+            max:    base.max    + (target - base.max)    * s,
+        };
+        this.topoThresholds = {
+            coarse: topoQuantile(this.topoPresimplified, q.coarse),
+            low:    topoQuantile(this.topoPresimplified, q.low),
+            medium: topoQuantile(this.topoPresimplified, q.medium),
+            high:   topoQuantile(this.topoPresimplified, q.high),
+            max:    topoQuantile(this.topoPresimplified, q.max),
+        };
     }
 
     getSpatialIndex() {

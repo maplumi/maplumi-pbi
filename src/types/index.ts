@@ -111,6 +111,7 @@ export interface ChoroplethLayerOptions extends LayerOptions {
     measureValues: number[];
     selectionManager: ISelectionManager;
     tooltipServiceWrapper: ITooltipServiceWrapper;
+    simplificationStrength?: number;
     dataPoints?: Array<{
         pcode: string;
         value: number;
@@ -225,6 +226,7 @@ export interface ChoroplethOptions {
     strokeColor: string;
     strokeWidth: number;
     layerOpacity: number;
+    simplificationStrength?: number;
 
     showLegend: boolean;
     legendLabelPosition: LegendLabelPosition;

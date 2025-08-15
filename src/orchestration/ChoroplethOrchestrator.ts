@@ -215,6 +215,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 categoryValues: AdminPCodeNameIDCategory.values,
                 measureValues: colorMeasure.values,
                 dataPoints,
+                simplificationStrength: choroplethOptions.simplificationStrength,
             });
 
             this.renderChoroplethLayerOnMap(layerOptions, mapToolsOptions);

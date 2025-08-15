@@ -99,6 +99,7 @@ export class OptionsService {
             strokeColor: choroplethDisplaySettings.strokeColor.value.value,
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
+            simplificationStrength: choroplethDisplaySettings.simplificationStrength.value,
             showLegend: choroplethLegendSettings.showLegend.value,
             legendTitle: choroplethLegendSettings.legendTitle.value,
             legendTitleAlignment: choroplethLegendSettings.legendTitleAlignment.value.value.toString(),

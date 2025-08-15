@@ -795,6 +795,23 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
+    simplificationStrength: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "simplificationStrength",
+        displayName: "Simplification Strength",
+        value: 50,
+        options:
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
@@ -805,7 +822,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.colorMode,
         this.strokeColor,
         this.strokeWidth,
-        this.layerOpacity
+    this.layerOpacity,
+    this.simplificationStrength
     ];
 
     public applyConditionalDisplayRules(): void {

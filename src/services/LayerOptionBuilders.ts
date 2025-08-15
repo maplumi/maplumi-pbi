@@ -86,6 +86,7 @@ export class ChoroplethLayerOptionsBuilder {
         categoryValues: string[];
         measureValues: number[];
         dataPoints: any[];
+        simplificationStrength?: number;
     }): ChoroplethLayerOptions {
         return {
             geojson: params.geojson,
@@ -101,6 +102,7 @@ export class ChoroplethLayerOptionsBuilder {
             measureValues: params.measureValues,
             selectionManager: this.selectionManager,
             tooltipServiceWrapper: this.tooltipServiceWrapper,
+            simplificationStrength: params.simplificationStrength,
             dataPoints: params.dataPoints,
         };
     }
