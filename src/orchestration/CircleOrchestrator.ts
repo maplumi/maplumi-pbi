@@ -12,6 +12,8 @@ import { ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import ISelectionId = powerbi.extensibility.ISelectionId;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
+import { parseCircleCategorical } from "../data/circle";
+import { calculateCircleScale, applyScaling, findClosestValue } from "../math/circles";
 
 export class CircleOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -81,11 +83,19 @@ export class CircleOrchestrator {
         this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
         this.svgOverlay.style.display = "block";
 
-        const { longitudes, latitudes, circleSizeValuesObjects } = this.extractCircleData(categorical, dataService);
+        const parsed = parseCircleCategorical(categorical);
+        if (!parsed.hasLon || !parsed.hasLat) {
+            this.host.displayWarningIcon(
+                "Missing Longitude or Latitude roles",
+                "maplumiWarning: Both Longitude and Latitude roles must be assigned to view scaled cirles. Please check your data fields."
+            );
+            return undefined;
+        }
+        const { longitudes, latitudes, circleSizeValuesObjects } = parsed;
         if (!longitudes || !latitudes) return undefined;
 
         const combinedCircleSizeValues = this.combineCircleSizeValues(circleSizeValuesObjects, circleOptions);
-        const { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod } = this.calculateCircleScale(
+    const { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod } = calculateCircleScale(
             combinedCircleSizeValues,
             circleOptions
         );
@@ -132,25 +142,7 @@ export class CircleOrchestrator {
         return this.circleLayer;
     }
 
-    private extractCircleData(categorical: any, dataService: ChoroplethDataService): CircleData {
-        const lonCategory = categorical?.categories?.find((c: any) => c.source?.roles?.Longitude);
-        const latCategory = categorical?.categories?.find((c: any) => c.source?.roles?.Latitude);
-
-        if (!lonCategory || !latCategory) {
-            this.host.displayWarningIcon(
-                "Missing Longitude or Latitude roles",
-                "maplumiWarning: Both Longitude and Latitude roles must be assigned to view scaled cirles. Please check your data fields."
-            );
-            return { longitudes: undefined, latitudes: undefined, circleSizeValuesObjects: [] };
-        }
-
-        const circleSizeValuesObjects = categorical?.values?.filter((c: any) => c.source?.roles?.Size) || [];
-        return {
-            longitudes: lonCategory.values as number[],
-            latitudes: latCategory.values as number[],
-            circleSizeValuesObjects,
-        };
-    }
+    // parsing moved to src/data/circle.ts
 
     private combineCircleSizeValues(circleSizeValuesObjects: any[], circleOptions: CircleOptions): number[] {
         const individual = [
@@ -172,79 +164,9 @@ export class CircleOrchestrator {
         return individual;
     }
 
-    private calculateCircleScale(
-        combinedCircleSizeValues: number[],
-        circleOptions: CircleOptions
-    ): { minCircleSizeValue: number; maxCircleSizeValue: number; circleScale: number; selectedScalingMethod: string } {
-        const validValues = combinedCircleSizeValues.filter(v => !isNaN(v) && isFinite(v));
-        if (validValues.length === 0) {
-            return { minCircleSizeValue: 0, maxCircleSizeValue: 0, circleScale: 1, selectedScalingMethod: 'square-root' };
-        }
+    // scaling moved to src/math/circles.ts
 
-        const sortedValues = [...validValues].sort((a, b) => a - b);
-        const n = sortedValues.length;
-        const percentile5 = sortedValues[Math.floor(n * 0.05)];
-        const percentile95 = sortedValues[Math.floor(n * 0.95)];
-        const actualMin = Math.min(...validValues);
-        const actualMax = Math.max(...validValues);
-
-        const percentileRange = percentile95 - percentile5;
-        const outlierGap = actualMax - percentile95;
-        const outlierGapRatio = percentileRange > 0 ? outlierGap / percentileRange : 0;
-
-        let minCircleSizeValue: number;
-        let maxCircleSizeValue: number;
-        if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
-            minCircleSizeValue = percentile5;
-            maxCircleSizeValue = percentile95;
-        } else {
-            minCircleSizeValue = percentile95 - percentile5 < 0.001 ? actualMin : percentile5;
-            maxCircleSizeValue = percentile95 - percentile5 < 0.001 ? actualMax : percentile95;
-        }
-
-        let selectedScalingMethod = 'square-root';
-
-        let circleScale: number;
-        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-        const maxRadiusSquared = circleOptions.maxRadius * circleOptions.maxRadius;
-        if (maxCircleSizeValue === minCircleSizeValue) {
-            circleScale = 1;
-        } else {
-            const isAdaptive = outlierGapRatio > 0.2 && percentileRange > 0.001;
-            if (isAdaptive) {
-                const p95AreaFraction = 0.8;
-                const effectiveMaxRadiusSquared = minRadiusSquared + (maxRadiusSquared - minRadiusSquared) * p95AreaFraction;
-                circleScale = (effectiveMaxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
-            } else {
-                circleScale = (maxRadiusSquared - minRadiusSquared) / (maxCircleSizeValue - minCircleSizeValue);
-            }
-        }
-
-        return { minCircleSizeValue, maxCircleSizeValue, circleScale, selectedScalingMethod };
-    }
-
-    private applyScaling(value: number, minValue: number, maxValue: number, scaleFactor: number, circleOptions: CircleOptions, allDataValues?: number[]): number {
-        if (value > maxValue && allDataValues && allDataValues.length > 0) {
-            const actualMax = Math.max(...allDataValues);
-            if (actualMax > maxValue) {
-                const outlierRange = actualMax - maxValue;
-                if (outlierRange > 0) {
-                    const outlierPosition = Math.min((value - maxValue) / outlierRange, 1);
-                    const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-                    const p95Radius = Math.sqrt(minRadiusSquared + (maxValue - minValue) * scaleFactor);
-                    const remainingRadiusSpace = circleOptions.maxRadius - p95Radius;
-                    const maxOutlierBonus = remainingRadiusSpace * 0.8;
-                    const outlierRadiusBonus = maxOutlierBonus * outlierPosition;
-                    const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
-                    return finalRadius;
-                }
-            }
-        }
-        const clampedValue = Math.max(minValue, Math.min(value, maxValue));
-        const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
-        const scaledAreaSquared = minRadiusSquared + (clampedValue - minValue) * scaleFactor;
-        return Math.sqrt(scaledAreaSquared);
-    }
+    // applyScaling moved to src/math/circles.ts
 
     private createCircleDataPoints(
         longitudes: number[],
@@ -338,29 +260,29 @@ export class CircleOrchestrator {
         let maxMapCircleRadius: number;
         let maxLegendValue: number;
         if (isAdaptiveScaling) {
-            maxMapCircleRadius = this.applyScaling(actualMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues);
+            maxMapCircleRadius = applyScaling(actualMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues);
             maxLegendValue = actualMaxValue;
         } else {
-            maxMapCircleRadius = this.applyScaling(mapScalingMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues);
+            maxMapCircleRadius = applyScaling(mapScalingMaxValue, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues);
             maxLegendValue = mapScalingMaxValue;
         }
 
-        const largeLegendRadius = maxMapCircleRadius;
-        const mediumLegendRadius = maxMapCircleRadius * 0.5;
-        const smallLegendRadius = maxMapCircleRadius * 0.25;
+    const largeLegendRadius = maxMapCircleRadius;
+    const mediumLegendRadius = maxMapCircleRadius * 0.5;
+    const smallLegendRadius = maxMapCircleRadius * 0.25;
 
         const minRadiusSquared = circleOptions.minRadius * circleOptions.minRadius;
         const largeValue = maxLegendValue;
         const mediumValue = ((mediumLegendRadius * mediumLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
         const clampedMediumValue = Math.max(mapScalingMinValue, Math.min(mediumValue, mapScalingMaxValue));
-        const closestMediumValue = this.findClosestValue(sortedValues, clampedMediumValue);
+    const closestMediumValue = findClosestValue(sortedValues, clampedMediumValue);
         const smallValue = ((smallLegendRadius * smallLegendRadius - minRadiusSquared) / circleScale) + minCircleSizeValue;
         const clampedSmallValue = Math.max(mapScalingMinValue, Math.min(smallValue, mapScalingMaxValue));
-        const closestSmallValue = this.findClosestValue(sortedValues, clampedSmallValue);
+    const closestSmallValue = findClosestValue(sortedValues, clampedSmallValue);
 
         const finalValues = [closestSmallValue, closestMediumValue, largeValue];
         const finalRadii = finalValues.map(value =>
-            this.applyScaling(value, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues)
+            applyScaling(value, minCircleSizeValue, maxCircleSizeValue, circleScale, circleOptions, validDataValues)
         );
 
         this.legendService.createProportionalCircleLegend(
@@ -373,16 +295,5 @@ export class CircleOrchestrator {
         this.legendService.showLegend("circle");
     }
 
-    private findClosestValue(sortedValues: number[], targetValue: number): number {
-        let closest = sortedValues[0];
-        let minDiff = Math.abs(targetValue - closest);
-        for (const value of sortedValues) {
-            const diff = Math.abs(targetValue - value);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closest = value;
-            }
-        }
-        return closest;
-    }
+    // findClosestValue moved to src/math/circles.ts
 }

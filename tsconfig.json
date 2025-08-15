@@ -32,6 +32,9 @@
     "src/orchestration/CircleOrchestrator.ts",
     "src/orchestration/ChoroplethOrchestrator.ts",
         "src/config/VisualConfig.ts", 
+    "src/data/choropleth.ts",
+    "src/data/circle.ts",
+    "src/math/circles.ts",
         
         "src/utils/requestHelpers.ts",
         "src/utils/attribution.ts",        
@@ -57,6 +60,7 @@
         "tests/integration/choroplethLayer.integration.test.ts",
     "tests/visual.test.ts",
     "tests/unit/orchestration.circleOrchestrator.test.ts",
-        "tests/unit/orchestration.choroplethOrchestrator.test.ts"
+        "tests/unit/orchestration.choroplethOrchestrator.test.ts",
+        "tests/unit/dataParsing.test.ts"
     ]
 }

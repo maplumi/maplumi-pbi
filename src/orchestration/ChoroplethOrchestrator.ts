@@ -15,6 +15,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import * as requestHelpers from "../utils/requestHelpers";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
 import { CacheService } from "../services/CacheService";
+import { parseChoroplethCategorical, validateChoroplethInput, filterValidPCodes } from "../data/choropleth";
 
 export class ChoroplethOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -81,13 +82,20 @@ export class ChoroplethOrchestrator {
         group.selectAll("*").remove();
         this.svgOverlay.style.display = 'flex';
 
-        if (!this.validateChoroplethInputData(categorical)) return undefined;
+        const validation = validateChoroplethInput(categorical);
+        if (!validation.ok) {
+            this.host.displayWarningIcon("Measures not found", "maplumiWarning: Measures field is missing. Please ensure it is included in your data.");
+            return undefined;
+        }
 
-        const { AdminPCodeNameIDCategory, colorMeasure, pCodes } = this.extractChoroplethData(categorical);
+        const { AdminPCodeNameIDCategory, colorMeasure, pCodes } = parseChoroplethCategorical(categorical);
         if (!AdminPCodeNameIDCategory || !colorMeasure || !pCodes) return undefined;
 
-        const validPCodes = this.filterValidPCodes(pCodes);
-        if (validPCodes.length === 0) return undefined;
+        const validPCodes = filterValidPCodes(pCodes);
+        if (validPCodes.length === 0) {
+            this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
+            return undefined;
+        }
 
         const { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } =
             this.prepareChoroplethData(categorical, choroplethOptions, AdminPCodeNameIDCategory, colorMeasure, pCodes, dataService);
@@ -118,40 +126,7 @@ export class ChoroplethOrchestrator {
         return this.choroplethLayer;
     }
 
-    private validateChoroplethInputData(categorical: any): boolean {
-        if (!categorical.values || categorical.values.length === 0) {
-            this.host.displayWarningIcon("Measures not found", "maplumiWarning: Measures field is missing. Please ensure it is included in your data.");
-            return false;
-        }
-        return true;
-    }
-
-    private extractChoroplethData(categorical: any): ChoroplethData {
-        const AdminPCodeNameIDCategory = categorical.categories.find((c: any) => c.source?.roles && c.source.roles["AdminPCodeNameID"]);
-        if (!AdminPCodeNameIDCategory) {
-            this.host.displayWarningIcon("Admin PCode/Name/ID not found", "maplumiWarning: Admin PCode/Name/ID field is missing. Please ensure it is included in your data.");
-            return { AdminPCodeNameIDCategory: undefined, colorMeasure: undefined, pCodes: undefined };
-        }
-        const colorMeasure = categorical.values.find((c: any) => c.source?.roles && c.source.roles["Color"]);
-        if (!colorMeasure) {
-            this.host.displayWarningIcon("Color Measure not found", "maplumiWarning: Color measure field is missing. Please ensure it is included in your data.");
-            return { AdminPCodeNameIDCategory, colorMeasure: undefined, pCodes: undefined };
-        }
-        const pCodes = AdminPCodeNameIDCategory.values as string[];
-        if (!pCodes || pCodes.length === 0) {
-            this.host.displayWarningIcon("No PCodes found", "maplumiWarning: No PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-            return { AdminPCodeNameIDCategory, colorMeasure, pCodes: undefined };
-        }
-        return { AdminPCodeNameIDCategory, colorMeasure, pCodes };
-    }
-
-    private filterValidPCodes(pCodes: string[]): string[] {
-        const validPCodes = pCodes.filter((pcode) => pcode);
-        if (validPCodes.length === 0) {
-            this.host.displayWarningIcon("No valid PCodes found", "maplumiWarning: No valid PCodes found in the Admin PCode/Name/ID field. Please ensure it is populated.");
-        }
-        return validPCodes;
-    }
+    // parsing moved to src/data/choropleth.ts
 
     private prepareChoroplethData(
         categorical: any,
