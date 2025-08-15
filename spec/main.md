@@ -38,11 +38,11 @@ graph TD
 
 ```mermaid
 flowchart LR
-  A["Format pane toggles"] -->|Circles = ON| B[Render Circles]
-  A -->|Choropleth = ON| C[Render Choropleth]
-  B --> D[Legend (if enabled)]
+  A["Format pane toggles"] -->|Circles ON| B["Render Circles"]
+  A -->|Choropleth ON| C["Render Choropleth"]
+  B --> D["Legend - if enabled"]
   C --> D
-  A -->|Both OFF| E[Nothing renders]
+  A -->|Both OFF| E["Nothing renders"]
 ```
 
 ## Render pipeline (simplified)
