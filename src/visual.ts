@@ -50,13 +50,14 @@ import { MapService } from "./services/MapService";
 import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
 import type { Extent } from "ol/extent";
-import { VisualConfig } from "./config/VisualConfig";
 import { CacheService } from "./services/CacheService";
 import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
 import { ChoroplethOrchestrator } from "./orchestration/ChoroplethOrchestrator";
 import { CircleOrchestrator } from "./orchestration/CircleOrchestrator";
 import { OptionsService } from "./services/OptionsService";
+import { ColorRampHelper } from "./services/ColorRampHelper";
+import { DataRoleService } from "./services/DataRoleService";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -210,29 +211,13 @@ export class MaplumiVisual implements IVisual {
     const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
     this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
 
-        // Auto-toggle layers based on bound fields (Lat/Lon for circles, Boundary ID for choropleth)
-        const categorical = dataView.categorical;
-        const hasNonEmptyValue = (v: any) => {
-            if (v === null || v === undefined) return false;
-            if (typeof v === "string") return v.trim().length > 0;
-            if (typeof v === "number") return !isNaN(v);
-            return true; // treat other truthy values as present
-        };
-        const hasRoleWithValues = (roleName: string) => {
-            const cat = categorical.categories?.find(c => c.source?.roles && (c.source.roles as any)[roleName]);
-            return !!(cat && Array.isArray(cat.values) && cat.values.length > 0 && cat.values.some(hasNonEmptyValue));
-        };
-        const hasLat = hasRoleWithValues("Latitude");
-        const hasLon = hasRoleWithValues("Longitude");
-        const hasBoundary = hasRoleWithValues("AdminPCodeNameID");
+    // Auto-toggle layers based on bound fields (Lat/Lon for circles, Boundary ID for choropleth)
+    const categorical = dataView.categorical;
+    const { circle: autoCircleToggle, choropleth: autoChoroplethToggle } = DataRoleService.computeAutoToggles(categorical);
 
         // Original user-configured toggles from settings
         const originalCircleToggle = circleOptions.layerControl;
         const originalChoroplethToggle = choroplethOptions.layerControl;
-
-        // Auto values based on data roles
-        const autoCircleToggle = hasLat && hasLon;
-        const autoChoroplethToggle = hasBoundary;
 
         // Apply auto toggles at render time
         circleOptions.layerControl = autoCircleToggle;
@@ -266,28 +251,11 @@ export class MaplumiVisual implements IVisual {
         this.updateLegendContainer();
 
         // Create color ramp service and data service
-        const colorRampName = choroplethOptions.colorRamp;
-        const colorRamp: string[] = VisualConfig.COLORRAMPS[colorRampName.toUpperCase()];
-        const customColorRamp: string[] = choroplethOptions.customColorRamp.split(",");
-
-        // Validate custom color ramp: trim and check for valid hex colors
-        const validCustomColorRamp = customColorRamp
-            .map(c => c.trim())
-            .filter(c => /^#([0-9A-Fa-f]{3}){1,2}$/.test(c));
-
-        let selectedColorRamp: string[];
-        if (colorRampName === "custom") {
-            if (validCustomColorRamp.length > 0) {
-                selectedColorRamp = validCustomColorRamp;
-            } else {
-                selectedColorRamp = colorRamp;
-
-                this.messages.invalidOrEmptyCustomColorRamp();
-
-            }
-        } else {
-            selectedColorRamp = colorRamp;
-        }
+        const selectedColorRamp = ColorRampHelper.selectColorRamp(
+            choroplethOptions.colorRamp,
+            choroplethOptions.customColorRamp,
+            this.messages
+        );
 
         // Initialize color ramp and data service
         this.colorRampManager = new ColorRampManager(selectedColorRamp);

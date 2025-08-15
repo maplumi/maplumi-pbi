@@ -27,7 +27,9 @@
     "src/services/ColorRampManager.ts",
     "src/services/MessageService.ts",
     "src/services/LayerOptionBuilders.ts",
-  "src/services/OptionsService.ts",
+    "src/services/OptionsService.ts",
+    "src/services/ColorRampHelper.ts",
+    "src/services/DataRoleService.ts",
     "src/orchestration/MapToolsOrchestrator.ts",
     "src/orchestration/BaseOrchestrator.ts",
     "src/orchestration/CircleOrchestrator.ts",
@@ -63,6 +65,8 @@
     "tests/visual.test.ts",
     "tests/unit/orchestration.circleOrchestrator.test.ts",
     "tests/unit/orchestration.choroplethOrchestrator.test.ts",
-    "tests/unit/dataParsing.test.ts"
+    "tests/unit/dataParsing.test.ts",
+    "tests/unit/colorRampHelper.test.ts",
+    "tests/unit/dataRoleService.test.ts"
   ]
 }
