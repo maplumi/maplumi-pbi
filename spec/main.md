@@ -40,8 +40,8 @@ graph TD
 flowchart LR
   A["Data roles present?"] -->|Lat & Lon| B[Auto-toggle Circles ON]
   A -->|AdminPCodeNameID| C[Auto-toggle Choropleth ON]
-  B --> D{"User \"Show layer\"?"}
-  C --> E{"User \"Show layer\"?"}
+  B --> D{Show layer?}
+  C --> E{Show layer?}
   D -->|Yes| F[Circles render]
   D -->|No| G[Circles hidden]
   E -->|Yes| H[Choropleth render]
