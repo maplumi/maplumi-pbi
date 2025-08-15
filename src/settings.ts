@@ -29,7 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
-import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "./constants/strings";
+import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -997,16 +997,16 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendPosition",
         displayName: "Position",
         value: {
-            value: "top-right",  //default value
+            value: LegendPositions.TopRight,  //default value
             displayName: "Top Right"
         },
         items: [
-            { value: "top-right", displayName: "Top Right" },
-            { value: "top-left", displayName: "Top Left" },
-            { value: "top-center", displayName: "Top Center" },
-            { value: "bottom-right", displayName: "Bottom Right" },
-            { value: "bottom-left", displayName: "Bottom Left" },
-            { value: "bottom-center", displayName: "Bottom Center" }
+            { value: LegendPositions.TopRight, displayName: "Top Right" },
+            { value: LegendPositions.TopLeft, displayName: "Top Left" },
+            { value: LegendPositions.TopCenter, displayName: "Top Center" },
+            { value: LegendPositions.BottomRight, displayName: "Bottom Right" },
+            { value: LegendPositions.BottomLeft, displayName: "Bottom Left" },
+            { value: LegendPositions.BottomCenter, displayName: "Bottom Center" }
 
         ]
     });

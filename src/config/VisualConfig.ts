@@ -1,5 +1,8 @@
 
 export const VisualConfig = {
+    NETWORK: {
+        FETCH_TIMEOUT_MS: 10000
+    },
     CACHE: {
         EXPIRY_MS: 3600000, // 1 hour
         MAX_ENTRIES: 100

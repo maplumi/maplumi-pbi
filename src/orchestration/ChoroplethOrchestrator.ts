@@ -4,7 +4,6 @@ import powerbi from "powerbi-visuals-api";
 import * as d3 from "d3";
 import { DomIds, ClassificationMethods } from "../constants/strings";
 import Map from "ol/Map";
-import { VisualConfig } from "../config/VisualConfig";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
 import { LegendService } from "../services/LegendService";
 import { ChoroplethLayer } from "../layers/choroplethLayer";
@@ -14,6 +13,7 @@ import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import ISelectionId = powerbi.extensibility.ISelectionId;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import * as requestHelpers from "../utils/requestHelpers";
+import { VisualConfig } from "../config/VisualConfig";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
 import { CacheService } from "../services/CacheService";
 import { parseChoroplethCategorical, validateChoroplethInput, filterValidPCodes } from "../data/choropleth";
@@ -182,9 +182,10 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         try {
             const data = await this.cacheService.getOrFetch(cacheKey, async () => {
                 if (!requestHelpers.isValidURL(serviceUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
+                if (!requestHelpers.enforceHttps(serviceUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
                 let response: Response;
                 try {
-                    response = await window.fetch(serviceUrl, { signal: this.abortController!.signal });
+                    response = await requestHelpers.fetchWithTimeout(serviceUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
                 } catch (e) {
                     this.messages.geoTopoFetchNetworkError(); return null;
                 }
