@@ -2,6 +2,7 @@
 
 import powerbi from "powerbi-visuals-api";
 import * as d3 from "d3";
+import { DomIds } from "../constants/strings";
 import Map from "ol/Map";
 import { VisualConfig } from "../config/VisualConfig";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
@@ -59,8 +60,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
         choroplethDisplayed: boolean
     ): CircleLayer | undefined {
         if (circleOptions.layerControl == false) {
-            const group1 = this.svg.select(`#circles-group-1`);
-            const group2 = this.svg.select(`#circles-group-2`);
+            const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
+            const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
             group1.selectAll("*").remove();
             group2.selectAll("*").remove();
             if (this.circleLayer) {
@@ -71,8 +72,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
             return undefined;
         }
 
-        const group1 = this.svg.select(`#circles-group-1`);
-        const group2 = this.svg.select(`#circles-group-2`);
+    const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
+    const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
         group1.selectAll("*").remove();
         group2.selectAll("*").remove();
 

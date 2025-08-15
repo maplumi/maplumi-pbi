@@ -29,6 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
+import { ClassificationMethods } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -680,16 +681,16 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
         name: "classificationMethod",
         displayName: "Method",
         value: {
-            value: "q",  //default value
+            value: ClassificationMethods.Quantile,  //default value
             displayName: "Quantile"
         },
         items: [
-            { value: "u", displayName: "Categorical/Ordinal" },
-            { value: "q", displayName: "Quantile" },
-            { value: "e", displayName: "Equal Interval" },
-            { value: "l", displayName: "Logarithmic" },
-            { value: "k", displayName: "K-means" },
-            { value: "j", displayName: "Jenks Natural Breaks" }
+            { value: ClassificationMethods.Unique, displayName: "Categorical/Ordinal" },
+            { value: ClassificationMethods.Quantile, displayName: "Quantile" },
+            { value: ClassificationMethods.EqualInterval, displayName: "Equal Interval" },
+            { value: ClassificationMethods.Logarithmic, displayName: "Logarithmic" },
+            { value: ClassificationMethods.KMeans, displayName: "K-means" },
+            { value: ClassificationMethods.Jenks, displayName: "Jenks Natural Breaks" }
         ]
     });
 

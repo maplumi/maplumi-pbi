@@ -1,6 +1,7 @@
 "use strict";
 
 import type powerbi from "powerbi-visuals-api";
+import { RoleNames } from "../constants/roles";
 
 export class DataRoleService {
     static hasNonEmptyValue(v: any): boolean {
@@ -22,9 +23,9 @@ export class DataRoleService {
      *  - choropleth => AdminPCodeNameID present with values
      */
     static computeAutoToggles(categorical: powerbi.DataViewCategorical): { circle: boolean; choropleth: boolean } {
-        const hasLat = this.hasRoleWithValues(categorical, "Latitude");
-        const hasLon = this.hasRoleWithValues(categorical, "Longitude");
-        const hasBoundary = this.hasRoleWithValues(categorical, "AdminPCodeNameID");
+        const hasLat = this.hasRoleWithValues(categorical, RoleNames.Latitude);
+        const hasLon = this.hasRoleWithValues(categorical, RoleNames.Longitude);
+        const hasBoundary = this.hasRoleWithValues(categorical, RoleNames.AdminPCodeNameID);
         return { circle: hasLat && hasLon, choropleth: hasBoundary };
     }
 }

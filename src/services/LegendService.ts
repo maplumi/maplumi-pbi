@@ -1,5 +1,6 @@
 import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as format from "../utils/format";
+import { ClassificationMethods } from "../constants/strings";
 
 export class LegendService {
 
@@ -229,7 +230,7 @@ export class LegendService {
         // Collect all labels and colors
         let allLabels: string[] = [];
         let colors: string[] = [];
-        if (options.classificationMethod === "u") {
+    if (options.classificationMethod === ClassificationMethods.Unique) {
             // Unique value legend
             // Use classBreaks (already sorted and capped) for both labels and color mapping
             const uniqueValues = classBreaks;

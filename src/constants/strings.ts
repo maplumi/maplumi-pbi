@@ -1,0 +1,39 @@
+"use strict";
+
+export const VisualObjectNames = {
+    ProportionalCircles: "proportionalCirclesVisualCardSettings",
+    Choropleth: "choroplethVisualCardSettings",
+    MapControls: "mapControlsVisualCardSettings",
+} as const;
+
+export const VisualObjectProps = {
+    ShowLayerControl: "showLayerControl",
+    LockedMapExtent: "lockedMapExtent",
+    LockedMapZoom: "lockedMapZoom",
+} as const;
+
+export const DomIds = {
+    LegendContainer: "legendContainer",
+    SvgOverlay: "svgOverlay",
+    CirclesGroup1: "circles-group-1",
+    CirclesGroup2: "circles-group-2",
+    ChoroplethGroup: "choropleth-group",
+} as const;
+
+export const LegendPositions = {
+    TopRight: "top-right",
+    TopLeft: "top-left",
+    BottomRight: "bottom-right",
+    BottomLeft: "bottom-left",
+    TopCenter: "top-center",
+    BottomCenter: "bottom-center",
+} as const;
+
+export const ClassificationMethods = {
+    Unique: "u",
+    Quantile: "q",
+    EqualInterval: "e",
+    Logarithmic: "l",
+    KMeans: "k",
+    Jenks: "j",
+} as const;

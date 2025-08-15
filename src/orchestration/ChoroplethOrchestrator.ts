@@ -2,6 +2,7 @@
 
 import powerbi from "powerbi-visuals-api";
 import * as d3 from "d3";
+import { DomIds, ClassificationMethods } from "../constants/strings";
 import Map from "ol/Map";
 import { VisualConfig } from "../config/VisualConfig";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
@@ -63,7 +64,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         mapToolsOptions: MapToolsOptions
     ): Promise<ChoroplethLayer | undefined> {
         if (choroplethOptions.layerControl == false) {
-            const group = this.svg.select(`#choropleth-group`);
+        const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
             group.selectAll("*").remove();
             if (this.choroplethLayer) {
                 this.map.removeLayer(this.choroplethLayer);
@@ -73,7 +74,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             return undefined;
         }
 
-        const group = this.svg.select(`#choropleth-group`);
+    const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
         group.selectAll("*").remove();
         this.svgOverlay.style.display = 'flex';
 
@@ -137,7 +138,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 .createSelectionId();
             return { pcode, value: colorValues[i], tooltip: tooltips[i], selectionId };
         });
-        if (choroplethOptions.classificationMethod === "u" && (classBreaks as any[]).length > 7) {
+    if (choroplethOptions.classificationMethod === ClassificationMethods.Unique && (classBreaks as any[]).length > 7) {
             this.messages.tooManyUniqueValues();
         }
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } as any;

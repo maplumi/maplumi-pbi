@@ -1,4 +1,5 @@
 "use strict";
+import { RoleNames } from "../constants/roles";
 
 export interface CircleParseResult {
     longitudes?: number[];
@@ -9,9 +10,9 @@ export interface CircleParseResult {
 }
 
 export function parseCircleCategorical(categorical: any): CircleParseResult {
-    const lonCategory = categorical?.categories?.find((c: any) => c.source?.roles?.Longitude);
-    const latCategory = categorical?.categories?.find((c: any) => c.source?.roles?.Latitude);
-    const circleSizeValuesObjects = categorical?.values?.filter((c: any) => c.source?.roles?.Size) || [];
+    const lonCategory = categorical?.categories?.find((c: any) => c.source?.roles?.[RoleNames.Longitude]);
+    const latCategory = categorical?.categories?.find((c: any) => c.source?.roles?.[RoleNames.Latitude]);
+    const circleSizeValuesObjects = categorical?.values?.filter((c: any) => c.source?.roles?.[RoleNames.Size]) || [];
 
     return {
         longitudes: lonCategory?.values as number[] | undefined,

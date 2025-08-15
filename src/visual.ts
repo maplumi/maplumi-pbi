@@ -58,6 +58,7 @@ import { CircleOrchestrator } from "./orchestration/CircleOrchestrator";
 import { OptionsService } from "./services/OptionsService";
 import { ColorRampHelper } from "./services/ColorRampHelper";
 import { DataRoleService } from "./services/DataRoleService";
+import { DomIds, LegendPositions, VisualObjectNames, VisualObjectProps } from "./constants/strings";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -106,8 +107,8 @@ export class MaplumiVisual implements IVisual {
         this.container = options.element;
 
         //legend container
-        this.legendContainer = document.createElement("div");
-        this.legendContainer.setAttribute("id", "legendContainer");
+    this.legendContainer = document.createElement("div");
+    this.legendContainer.setAttribute("id", DomIds.LegendContainer);
         this.legendContainer.style.position = "absolute";
         this.legendContainer.style.zIndex = "1000";
         this.legendContainer.style.display = "none"; // Hidden by default
@@ -127,7 +128,7 @@ export class MaplumiVisual implements IVisual {
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            this.svgOverlay.id = 'svgOverlay'
+            this.svgOverlay.id = DomIds.SvgOverlay
             this.svgOverlay.style.position = 'absolute';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
@@ -231,15 +232,15 @@ export class MaplumiVisual implements IVisual {
         const persistPayload: any[] = [];
         if (originalCircleToggle !== autoCircleToggle) {
             persistPayload.push({
-                objectName: "proportionalCirclesVisualCardSettings",
-                properties: { showLayerControl: autoCircleToggle },
+                objectName: VisualObjectNames.ProportionalCircles,
+                properties: { [VisualObjectProps.ShowLayerControl]: autoCircleToggle },
                 selector: null
             });
         }
         if (originalChoroplethToggle !== autoChoroplethToggle) {
             persistPayload.push({
-                objectName: "choroplethVisualCardSettings",
-                properties: { showLayerControl: autoChoroplethToggle },
+                objectName: VisualObjectNames.Choropleth,
+                properties: { [VisualObjectProps.ShowLayerControl]: autoChoroplethToggle },
                 selector: null
             });
         }
@@ -255,7 +256,7 @@ export class MaplumiVisual implements IVisual {
         this.updateLegendContainer();
 
         // Create color ramp service and data service
-        const selectedColorRamp = ColorRampHelper.selectColorRamp(
+    const selectedColorRamp = ColorRampHelper.selectColorRamp(
             choroplethOptions.colorRamp,
             choroplethOptions.customColorRamp,
             this.messages
@@ -287,7 +288,7 @@ export class MaplumiVisual implements IVisual {
             ).then(layer => { this.choroplethLayer = layer; });
         } else {
 
-            const group = this.svg.select(`#choropleth-group`);
+            const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
 
             group.selectAll("*").remove();  // Clear children
 
@@ -311,8 +312,8 @@ export class MaplumiVisual implements IVisual {
             this.circleLayer = layer;
         } else {
 
-            const group1 = this.svg.select(`#circles-group-1`);
-            const group2 = this.svg.select(`#circles-group-2`);
+            const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
+            const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
 
             // Always clean up children
             group1.selectAll("*").remove();
@@ -371,24 +372,24 @@ export class MaplumiVisual implements IVisual {
 
         // Set new position
         switch (this.mapToolsOptions.legendPosition) {
-            case 'top-right':
+            case LegendPositions.TopRight:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.right = '10px';
                 break;
-            case 'top-left':
+            case LegendPositions.TopLeft:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.left = '10px';
                 break;
-            case 'bottom-right':
+            case LegendPositions.BottomRight:
                 this.legendContainer.style.bottom = '10px';
                 this.legendContainer.style.right = '10px';
                 break;
-            case 'top-center':
+            case LegendPositions.TopCenter:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.left = '50%';
                 this.legendContainer.style.transform = 'translateX(-50%)';
                 break;
-            case 'bottom-center':
+            case LegendPositions.BottomCenter:
                 this.legendContainer.style.bottom = '10px';
                 this.legendContainer.style.left = '50%';
                 this.legendContainer.style.transform = 'translateX(-50%)';
@@ -419,8 +420,8 @@ export class MaplumiVisual implements IVisual {
     private persistCurrentExtentAsLocked(extentString: string, zoom: number) {
         this.host.persistProperties({
             merge: [{
-                objectName: "mapControlsVisualCardSettings",
-                properties: { lockedMapExtent: extentString, lockedMapZoom: zoom },
+                objectName: VisualObjectNames.MapControls,
+                properties: { [VisualObjectProps.LockedMapExtent]: extentString, [VisualObjectProps.LockedMapZoom]: zoom },
                 selector: null
             }]
         });

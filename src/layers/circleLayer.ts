@@ -6,6 +6,7 @@ import { Extent } from 'ol/extent.js';
 import { geoMercator } from 'd3-geo';
 import { arc as d3Arc } from 'd3-shape';
 import { CircleLayerOptions, GeoJSONFeature } from '../types/index';
+import { DomIds } from "../constants/strings";
 
 export class CircleLayer extends Layer {
 
@@ -54,8 +55,8 @@ export class CircleLayer extends Layer {
         const resolution = frameState.viewState.resolution;
         const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
 
-        this.svg.select('#circles-group-1').remove();
-        this.svg.select('#circles-group-2').remove();
+    this.svg.select(`#${DomIds.CirclesGroup1}`).remove();
+    this.svg.select(`#${DomIds.CirclesGroup2}`).remove();
         this.svg.attr('width', width).attr('height', height);
 
         const scale = 6378137 / resolution;
@@ -80,8 +81,8 @@ export class CircleLayer extends Layer {
             return this.applyAdaptiveScaling(value, minCircleSizeValue, maxCircleSizeValue, scaleFactor, circleOptions, allRelevantValues);
         };
 
-        const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
-        const circles2Group = this.svg.append('g').attr('id', 'circles-group-2');
+    const circles1Group = this.svg.append('g').attr('id', DomIds.CirclesGroup1);
+    const circles2Group = this.svg.append('g').attr('id', DomIds.CirclesGroup2);
 
         this.features.forEach((feature: GeoJSONFeature, i: number) => {
             if (!feature.geometry || feature.geometry.type !== 'Point') return;
@@ -351,7 +352,7 @@ export class CircleLayer extends Layer {
         });
 
         // Reorder groups to ensure circles are above choropleth
-        const choroplethGroupNode = this.svg.select('#choropleth-group').node();
+    const choroplethGroupNode = this.svg.select(`#${DomIds.ChoroplethGroup}`).node();
         const circles1GroupNode = circles1Group.node();
         const circles2GroupNode = circles2Group.node();
 

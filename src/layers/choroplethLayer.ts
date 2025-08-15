@@ -5,6 +5,7 @@ import { ChoroplethLayerOptions, GeoJSONFeature } from '../types/index';
 import { geoBounds, geoMercator, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
+import { DomIds } from "../constants/strings";
 import rbush from 'rbush';
 import { simplify } from '@turf/turf';
 import ISelectionId = powerbi.visuals.ISelectionId;
@@ -74,7 +75,7 @@ export class ChoroplethLayer extends Layer {
         const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
 
         // Clear existing paths
-        this.svg.select('#choropleth-group').remove();
+    this.svg.select(`#${DomIds.ChoroplethGroup}`).remove();
 
         // Set SVG dimensions to match the map viewport
         this.svg
@@ -93,7 +94,7 @@ export class ChoroplethLayer extends Layer {
         this.d3Path = geoPath().projection(d3Projection);
 
         // Create a group element for choropleth
-        const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
+    const choroplethGroup = this.svg.append('g').attr('id', DomIds.ChoroplethGroup);
 
         // Create a lookup for data points
         const dataPointsLookup = this.options.dataPoints?.reduce((acc, dpoint) => {

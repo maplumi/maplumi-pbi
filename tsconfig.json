@@ -30,6 +30,8 @@
     "src/services/OptionsService.ts",
     "src/services/ColorRampHelper.ts",
     "src/services/DataRoleService.ts",
+    "src/constants/roles.ts",
+    "src/constants/strings.ts",
     "src/orchestration/MapToolsOrchestrator.ts",
     "src/orchestration/BaseOrchestrator.ts",
     "src/orchestration/CircleOrchestrator.ts",
