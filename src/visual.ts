@@ -84,6 +84,7 @@ export class MaplumiVisual implements IVisual {
     private choroplethDisplayed: boolean = false;
     private cacheService: CacheService;
     
+    // Auto-toggle removed: layers are user-driven via format pane toggles
     private events: IVisualEventService;
     
     private previousLockMapExtent: boolean | undefined;
@@ -216,37 +217,10 @@ export class MaplumiVisual implements IVisual {
     const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
     this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
 
-    // Auto-toggle layers based on bound fields (Lat/Lon for circles, Boundary ID for choropleth)
-    const categorical = dataView.categorical;
-    const { circle: autoCircleToggle, choropleth: autoChoroplethToggle } = DataRoleService.computeAutoToggles(categorical);
-
-        // Original user-configured toggles from settings
-        const originalCircleToggle = circleOptions.layerControl;
-        const originalChoroplethToggle = choroplethOptions.layerControl;
-
-        // Apply auto toggles at render time
-        circleOptions.layerControl = autoCircleToggle;
-        choroplethOptions.layerControl = autoChoroplethToggle;
-
-        // Persist to settings so the format pane reflects the auto state
-        const persistPayload: any[] = [];
-        if (originalCircleToggle !== autoCircleToggle) {
-            persistPayload.push({
-                objectName: VisualObjectNames.ProportionalCircles,
-                properties: { [VisualObjectProps.ShowLayerControl]: autoCircleToggle },
-                selector: null
-            });
-        }
-        if (originalChoroplethToggle !== autoChoroplethToggle) {
-            persistPayload.push({
-                objectName: VisualObjectNames.Choropleth,
-                properties: { [VisualObjectProps.ShowLayerControl]: autoChoroplethToggle },
-                selector: null
-            });
-        }
-        if (persistPayload.length) {
-            this.host.persistProperties({ merge: persistPayload });
-        }
+    // Auto-toggle removed: use user-driven settings directly
+    // No computation or persistence of auto state
+    circleOptions.layerControl = circleOptions.layerControl;
+    choroplethOptions.layerControl = choroplethOptions.layerControl;
 
 
         // Dynamically toggle zoom control
