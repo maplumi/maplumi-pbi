@@ -93,7 +93,7 @@ Format Detection & Conversion (TopoJSON → GeoJSON)
     ↓
 Feature Filtering (by administrative codes)
     ↓
-Geometry Simplification (zoom-level dependent)
+Geometry Simplification (zoom-level dependent, topology-preserving)
     ↓
 Spatial Index Creation (RBush)
     ↓
@@ -145,7 +145,25 @@ public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): 
 }
 ```
 
-### 2. Statistical Data Processing
+### 2. Geometry Simplification (TopoJSON)
+
+We build a TopoJSON topology from the input GeoJSON once, compute triangle-area weights via `presimplify`, and then apply `simplify` with thresholds derived from quantiles. This preserves shared borders and avoids gaps/overlaps at coarse LODs.
+
+LOD thresholds are selected per zoom resolution and modulated by a user setting "Simplification Strength" (0–100). Higher strength increases simplification aggressiveness.
+
+```typescript
+// In ChoroplethLayer constructor
+this.topo = topology({ layer: this.geojson });
+this.topoPresimplified = presimplify(this.topo);
+this.recomputeThresholds(); // uses simplificationStrength to lerp quantiles
+
+// At render time per LOD
+const threshold = this.getThresholdForLevel(level);
+const simplifiedTopo = simplify(this.topoPresimplified, threshold);
+const simplifiedGeo = feature(simplifiedTopo, simplifiedTopo.objects.layer);
+```
+
+### 3. Statistical Data Processing
 
 #### Value Extraction
 - Administrative codes (P-codes) from categorical data

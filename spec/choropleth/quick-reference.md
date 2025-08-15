@@ -6,7 +6,7 @@ Short guide to get choropleth maps running fast. See the full spec for details: 
 
 ```mermaid
 flowchart LR
-  A["AdminPCodeNameID (Location)"] --> B[Auto-toggle Choropleth]
+  A["AdminPCodeNameID (Location)"] --> B[Choropleth Layer]
   C["Choropleth Value (Number)"] --> B
    B --> D[Areas render]
   D --> E["Legend (if enabled)"]
@@ -67,7 +67,7 @@ flowchart TB
 1) GeoBoundaries: prefer gbOpen; ADM0–ADM1 for broader views; ADM2–ADM3 for local detail.
 2) Mapping field: shapeISO for codes, shapeName for labels, shapeID if needed.
 3) Classes: keep 3–7; ensure readable contrast and legend title units.
-4) Performance: TopoJSON over GeoJSON; large data → higher admin level.
+4) Performance: TopoJSON over GeoJSON; use "Simplification Strength" to reduce complexity when zoomed out.
 
 ---
 

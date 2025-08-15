@@ -286,7 +286,7 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 ### Rendering Optimization
 
 1. **Spatial Indexing**: RBush spatial index for fast hit-testing and collision detection
-2. **Feature Simplification**: Turf.js simplification for complex geometries based on zoom level
+2. **Feature Simplification**: Topology-preserving TopoJSON simplification with zoom-level LOD and user-controlled Simplification Strength
 3. **Level-of-Detail**: Adaptive rendering quality based on current map zoom
 4. **SVG Optimization**: Efficient D3.js selection and data binding patterns
 
@@ -366,7 +366,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     geoBoundariesAdminLevel: DropDown;   // ADM0-ADM3 with conditional restrictions
     boundaryIdField: DropDown;           // Dynamic field options based on source
     customBoundaryIdField: TextInput;    // Custom field mapping for non-GeoBoundaries
-    topoJSON_geoJSON_FileUrl: TextInput; // Custom boundary data URL
+  topoJSON_geoJSON_FileUrl: TextInput; // Custom boundary data URL
+  simplificationStrength: NumUpDown;   // 0–100, controls simplification aggressiveness
 }
 ```
 

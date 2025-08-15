@@ -309,6 +309,7 @@ interface ChoroplethLayerOptions extends LayerOptions {
     
     // Performance
     zIndex?: number;
+    simplificationStrength?: number; // 0-100
 }
 ```
 
@@ -346,13 +347,13 @@ interface ChoroplethOptions {
     strokeColor: string;
     strokeWidth: number;
     layerOpacity: number;
+    simplificationStrength?: number; // 0-100, controls TopoJSON simplify aggressiveness
     
     // Legend
     showLegend: boolean;
     legendTitle: string;
     legendTitleColor: string;
     legendLabelsColor: string;
-    legendPosition: string;
     legendOrientation: string;
     legendTitleAlignment: string;
     legendItemMargin: number;
