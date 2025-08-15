@@ -11,7 +11,16 @@
     "!src/**/*.d.ts"
   ],
   "coverageDirectory": "coverage",
+  "transform": {
+    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(mjs|js|cjs|jsx)$": "babel-jest"
+  },
+  "transformIgnorePatterns": [
+    "/node_modules/(?!ol|ol-mapbox-style|d3|d3-.*)/"
+  ],
   "moduleNameMapper": {
-    "^@/(.*)$": "<rootDir>/src/$1"
+    "^@/(.*)$": "<rootDir>/src/$1",
+  "\\.(css|less|sass|scss)$": "identity-obj-proxy",
+  "^punycode$": "punycode/"
   }
 }

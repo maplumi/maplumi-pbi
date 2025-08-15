@@ -56,6 +56,6 @@
         "tests/integration/choroplethLayer.integration.test.ts",
     "tests/visual.test.ts",
     "tests/unit/orchestration.circleOrchestrator.test.ts",
-    "tests/unit/orchestration.choroplethOrchestrator.test.ts"
+        "tests/unit/orchestration.choroplethOrchestrator.test.ts"
     ]
 }

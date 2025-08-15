@@ -1,6 +1,7 @@
 import { ChoroplethOrchestrator } from "../../src/orchestration/ChoroplethOrchestrator";
 import { LegendService } from "../../src/services/LegendService";
 import { ChoroplethDataService } from "../../src/services/ChoroplethDataService";
+import { CacheService } from "../../src/services/cacheService";
 // Avoid importing d3 ESM in tests; create a tiny stub selection instead
 function createStubSelection() {
   return {
@@ -12,16 +13,6 @@ function createStubSelection() {
   } as any;
 }
 
-// Minimal cache service mock for tests (structural, avoids importing from src)
-const makeCacheServiceMock = () => {
-  const store = new Map<string, any>();
-  return {
-    getOrFetch: jest.fn(async (_key: string, fetchFn: () => Promise<any>) => fetchFn()),
-    set: jest.fn((key: string, data: any) => { store.set(key, data); }),
-    get: jest.fn((key: string) => store.get(key)),
-    clear: jest.fn(() => store.clear()),
-  };
-};
 
 // Mock ChoroplethLayer to avoid importing OpenLayers ESM in unit tests
 jest.mock("../../src/layers/choroplethLayer", () => ({
@@ -50,7 +41,7 @@ function makeOrchestrator() {
   const svg = createStubSelection();
   const svgContainer = global.document.createElement('div');
   const legendService = new LegendService(svgContainer);
-  const cacheService = makeCacheServiceMock();
+  const cacheService = new CacheService();
   return new ChoroplethOrchestrator({
     svg,
     svgOverlay,
