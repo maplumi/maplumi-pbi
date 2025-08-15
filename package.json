@@ -40,7 +40,9 @@
     "powerbi-visuals-utils-tooltiputils": "^6.0.4",
     "rbush": "^4.0.1",
     "simple-statistics": "^7.8.7",
-    "topojson-client": "^3.1.0",
+  "topojson-client": "^3.1.0",
+  "topojson-server": "^3.0.1",
+  "topojson-simplify": "^3.0.3",
     "turf": "^3.0.14",
     "visual": "file:"
   },

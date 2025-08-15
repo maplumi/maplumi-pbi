@@ -7,7 +7,9 @@ import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
 import { DomIds } from "../constants/strings";
 import rbush from 'rbush';
-import { simplify } from '@turf/turf';
+import { topology } from 'topojson-server';
+import { feature as topoFeature } from 'topojson-client';
+import { presimplify, simplify as topoSimplify, quantile as topoQuantile } from 'topojson-simplify';
 import ISelectionId = powerbi.visuals.ISelectionId;
 
 export class ChoroplethLayer extends Layer {
@@ -20,7 +22,10 @@ export class ChoroplethLayer extends Layer {
     private d3Path: any;
     private selectedIds: powerbi.extensibility.ISelectionId[] = [];
     private isActive: boolean = true;
-    private simplifiedCache: Map<number, any>;
+    private simplifiedCache: Map<string, any>;
+    private topo: any;
+    private topoPresimplified: any;
+    private topoThresholds: { coarse: number; low: number; medium: number; high: number; max: number };
 
     constructor(options: ChoroplethLayerOptions) {
         super({ ...options, zIndex: options.zIndex || 10 });
@@ -52,7 +57,27 @@ export class ChoroplethLayer extends Layer {
         this.spatialIndex.load(features);
 
         this.d3Path = null;
-    this.simplifiedCache = new Map();
+        this.simplifiedCache = new Map();
+
+        // Build a topology from GeoJSON once, with quantization to reduce precision (and size) safely for web rendering
+        try {
+            // Wrap the collection under a named object; we'll refer to it as 'layer'
+            this.topo = topology({ layer: this.geojson });
+            // Compute triangle areas for effective topology-preserving simplify
+            this.topoPresimplified = presimplify(this.topo);
+            this.topoThresholds = {
+                coarse: topoQuantile(this.topoPresimplified, 0.8),
+                low:    topoQuantile(this.topoPresimplified, 0.6),
+                medium: topoQuantile(this.topoPresimplified, 0.4),
+                high:   topoQuantile(this.topoPresimplified, 0.2),
+                max:    topoQuantile(this.topoPresimplified, 0.0)
+            };
+        } catch (e) {
+            // Fallback: leave topo undefined; will render original GeoJSON
+            this.topo = undefined;
+            this.topoPresimplified = undefined;
+            this.topoThresholds = { coarse: 0, low: 0, medium: 0, high: 0, max: 0 };
+        }
 
         this.changed();
     }
@@ -102,9 +127,8 @@ export class ChoroplethLayer extends Layer {
             return acc;
         }, {} as { [key: string]: any }) || {};
 
-    // Simplify features dynamically based on zoom level with caching
-    const tolerance = this.getSimplificationTolerance(resolution);
-    const simplified = this.getSimplifiedGeoJson(tolerance);
+    // Simplify features dynamically based on zoom level with topology-preserving LODs
+    const simplified = this.getSimplifiedGeoJsonForResolution(resolution);
 
         // Render features
     simplified.features.forEach((feature: GeoJSONFeature) => {
@@ -178,23 +202,41 @@ export class ChoroplethLayer extends Layer {
         return this.options.svgContainer;
     }
 
-    // Retrieve a simplified GeoJSON from cache or compute and cache by rounded tolerance
-    private getSimplifiedGeoJson(tolerance: number) {
-        // Quantize tolerance to reduce cache key cardinality
-        const key = Number(tolerance.toFixed(4));
-        const cached = this.simplifiedCache.get(key);
+    // Retrieve a simplified GeoJSON based on resolution using TopoJSON thresholds; fallback to original if topology unavailable
+    private getSimplifiedGeoJsonForResolution(resolution: number) {
+        if (!this.topoPresimplified) {
+            return this.geojson;
+        }
+
+        const level = this.getLodLevel(resolution);
+        const cacheKey = `lod:${level}`;
+        const cached = this.simplifiedCache.get(cacheKey);
         if (cached) return cached;
 
-        const simplified = simplify(this.geojson, { tolerance: key, highQuality: false });
+    const threshold = this.getThresholdForLevel(level);
+    const simplifiedTopo = topoSimplify(this.topoPresimplified, threshold);
+    const geo = topoFeature(simplifiedTopo, simplifiedTopo.objects.layer);
 
-        // Simple size cap to avoid unbounded growth
-        const MAX_ENTRIES = 12;
+        // Cap cache size
+        const MAX_ENTRIES = 8;
         if (this.simplifiedCache.size >= MAX_ENTRIES) {
             const oldestKey = this.simplifiedCache.keys().next().value;
             this.simplifiedCache.delete(oldestKey);
         }
-        this.simplifiedCache.set(key, simplified);
-        return simplified;
+        this.simplifiedCache.set(cacheKey, geo);
+        return geo;
+    }
+
+    private getLodLevel(resolution: number): 'coarse' | 'low' | 'medium' | 'high' | 'max' {
+        if (resolution > 7500) return 'coarse';
+        if (resolution > 5000) return 'low';
+        if (resolution > 2500) return 'medium';
+        if (resolution > 1000) return 'high';
+        return 'max';
+    }
+
+    private getThresholdForLevel(level: 'coarse' | 'low' | 'medium' | 'high' | 'max'): number {
+        return this.topoThresholds[level] || 0;
     }
 
     getSpatialIndex() {
@@ -221,59 +263,5 @@ export class ChoroplethLayer extends Layer {
         this.selectedIds = selectionIds;
     }
 
-    private simplifyThresholds = {
-        high: 0.15,
-        high_medium: 0.1,
-        medium: 0.05,
-        low_medium: 0.02,
-        low: 0.005
-    };
-
-    private getSimplificationTolerance(resolution: number): number {
-        
-        // Get the total extent of all features
-        const bounds = geoBounds(this.geojson);
-        const width = Math.abs(bounds[1][0] - bounds[0][0]);  // longitude span
-        const height = Math.abs(bounds[1][1] - bounds[0][1]); // latitude span
-
-        // Calculate feature density factor (smaller area = less simplification needed)
-        const area = width * height;
-        const densityFactor = Math.min(1, Math.max(0.1, area / 1000));  // Normalize between 0.1 and 1
-
-        // Adjust thresholds based on feature density
-        let tolerance: number;
-        if (resolution > 7500) {
-            tolerance = this.simplifyThresholds.high * densityFactor;
-        } else if (resolution > 5000) {
-            tolerance = this.simplifyThresholds.high_medium * densityFactor;
-        } else if (resolution > 2500) {
-            tolerance = this.simplifyThresholds.medium * densityFactor;
-        } else if (resolution > 1000) {
-            tolerance = this.simplifyThresholds.low_medium * densityFactor;
-        } else {
-            tolerance = this.simplifyThresholds.low * densityFactor;
-        }
-
-        // Add feature count factor (more features = more aggressive simplification)
-        const featureCount = this.geojson.features.length;
-        const featureCountFactor = Math.min(1.5, Math.max(0.5, featureCount / 1000));
-
-        // Clamp tolerance to avoid oversimplification
-        const minTolerance = 0.00001;
-        const maxTolerance = 0.01;
-        let finalTolerance = tolerance * featureCountFactor;
-        finalTolerance = Math.max(minTolerance, Math.min(maxTolerance, finalTolerance));
-
-        // Debug log
-        // console.log('Simplification:', {
-        //     resolution,
-        //     tolerance,
-        //     featureCount,
-        //     featureCountFactor,
-        //     densityFactor,
-        //     finalTolerance
-        // });
-
-        return finalTolerance;
-    }
+    // Old numeric tolerance-based simplify removed in favor of topology-preserving LODs
 }
