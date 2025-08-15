@@ -36,6 +36,12 @@ export class MessageService {
     tooManyUniqueValues() {
         this.warn("Too many unique values for unique value classification.", "maplumiWarning: Only the top 7 unique values are mapped to colors; all others are shown in black. Please select a different classification method for better results.");
     }
+    invalidOrEmptyCustomColorRamp() {
+        this.warn(
+            "Invalid or empty custom color ramp.",
+            "maplumiWarning: Invalid or empty custom color ramp. Using default color ramp instead. Please provide a valid comma-separated list of hex color codes."
+        );
+    }
 
     // GeoBoundaries / data fetch
     geoBoundariesConfigError(msg: string) {

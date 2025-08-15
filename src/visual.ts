@@ -37,6 +37,7 @@ import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
+import { MessageService } from "./services/MessageService";
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
@@ -89,11 +90,13 @@ export class MaplumiVisual implements IVisual {
     private mapToolsOrchestrator: MapToolsOrchestrator;
     private circleOrchestrator: CircleOrchestrator;
     private choroplethOrchestrator: ChoroplethOrchestrator;
+    private messages: MessageService;
 
     constructor(options: VisualConstructorOptions) {
 
         this.host = options.host;
         this.events = options.host.eventService;
+    this.messages = new MessageService(options.host);
 
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new MaplumiVisualFormattingSettingsModel();
@@ -233,10 +236,7 @@ export class MaplumiVisual implements IVisual {
             } else {
                 selectedColorRamp = colorRamp;
 
-                this.host.displayWarningIcon(
-                    "Invalid or empty custom color ramp.",
-                    "maplumiWarning: Invalid or empty custom color ramp. Using default color ramp instead. Please provide a valid comma-separated list of hex color codes."
-                );
+                this.messages.invalidOrEmptyCustomColorRamp();
 
             }
         } else {

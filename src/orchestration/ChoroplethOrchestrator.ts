@@ -176,10 +176,7 @@ export class ChoroplethOrchestrator {
 
         if (choroplethOptions.boundaryDataSource === "geoboundaries") {
             const validation = GeoBoundariesService.validateOptions(choroplethOptions);
-            if (!validation.isValid) {
-                this.host.displayWarningIcon("GeoBoundaries Configuration Error", `maplumiWarning: ${validation.message}`);
-                return;
-            }
+            if (!validation.isValid) { this.messages.geoBoundariesConfigError(validation.message); return; }
             try {
                 const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
                 if (!metadata) { this.messages.geoBoundariesMetadataError(); return; }
