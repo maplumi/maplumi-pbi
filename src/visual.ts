@@ -137,7 +137,11 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.svg = d3.select(this.svgOverlay);
-        this.svgContainer = document.createElement('div'); // svg node container      
+        this.svgContainer = document.createElement('div'); // svg node container     
+        // Ensure legend container is part of DOM
+        if (!this.legendContainer.parentElement) {
+            this.container.appendChild(this.legendContainer);
+        }
 
         // Subscribe to selection changes
         this.selectionManager.registerOnSelectCallback(() => {
@@ -322,10 +326,11 @@ export class MaplumiVisual implements IVisual {
             this.legendService.hideLegend("circle");
         }
 
-        // Update legend visibility
-        if (choroplethOptions.layerControl == false && circleOptions.layerControl == false) {
-            this.legendContainer.style.display = "none";
-        }
+        // Update legend container visibility based on layers' legend settings
+        const parentLegendVisible =
+            (choroplethOptions.layerControl === true && choroplethOptions.showLegend === true) ||
+            (circleOptions.layerControl === true && circleOptions.showLegend === true);
+        this.legendContainer.style.display = parentLegendVisible ? "block" : "none";
 
         this.map.updateSize();
 
