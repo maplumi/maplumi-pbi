@@ -175,7 +175,7 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds;
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed();
                                 });
                         });
@@ -260,7 +260,7 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds;
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed();
                                 });
                         });
@@ -301,7 +301,7 @@ export class CircleLayer extends Layer {
                         this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                             .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                 this.selectedIds = selectedIds; // Update selected IDs
-                                console.log('Selected IDs:', this.selectedIds);
+                                // Selection updated; trigger re-render
                                 this.changed(); // Trigger re-render to apply new opacity
                             });
                     });
@@ -341,7 +341,7 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds; // Update selected IDs
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed(); // Trigger re-render to apply new opacity
                                 });
                         });
@@ -430,7 +430,7 @@ export class CircleLayer extends Layer {
                     const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
                     
                     // Debug logging for outlier scaling
-                    console.log(`CircleLayer outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
+                    // Outlier scaling applied
                     
                     return finalRadius;
                 }

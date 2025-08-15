@@ -168,7 +168,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                 pcodeKey = boundaryFieldName;
                 cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata)}`);
+                // Loaded boundary metadata successfully
             } catch (error) { this.messages.geoBoundariesConnectionError(); return; }
         } else {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
