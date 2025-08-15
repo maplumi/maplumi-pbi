@@ -11,6 +11,7 @@ Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. 
 - Mapbox, MapTiler, or OpenStreetMap basemaps
 - Legends, tooltips, cross-filtering
 - Auto-fit to data (optional)
+ - Topology-preserving simplification with a user "Simplification Strength" control
 
 ## Data roles
 Assign in the Visualizations pane. Only fill what you need for the layers you enable.

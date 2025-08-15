@@ -22,6 +22,7 @@ Required
 2) If GeoBoundaries: Country → Admin level → Release type → Field mapping
     If Custom: URL → Boundary ID field name
 3) Classification: Method + Classes, then pick a Color Ramp (or Custom CSV hex)
+4) Performance: Set "Simplification Strength" (0–100) for coarser/finer shapes
 
 Minimal settings
 ```
@@ -67,7 +68,15 @@ flowchart TB
 1) GeoBoundaries: prefer gbOpen; ADM0–ADM1 for broader views; ADM2–ADM3 for local detail.
 2) Mapping field: shapeISO for codes, shapeName for labels, shapeID if needed.
 3) Classes: keep 3–7; ensure readable contrast and legend title units.
-4) Performance: TopoJSON over GeoJSON; use "Simplification Strength" to reduce complexity when zoomed out.
+4) Performance: TopoJSON over GeoJSON; use higher "Simplification Strength" when zoomed out.
+
+```mermaid
+flowchart LR
+  Z[Zoom level] -->|coarse| T[High LOD simplify]
+  Z -->|fine| U[Low LOD simplify]
+  S["Simplification Strength (0–100)"] -->|higher| T
+  S -->|lower| U
+```
 
 ---
 

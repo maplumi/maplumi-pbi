@@ -38,18 +38,11 @@ graph TD
 
 ```mermaid
 flowchart LR
-  A["Data roles present?"] -->|Lat & Lon| B[Auto-toggle Circles ON]
-  A -->|AdminPCodeNameID| C[Auto-toggle Choropleth ON]
-  B --> D{Show layer?}
-  C --> E{Show layer?}
-  D -->|Yes| F[Circles render]
-  D -->|No| G[Circles hidden]
-  E -->|Yes| H[Choropleth render]
-  E -->|No| I[Choropleth hidden]
-  F --> J["Legend visible if enabled"]
-  H --> J
-  G --> K[Legend hidden if no active layer]
-  I --> K
+  A["Format pane toggles"] -->|Circles = ON| B[Render Circles]
+  A -->|Choropleth = ON| C[Render Choropleth]
+  B --> D[Legend (if enabled)]
+  C --> D
+  A -->|Both OFF| E[Nothing renders]
 ```
 
 ## Render pipeline (simplified)
@@ -64,7 +57,7 @@ sequenceDiagram
   participant DS as ChoroplethDataService
 
   PBI->>V: update(dataView, settings)
-  V->>V: compute auto-toggles (DataRoleService)
+  V->>V: read user settings (Format pane)
   V->>MS: basemap/update controls
   V->>MO: render choropleth (if ON)
   MO->>DS: breaks + color scale
@@ -81,7 +74,7 @@ sequenceDiagram
 3) Pick basemap and toggle "Show legend" per layer.
 
 ## Tips
-- Auto-toggle mirrors data roles but can be switched off in the Format pane.
+- Layers are user-driven. Toggle each layer in the Format pane.
 - Custom color ramps accept comma-separated hex (e.g., #fee,#f55,#900).
 - Legend container appears when any active layer’s legend is enabled.
 
