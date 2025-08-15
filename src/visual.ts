@@ -207,10 +207,58 @@ export class MaplumiVisual implements IVisual {
         this.svgOverlay.style.display = 'none';
 
         // Get latest options
-        const basemapOptions = this.getBasemapOptions();
-        const circleOptions = this.getCircleOptions();
-        const choroplethOptions = this.getChoroplethOptions();
+    const basemapOptions = this.getBasemapOptions();
+    const circleOptions = this.getCircleOptions();
+    const choroplethOptions = this.getChoroplethOptions();
         this.mapToolsOptions = this.getMapToolsOptions();
+
+        // Auto-toggle layers based on bound fields (Lat/Lon for circles, Boundary ID for choropleth)
+        const categorical = dataView.categorical;
+        const hasNonEmptyValue = (v: any) => {
+            if (v === null || v === undefined) return false;
+            if (typeof v === "string") return v.trim().length > 0;
+            if (typeof v === "number") return !isNaN(v);
+            return true; // treat other truthy values as present
+        };
+        const hasRoleWithValues = (roleName: string) => {
+            const cat = categorical.categories?.find(c => c.source?.roles && (c.source.roles as any)[roleName]);
+            return !!(cat && Array.isArray(cat.values) && cat.values.length > 0 && cat.values.some(hasNonEmptyValue));
+        };
+        const hasLat = hasRoleWithValues("Latitude");
+        const hasLon = hasRoleWithValues("Longitude");
+        const hasBoundary = hasRoleWithValues("AdminPCodeNameID");
+
+        // Original user-configured toggles from settings
+        const originalCircleToggle = circleOptions.layerControl;
+        const originalChoroplethToggle = choroplethOptions.layerControl;
+
+        // Auto values based on data roles
+        const autoCircleToggle = hasLat && hasLon;
+        const autoChoroplethToggle = hasBoundary;
+
+        // Apply auto toggles at render time
+        circleOptions.layerControl = autoCircleToggle;
+        choroplethOptions.layerControl = autoChoroplethToggle;
+
+        // Persist to settings so the format pane reflects the auto state
+        const persistPayload: any[] = [];
+        if (originalCircleToggle !== autoCircleToggle) {
+            persistPayload.push({
+                objectName: "proportionalCirclesVisualCardSettings",
+                properties: { showLayerControl: autoCircleToggle },
+                selector: null
+            });
+        }
+        if (originalChoroplethToggle !== autoChoroplethToggle) {
+            persistPayload.push({
+                objectName: "choroplethVisualCardSettings",
+                properties: { showLayerControl: autoChoroplethToggle },
+                selector: null
+            });
+        }
+        if (persistPayload.length) {
+            this.host.persistProperties({ merge: persistPayload });
+        }
 
 
         // Dynamically toggle zoom control
@@ -255,7 +303,7 @@ export class MaplumiVisual implements IVisual {
             return;
         }
 
-        this.choroplethDisplayed = choroplethOptions.layerControl;
+    this.choroplethDisplayed = choroplethOptions.layerControl;
         this.mapService.updateBasemap(basemapOptions);
 
         // Render layers based on settings
