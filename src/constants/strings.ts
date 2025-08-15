@@ -37,3 +37,16 @@ export const ClassificationMethods = {
     KMeans: "k",
     Jenks: "j",
 } as const;
+
+export const LegendOrientations = {
+    Horizontal: "horizontal",
+    Vertical: "vertical",
+} as const;
+
+export const LegendLabelPositions = {
+    Top: "top",
+    Center: "center",
+    Bottom: "bottom",
+    Left: "left",
+    Right: "right",
+} as const;

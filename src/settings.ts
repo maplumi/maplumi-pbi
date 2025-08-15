@@ -29,7 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
-import { ClassificationMethods } from "./constants/strings";
+import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -865,15 +865,15 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendLabelPosition",
         displayName: "Legend Label Position",
         value: {
-            value: "top",  //default value
-            displayName: "top"
+            value: LegendLabelPositions.Top,  //default value
+            displayName: "Top"
         },
         items: [
-            { value: "top", displayName: "Top" },
-            { value: "center", displayName: "Center" },
-            { value: "bottom", displayName: "Bottom" },
-            { value: "right", displayName: "Right" },
-            { value: "left", displayName: "Left" }
+            { value: LegendLabelPositions.Top, displayName: "Top" },
+            { value: LegendLabelPositions.Center, displayName: "Center" },
+            { value: LegendLabelPositions.Bottom, displayName: "Bottom" },
+            { value: LegendLabelPositions.Right, displayName: "Right" },
+            { value: LegendLabelPositions.Left, displayName: "Left" }
         ]
     });
 
@@ -882,12 +882,12 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendOrientation",
         displayName: "Legend Orientation",
         value: {
-            value: "horizontal",  //default value
+            value: LegendOrientations.Horizontal,  //default value
             displayName: "Horizontal"
         },
         items: [
-            { value: "horizontal", displayName: "Horizontal" },
-            { value: "vertical", displayName: "Vertical" }
+            { value: LegendOrientations.Horizontal, displayName: "Horizontal" },
+            { value: LegendOrientations.Vertical, displayName: "Vertical" }
         ]
     });
 
