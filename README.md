@@ -1,5 +1,7 @@
 # Maplumi Power BI Visual <img src="assets/icon.png" alt="Maplumi Visual Icon" width="64" height="64" align="right">
 
+[![Build and Release](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml)
+
 **Transform your geographic data into compelling visual stories with Maplumi - the ultimate mapping solution for Power BI.**
 
 
