@@ -79,14 +79,12 @@ export class MaplumiVisual implements IVisual {
     private mapToolsOptions: MapToolsOptions;
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
-    private mapExtent: Extent | undefined;
+   
     private choroplethDisplayed: boolean = false;
     private cacheService: CacheService;
-    private abortController: AbortController | null = null;
+    
     private events: IVisualEventService;
-    private circleGroup1: string = "#circles-group-1";
-    private circleGroup2: string = "#circles-group-2";
-    private choroplethGroup: string = "#choropleth-group";
+    
     private previousLockMapExtent: boolean | undefined;
     private mapToolsOrchestrator: MapToolsOrchestrator;
     private circleOrchestrator: CircleOrchestrator;
