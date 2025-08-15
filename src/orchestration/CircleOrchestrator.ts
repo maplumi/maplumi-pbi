@@ -16,17 +16,9 @@ import { parseCircleCategorical } from "../data/circle";
 import { calculateCircleScale, applyScaling, findClosestValue } from "../math/circles";
 import { MessageService } from "../services/MessageService";
 import { CircleLayerOptionsBuilder } from "../services/LayerOptionBuilders";
+import { BaseOrchestrator } from "./BaseOrchestrator";
 
-export class CircleOrchestrator {
-    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
-    private svgOverlay: SVGSVGElement;
-    private svgContainer: HTMLElement;
-    private legendService: LegendService;
-    private host: IVisualHost;
-    private map: Map;
-    private selectionManager: ISelectionManager;
-    private tooltipServiceWrapper: ITooltipServiceWrapper;
-    private messages: MessageService;
+export class CircleOrchestrator extends BaseOrchestrator {
     private circleOptsBuilder: CircleLayerOptionsBuilder;
 
     private circleLayer: CircleLayer | undefined;
@@ -41,15 +33,8 @@ export class CircleOrchestrator {
         selectionManager: ISelectionManager;
         tooltipServiceWrapper: ITooltipServiceWrapper;
     }) {
-        this.svg = args.svg;
-        this.svgOverlay = args.svgOverlay;
-        this.svgContainer = args.svgContainer;
-        this.legendService = args.legendService;
-        this.host = args.host;
-        this.map = args.map;
-        this.selectionManager = args.selectionManager;
-        this.tooltipServiceWrapper = args.tooltipServiceWrapper;
-        this.messages = new MessageService(this.host);
+    super(args);
+    this.messages = new MessageService(this.host);
         this.circleOptsBuilder = new CircleLayerOptionsBuilder({
             svg: this.svg,
             svgContainer: this.svgContainer,

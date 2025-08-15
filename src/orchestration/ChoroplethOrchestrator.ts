@@ -18,21 +18,13 @@ import { CacheService } from "../services/CacheService";
 import { parseChoroplethCategorical, validateChoroplethInput, filterValidPCodes } from "../data/choropleth";
 import { MessageService } from "../services/MessageService";
 import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
+import { BaseOrchestrator } from "./BaseOrchestrator";
 
-export class ChoroplethOrchestrator {
-    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
-    private svgOverlay: SVGSVGElement;
-    private svgContainer: HTMLElement;
-    private legendService: LegendService;
-    private host: IVisualHost;
-    private map: Map;
-    private selectionManager: ISelectionManager;
-    private tooltipServiceWrapper: ITooltipServiceWrapper;
+export class ChoroplethOrchestrator extends BaseOrchestrator {
     private cacheService: CacheService;
 
     private choroplethLayer: ChoroplethLayer | undefined;
     private abortController: AbortController | null = null;
-    private messages: MessageService;
     private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
 
     constructor(args: {
@@ -46,16 +38,8 @@ export class ChoroplethOrchestrator {
         tooltipServiceWrapper: ITooltipServiceWrapper;
         cacheService: CacheService;
     }) {
-        this.svg = args.svg;
-        this.svgOverlay = args.svgOverlay;
-        this.svgContainer = args.svgContainer;
-        this.legendService = args.legendService;
-        this.host = args.host;
-        this.map = args.map;
-        this.selectionManager = args.selectionManager;
-        this.tooltipServiceWrapper = args.tooltipServiceWrapper;
-        this.cacheService = args.cacheService;
-        this.messages = new MessageService(this.host);
+    super(args);
+    this.cacheService = args.cacheService;
         this.choroplethOptsBuilder = new ChoroplethLayerOptionsBuilder({
             svg: this.svg,
             svgContainer: this.svgContainer,
