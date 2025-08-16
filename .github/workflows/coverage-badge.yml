@@ -89,17 +89,30 @@ jobs:
         env:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
         run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            --input gist-payload.json
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
       - name: Update Gist with badge JSON (PRs from same repository)
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
         run: |
           echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON (PR same repo)"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
           gh api \
             -X PATCH \
             -H "Accept: application/vnd.github+json" \
             /gists/$GIST_ID \
-            -f files."$GIST_FILENAME".content="$(cat badge.json)"
+            --input gist-payload.json
           OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
           if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
           if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
@@ -112,28 +125,16 @@ jobs:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
         run: |
           echo "Updating gist $GIST_ID ($GIST_FILENAME) after Build and Release"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
           gh api \
             -X PATCH \
             -H "Accept: application/vnd.github+json" \
             /gists/$GIST_ID \
-            -f files."$GIST_FILENAME".content="$(cat badge.json)"
+            --input gist-payload.json
           OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
           if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
           if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
           echo "Gist updated. Badge URL:"
-          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
-
-          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON"
-          gh api \
-            -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            /gists/$GIST_ID \
-            -f files."$GIST_FILENAME".content="$(cat badge.json)"
-          # Resolve the actual gist owner for an accurate badge URL (falls back to configured owner or repo owner)
-          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
-          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
-          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
-          echo "Gist updated. You can use a shields.io endpoint badge like:"
           echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
 
       - name: Skip gist update (PRs from forks do not receive secrets)
