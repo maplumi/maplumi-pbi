@@ -18,6 +18,8 @@ Links:
 
 ## How it fits together
 
+Note: Diagrams use fenced code blocks with the language set to "mermaid", which GitHub renders natively.
+
 ```mermaid
 graph TD
   host[Power BI Host] --> visual[MaplumiVisual]
@@ -163,11 +165,21 @@ graph LR
 **Intelligent caching for external resources**
 
 - **Benefits**:
-  - Reduced API calls for boundary data
+  - Reduced API calls for boundary data and metadata
   - Improved performance for repeated visualizations
-  - Memory-efficient storage with size limits
-  - Cache invalidation strategies
-  - Cross-session persistence via LocalStorage
+  - In-memory cache with size cap and per-entry TTLs (shorter TTL for metadata)
+  - In-flight request coalescing to dedupe concurrent fetches
+  - Optional respect for server Cache-Control max-age headers
+  - Debug logging (HIT/MISS/PENDING) toggleable via global flag/localStorage
+
+#### Caveats and limitations
+- Not persisted: In-memory entries are cleared on report reload, page switch (if the visual is re-instantiated), or when the host reclaims memory.
+- Per-instance only: Cache is not shared across visuals or report pages; each visual instance maintains its own cache.
+- Memory footprint: Large boundary datasets can consume memory; the size cap may evict items earlier than TTL suggests.
+- Staleness trade-offs: TTLs are best-effort. When respecting server Cache-Control, misconfigured headers can cause shorter-than-desired lifetimes. We cap TTLs to max-age; we don’t extend them beyond local defaults.
+- No offline guarantee: After a reload, nothing is cached; offline views won’t benefit from prior fetches.
+- Key hygiene: Cache keys are URL-based. If a URL contains tokens or secrets, avoid enabling verbose cache logs, and prefer using keys without sensitive query params.
+- Data scope: Only public, non-sensitive resources should be cached (e.g., boundary files). Don’t cache PII.
 
 ---
 
@@ -215,10 +227,10 @@ Essential for accessing external mapping and boundary data services:
 - `https://*.r2.dev` - Cloudflare R2 storage
 
 #### LocalStorage Privilege
-Essential for caching boundary data and user preferences:
-- Boundary data caching for reduced API calls and improved performance
-- User settings persistence for map view state and configuration
-- Offline-capable visualization for cached data
+Used for user preferences and optional debugging toggles:
+- Persist legend and UI preferences where applicable
+- Enable cache debug logs via `localStorage.setItem('maplumi:debugCache','1')`
+- Note: Boundary and metadata caches are in-memory and not persisted across sessions
 
 #### ExportContent Privilege
 Essential for Power BI export functionality:
@@ -261,10 +273,10 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 ```
 
 ### Network Resilience
-- **Retry Mechanisms**: Automatic retry for failed requests with exponential backoff
-- **Timeout Handling**: Configurable timeouts for slow network connections
-- **Fallback Options**: Graceful degradation when external services are unavailable
-- **Error Recovery**: Clear error messages and recovery suggestions
+- **Timeout Handling**: Enforced fetch timeouts for boundary downloads
+- **Validation**: HTTPS-only enforcement and JSON schema checks
+- **Coalescing**: Concurrent callers share the same in-flight request
+- **Error Recovery**: Clear user messages and graceful fallbacks
 
 ### Security Considerations
 - **HTTPS Only**: All external requests use HTTPS for secure data transmission
@@ -299,10 +311,11 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 
 ### Caching Strategies
 
-1. **Boundary Data**: Long-term caching of static boundary geometries
-2. **Tile Caching**: Browser-level caching of map tiles
-3. **Computation Results**: Caching of expensive calculations (classifications, statistics)
-4. **Configuration State**: Persistent storage of user preferences and settings
+1. **Boundary Data**: In-memory caching with per-entry TTL and optional Cache-Control max-age; not persisted cross-session
+2. **Metadata**: Separate, shorter TTL; honors server Cache-Control when available
+3. **Tile Caching**: Browser-level caching of map tiles
+4. **Computation Results**: Caching of expensive calculations (classifications, statistics)
+5. **Configuration State**: Persistent storage of user preferences and settings
 
 ---
 

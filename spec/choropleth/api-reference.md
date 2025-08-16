@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual. I##### `processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection>`
+This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual.
+
+##### `processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection>`
 Processes geographic boundary data from GeoBoundaries API or custom sources.
 
 **Parameters:**
