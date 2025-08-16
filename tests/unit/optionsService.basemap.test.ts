@@ -1,4 +1,5 @@
 import { OptionsService } from "../../src/services/OptionsService";
+import { MaplumiVisualFormattingSettingsModel } from "../../src/settings";
 import { BasemapNames } from "../../src/constants/strings";
 
 // Build a minimal MaplumiVisualFormattingSettingsModel-like object for basemap only
@@ -85,5 +86,52 @@ describe("OptionsService.getBasemapOptions", () => {
     expect(opts.selectedBasemap).toBe(BasemapNames.MapTiler);
     expect(opts.maptilerApiKey).toBe("api-key");
     expect(opts.maptilerStyle).toBe("streets");
+  });
+
+  it("maps OpenStreetMap including provided custom attribution", () => {
+    const model = buildModel();
+    model.BasemapVisualCardSettings.basemapSelectSettingsGroup.selectedBasemap.value.value = BasemapNames.OpenStreetMap as any;
+
+    const opts = OptionsService.getBasemapOptions(model);
+    expect(opts.selectedBasemap).toBe(BasemapNames.OpenStreetMap);
+    expect(opts.customMapAttribution).toBe("© Custom");
+  });
+
+  it("maps Mapbox custom style fields", () => {
+    const model = buildModel();
+    model.BasemapVisualCardSettings.basemapSelectSettingsGroup.selectedBasemap.value.value = BasemapNames.Mapbox as any;
+    model.BasemapVisualCardSettings.mapBoxSettingsGroup.mapboxStyle.value.value = "custom" as any;
+    model.BasemapVisualCardSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value = "mapbox://styles/me/custom" as any;
+    model.BasemapVisualCardSettings.mapBoxSettingsGroup.mapboxAccessToken.value = "token" as any;
+
+    const opts = OptionsService.getBasemapOptions(model);
+    expect(opts.selectedBasemap).toBe(BasemapNames.Mapbox);
+    expect(opts.mapboxStyle).toBe("custom");
+    expect(opts.mapboxCustomStyleUrl).toBe("mapbox://styles/me/custom");
+    expect(opts.mapboxAccessToken).toBe("token");
+  });
+
+  it("maps MapTiler api key and style", () => {
+    const model = buildModel();
+    model.BasemapVisualCardSettings.basemapSelectSettingsGroup.selectedBasemap.value.value = BasemapNames.MapTiler as any;
+    model.BasemapVisualCardSettings.maptilerSettingsGroup.maptilerApiKey.value = "abc123" as any;
+    model.BasemapVisualCardSettings.maptilerSettingsGroup.maptilerStyle.value.value = "dataviz" as any;
+
+    const opts = OptionsService.getBasemapOptions(model);
+    expect(opts.selectedBasemap).toBe(BasemapNames.MapTiler);
+    expect(opts.maptilerApiKey).toBe("abc123");
+    expect(opts.maptilerStyle).toBe("dataviz");
+  });
+});
+
+describe("OptionsService.getMapToolsOptions", () => {
+  it("maps minimal set", () => {
+    const model = new MaplumiVisualFormattingSettingsModel();
+    // Use defaults from settings.ts
+    const opts = OptionsService.getMapToolsOptions(model);
+    expect(typeof opts.lockMapExtent).toBe("boolean");
+    expect(typeof opts.showZoomControl).toBe("boolean");
+    expect(opts.legendBorderWidth).toEqual(expect.any(Number));
+    expect(typeof opts.legendBackgroundOpacity).toBe("number");
   });
 });

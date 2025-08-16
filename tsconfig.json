@@ -79,6 +79,7 @@
     "tests/unit/geoBoundariesService.test.ts",
     "tests/unit/legendService.dom.test.ts",
     "tests/unit/mapService.helpers.test.ts",
-    "tests/unit/optionsService.basemap.test.ts"
+    "tests/unit/optionsService.basemap.test.ts",
+    "tests/unit/mapService.basemapBranches.test.ts"
   ]
 }

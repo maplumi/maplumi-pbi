@@ -113,4 +113,44 @@ describe("LegendService (DOM + helpers)", () => {
       expect(secondChild.style.backgroundColor).toBe("rgb(17, 17, 17)"); // opacity 1 normalizes to rgb
     });
   });
+
+  describe("proportional circle legend - label width influences svg width", () => {
+    it("computes svg width using max label width + padding", () => {
+      // Simulate measured label widths in JSDOM
+      const offsetSpy = jest
+        .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+        .mockImplementation(() => 80); // fixed width per label measurement
+
+      const sizeValues = [100, 400, 900];
+      const radii = [10, 20, 30]; // maxRadius = 30
+      const options: any = {
+        legendTitle: "Sizes",
+        legendTitleColor: "#000",
+        legendItemStrokeColor: "#000",
+        legendItemStrokeWidth: 1,
+        labelTextColor: "#000",
+        xPadding: 10,
+        yPadding: 5,
+        labelSpacing: 15,
+        color1: "#ff0000",
+  leaderLineColor: "#000",
+  leaderLineStrokeWidth: 1,
+        layer1Opacity: 1,
+      };
+
+      // invoke
+      service.createProportionalCircleLegend(sizeValues, radii, 1, options);
+
+      const circleContainer = service.getCircleLegendContainer()!;
+      const svg = circleContainer.querySelector("svg") as SVGElement;
+      expect(svg).toBeTruthy();
+
+      // Expected width: minLeftPadding(2) + maxRadius(30) + maxLabelWidth(80) + xPadding(10) = 122px
+      const widthAttr = svg.getAttribute("width");
+      expect(widthAttr).toBe("122px");
+
+      // Cleanup spy
+      offsetSpy.mockRestore();
+    });
+  });
 });
