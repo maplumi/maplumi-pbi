@@ -1,6 +1,10 @@
 # Maplumi Power BI Visual <img src="assets/icon.png" alt="Maplumi Visual Icon" width="64" height="64" align="right">
 
-[![Build and Release](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml)
+[![Build and Release](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml) [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b/raw/coverage.json)](https://gist.github.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b)
+
+<!-- Dynamic coverage badge uses shields endpoint with a Gist JSON:
+https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b/raw/coverage.json
+Configured via workflow .github/workflows/coverage-badge.yml and repo secrets COVERAGE_GIST_ID + COVERAGE_GIST_TOKEN. -->
 
 Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. Use either or both, with smart legends, tooltips, and base maps.
 

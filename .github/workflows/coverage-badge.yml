@@ -1,0 +1,69 @@
+name: Coverage Badge
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  # Configure these repository secrets to enable gist updates
+  GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+  GIST_TOKEN: ${{ secrets.COVERAGE_GIST_TOKEN }}
+  GIST_FILENAME: coverage.json
+  GIST_OWNER: ${{ secrets.COVERAGE_GIST_OWNER || github.repository_owner }}
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage --silent
+
+      - name: Build shields endpoint JSON
+        id: make_badge
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8'));const pct=Number((p.total&&p.total.lines&&p.total.lines.pct)||0);const color=pct>=90?'brightgreen':pct>=80?'green':pct>=70?'yellowgreen':pct>=60?'yellow':pct>=50?'orange':'red';const message=pct.toFixed(1)+'%';const out={schemaVersion:1,label:'coverage',message,color};fs.writeFileSync('badge.json',JSON.stringify(out));console.log('Coverage:',message,'Color:',color);"
+
+      - name: Upload badge JSON artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge-json
+          path: badge.json
+          retention-days: 7
+
+      - name: Update Gist with badge JSON
+        if: ${{ env.GIST_ID != '' && env.GIST_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            -f files."$GIST_FILENAME".content="$(cat badge.json)"
+          echo "Gist updated. You can use a shields.io endpoint badge like:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$GIST_OWNER/$GIST_ID/raw/$GIST_FILENAME"
+
+      - name: Skip gist update (secrets not configured)
+        if: ${{ env.GIST_ID == '' || env.GIST_TOKEN == '' }}
+        run: |
+          echo "COVERAGE_GIST_ID and/or COVERAGE_GIST_TOKEN not set; skipping gist update."
+          echo "Set repository secrets COVERAGE_GIST_ID (gist id) and COVERAGE_GIST_TOKEN (token with 'gist' scope)."
