@@ -4,7 +4,8 @@ export const VisualConfig = {
         FETCH_TIMEOUT_MS: 10000
     },
     CACHE: {
-        EXPIRY_MS: 3600000, // 1 hour
+    EXPIRY_MS: 3600000, // 1 hour default for large resources
+    METADATA_EXPIRY_MS: 1800000, // 30 minutes for metadata
         MAX_ENTRIES: 100
     },
     MAP: {

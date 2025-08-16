@@ -73,6 +73,7 @@
     "tests/unit/colorRampHelper.test.ts",
     "tests/unit/dataRoleService.test.ts"
   ,
-  "tests/unit/requestHelpers.test.ts"
+  "tests/unit/requestHelpers.test.ts",
+  "tests/unit/cacheService.test.ts"
   ]
 }

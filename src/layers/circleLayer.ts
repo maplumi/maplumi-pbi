@@ -253,8 +253,7 @@ export class CircleLayer extends Layer {
                                 });
                         });
                     });
-                } else {
-                    // ...existing code for circles...
+                } else {                   
                     const circle1 = circles1Group.append('circle')
                         .attr('cx', x)
                         .attr('cy', y)

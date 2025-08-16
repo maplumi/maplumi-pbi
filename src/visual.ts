@@ -99,6 +99,17 @@ export class MaplumiVisual implements IVisual {
         this.events = options.host.eventService;
     this.messages = new MessageService(options.host);
 
+        // Opt-in cache debug logging: enable via DevTools, localStorage, or URL query
+        try {
+            const already = (globalThis as any).__MAPLUMI_DEBUG_CACHE__ === true;
+            const byLocalStorage = typeof localStorage !== 'undefined' && localStorage.getItem('maplumi:debugCache') === '1';
+            const byQuery = typeof location !== 'undefined' && /(^|[?&])debugCache=1(&|$)/.test(location.search || '');
+            if (!already && (byLocalStorage || byQuery)) {
+                (globalThis as any).__MAPLUMI_DEBUG_CACHE__ = true;
+                console.info('[Maplumi] Cache debug logging enabled');
+            }
+        } catch { /* ignore */ }
+
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new MaplumiVisualFormattingSettingsModel();
 

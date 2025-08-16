@@ -59,12 +59,14 @@ export class GeoBoundariesService {
 
     /**
      * Fetches metadata from the geoBoundaries API
+     * Returns both the parsed metadata (data) and the underlying fetch Response (response)
+     * so callers/caches can optionally honor Cache-Control headers.
      */
-    public static async fetchMetadata(options: ChoroplethOptions): Promise<GeoBoundariesMetadata | null> {
+    public static async fetchMetadata(options: ChoroplethOptions): Promise<{ data: GeoBoundariesMetadata | null; response: Response | null }> {
         try {
             // Special handling for "ALL" countries - return a mock metadata object pointing to custom URL
             if (options.geoBoundariesCountry === "ALL") {
-                return {
+                return { data: {
                     boundaryID: "ALL-COUNTRIES",
                     boundaryName: "All Countries",
                     boundaryISO: "ALL",
@@ -96,7 +98,7 @@ export class GeoBoundariesService {
                     tjDownloadURL: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL,
                     imagePreview: "",
                     simplifiedGeometryGeoJSON: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL
-                } as GeoBoundariesMetadata;
+                } as GeoBoundariesMetadata, response: null };
             }
 
             const apiUrl = this.buildApiUrl(options);
@@ -104,14 +106,14 @@ export class GeoBoundariesService {
             
             if (!response.ok) {
                 console.error(`GeoBoundaries API error: ${response.status} ${response.statusText}`);
-                return null;
+                return { data: null, response };
             }
 
             const metadata: GeoBoundariesMetadata = await response.json();
-            return metadata;
+            return { data: metadata, response };
         } catch (error) {
             console.error("Error fetching geoBoundaries metadata:", error);
-            return null;
+            return { data: null, response: null };
         }
     }
 

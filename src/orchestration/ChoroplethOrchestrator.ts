@@ -163,9 +163,14 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             const validation = GeoBoundariesService.validateOptions(choroplethOptions);
             if (!validation.isValid) { this.messages.geoBoundariesConfigError(validation.message); return; }
             try {
-                const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
+                const metadata = await this.cacheService.getOrFetch(
+                    `gb_meta_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`,
+                    async () => await GeoBoundariesService.fetchMetadata(choroplethOptions),
+                    { ttlMs: VisualConfig.CACHE.METADATA_EXPIRY_MS, respectCacheHeaders: true }
+                );
                 if (!metadata) { this.messages.geoBoundariesMetadataError(); return; }
-                serviceUrl = GeoBoundariesService.getDownloadUrl(metadata, true);
+                // getOrFetch returns the .data value from fetcher; our fetcher returns { data, response }
+                serviceUrl = GeoBoundariesService.getDownloadUrl(metadata as any, true);
                 const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                 pcodeKey = boundaryFieldName;
                 cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
@@ -173,7 +178,8 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             } catch (error) { this.messages.geoBoundariesConnectionError(); return; }
         } else {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
-            cacheKey = `custom_${choroplethOptions.locationPcodeNameId}`;
+            // Cache by resource URL (not by location field) so different URLs don't collide
+            cacheKey = `custom_${encodeURIComponent(serviceUrl || '')}`;
         }
 
         if (this.abortController) this.abortController.abort();
@@ -194,8 +200,8 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 }
                 const json = await response.json();
                 if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); return null; }
-                return json;
-            });
+                return { data: json, response };
+            }, { respectCacheHeaders: true });
 
             if (!data || !choroplethOptions.layerControl) return;
 

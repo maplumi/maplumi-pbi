@@ -29,7 +29,8 @@ export interface MapState {
 
 export interface CacheEntry<T> {
     data: T;
-    timestamp: number;
+    timestamp: number; // time stored
+    expiresAt: number; // absolute expiry time in ms epoch
 }
 
 export interface MapData {
