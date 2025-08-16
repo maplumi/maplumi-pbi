@@ -47,6 +47,8 @@
     "src/utils/render.ts",
     "src/utils/format.ts",
     "src/utils/convert.ts",
+  "src/utils/map.ts",
+  "src/utils/graphics.ts",
 
     "./src/types/index.ts",
     "./src/types/simple-statistics.d.ts",

@@ -1,8 +1,8 @@
 import { Layer } from 'ol/layer.js';
-import { fromLonLat, toLonLat } from 'ol/proj.js';
+import { fromLonLat } from 'ol/proj.js';
 import { State } from 'ol/source/Source';
 import { ChoroplethLayerOptions, GeoJSONFeature } from '../types/index';
-import { geoBounds, geoMercator, geoPath } from 'd3-geo';
+import { geoBounds, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
 import { DomIds } from "../constants/strings";
@@ -11,6 +11,8 @@ import { topology } from 'topojson-server';
 import { feature as topoFeature } from 'topojson-client';
 import { presimplify, simplify as topoSimplify, quantile as topoQuantile } from 'topojson-simplify';
 import ISelectionId = powerbi.visuals.ISelectionId;
+import { createWebMercatorProjection } from "../utils/map";
+import { reorderForCirclesAboveChoropleth, selectionOpacity, setSvgSize } from "../utils/graphics";
 
 export class ChoroplethLayer extends Layer {
 
@@ -92,27 +94,19 @@ export class ChoroplethLayer extends Layer {
     render(frameState: FrameState) {
         if (!this.isActive) return;
 
-        const width = frameState.size[0];
-        const height = frameState.size[1];
-        const resolution = frameState.viewState.resolution;
-        const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
+    const width = frameState.size[0];
+    const height = frameState.size[1];
+    const resolution = frameState.viewState.resolution;
 
         // Clear existing paths
     this.svg.select(`#${DomIds.ChoroplethGroup}`).remove();
 
         // Set SVG dimensions to match the map viewport
-        this.svg
-            .attr('width', width)
-            .attr('height', height);
+    setSvgSize(this.svg, width, height);
 
         // Calculate the correct scale factor for D3's geoMercator (Web Mercator)
-        const scale = 6378137 / resolution;
-
-        // Configure D3's projection to align with OpenLayers
-        const d3Projection = geoMercator()
-            .scale(scale)
-            .center(center)
-            .translate([width / 2, height / 2]);
+    // Configure D3's projection to align with OpenLayers
+    const d3Projection = createWebMercatorProjection(frameState, width, height);
 
         this.d3Path = geoPath().projection(d3Projection);
 
@@ -150,16 +144,7 @@ export class ChoroplethLayer extends Layer {
                 .attr('stroke', this.options.strokeColor)
                 .attr('stroke-width', this.options.strokeWidth)
                 .attr('fill', fillColor)
-                .attr('fill-opacity', (d: any) => {
-                    if (this.selectedIds.length === 0) {
-                        return this.options.fillOpacity;
-                    } else {
-                        return this.selectedIds.some(selectedId =>
-                            selectedId === dataPoint?.selectionId)
-                            ? this.options.fillOpacity
-                            : this.options.fillOpacity / 2;
-                    }
-                });
+                .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, dataPoint?.selectionId, this.options.fillOpacity));
 
             // Add tooltip
             if (dataPoint?.tooltip) {
@@ -185,14 +170,7 @@ export class ChoroplethLayer extends Layer {
         });
 
         // Re-order layers to ensure circles are on top
-        const choroplethGroupNode = choroplethGroup.node();
-        const circles1GroupNode = this.svg.select('#circles-group-1').node();
-        const circles2GroupNode = this.svg.select('#circles-group-2').node();
-
-        if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
-            choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
-            choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
-        }
+    reorderForCirclesAboveChoropleth(this.svg);
 
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
