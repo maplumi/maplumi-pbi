@@ -5,6 +5,7 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -70,11 +71,28 @@ jobs:
           path: badge.json
           retention-days: 7
 
-      - name: Update Gist with badge JSON
-        if: ${{ env.GIST_ID != '' && env.GIST_TOKEN != '' }}
+  - name: Update Gist with badge JSON (push only)
+        if: ${{ github.event_name == 'push' && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
         run: |
+      - name: Update Gist with badge JSON (PRs from same repository)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON (PR same repo)"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            -f files."$GIST_FILENAME".content="$(cat badge.json)"
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
+
           echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON"
           gh api \
             -X PATCH \
@@ -88,8 +106,14 @@ jobs:
           echo "Gist updated. You can use a shields.io endpoint badge like:"
           echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
 
-      - name: Skip gist update (secrets not configured)
-        if: ${{ env.GIST_ID == '' || env.GIST_TOKEN == '' }}
+      - name: Skip gist update (PRs from forks do not receive secrets)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          echo "COVERAGE_GIST_ID and/or COVERAGE_GIST_TOKEN not set; skipping gist update."
-          echo "Set repository secrets COVERAGE_GIST_ID (gist id) and COVERAGE_GIST_TOKEN (token with 'gist' scope)."
+          echo "Pull requests from forks do not get repository secrets."
+          echo "Gist update is intentionally skipped for PRs; it will run on push to main/develop."
+
+      - name: Skip gist update (secrets not configured on push)
+        if: ${{ github.event_name == 'push' && (env.GIST_ID == '' || env.GIST_TOKEN == '') }}
+        run: |
+          echo "COVERAGE_GIST_ID and/or COVERAGE_GIST_TOKEN not set; skipping gist update on push."
+          echo "Add repository or organization secrets: COVERAGE_GIST_ID (gist id) and COVERAGE_GIST_TOKEN (token with 'gist' scope)."
