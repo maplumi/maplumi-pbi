@@ -81,8 +81,12 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             /gists/$GIST_ID \
             -f files."$GIST_FILENAME".content="$(cat badge.json)"
+          # Resolve the actual gist owner for an accurate badge URL (falls back to configured owner or repo owner)
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
           echo "Gist updated. You can use a shields.io endpoint badge like:"
-          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$GIST_OWNER/$GIST_ID/raw/$GIST_FILENAME"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
 
       - name: Skip gist update (secrets not configured)
         if: ${{ env.GIST_ID == '' || env.GIST_TOKEN == '' }}
