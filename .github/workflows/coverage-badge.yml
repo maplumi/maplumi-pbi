@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+  workflow_run:
+    workflows: [ "Build and Release" ]
+    types: [ completed ]
 
 permissions:
   contents: read
@@ -19,10 +22,20 @@ env:
 
 jobs:
   coverage:
+    # Only proceed for successful upstream runs when triggered by workflow_run
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout (from upstream workflow_run commit)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Checkout (regular)
+        if: ${{ github.event_name != 'workflow_run' }}
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -71,7 +84,7 @@ jobs:
           path: badge.json
           retention-days: 7
 
-  - name: Update Gist with badge JSON (push only)
+      - name: Update Gist with badge JSON (push only)
         if: ${{ github.event_name == 'push' && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
@@ -82,6 +95,23 @@ jobs:
           GH_TOKEN: ${{ env.GIST_TOKEN }}
         run: |
           echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON (PR same repo)"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            -f files."$GIST_FILENAME".content="$(cat badge.json)"
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
+
+      - name: Update Gist with badge JSON (after Build and Release)
+        if: ${{ github.event_name == 'workflow_run' && env.GIST_ID != '' && env.GIST_TOKEN != '' && github.event.workflow_run.conclusion == 'success' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) after Build and Release"
           gh api \
             -X PATCH \
             -H "Accept: application/vnd.github+json" \
