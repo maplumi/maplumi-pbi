@@ -36,10 +36,32 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage --silent
 
+      - name: Ensure coverage summary exists
+        id: ensure_summary
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "coverage-summary.json not found; attempting to derive from lcov.info"
+            if [ -f coverage/lcov.info ]; then
+              node -e "const fs=require('fs');const l=fs.readFileSync('coverage/lcov.info','utf8');const m=l.match(/lines\.*?\s(\d+\.\d+)/);const pct=m?Number(m[1]):0;const p={total:{lines:{pct}}};fs.writeFileSync('coverage/coverage-summary.json',JSON.stringify(p));console.log('Derived lines % from lcov:',pct);" || true
+            fi
+          fi
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "summary_missing=true" >> $GITHUB_OUTPUT
+          else
+            echo "summary_missing=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build shields endpoint JSON
         id: make_badge
         run: |
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8'));const pct=Number((p.total&&p.total.lines&&p.total.lines.pct)||0);const color=pct>=90?'brightgreen':pct>=80?'green':pct>=70?'yellowgreen':pct>=60?'yellow':pct>=50?'orange':'red';const message=pct.toFixed(1)+'%';const out={schemaVersion:1,label:'coverage',message,color};fs.writeFileSync('badge.json',JSON.stringify(out));console.log('Coverage:',message,'Color:',color);"
+        shell: bash
+
+      - name: Fallback badge when summary missing
+        if: steps.ensure_summary.outputs.summary_missing == 'true'
+        run: |
+          echo '{"schemaVersion":1,"label":"coverage","message":"n/a","color":"lightgrey"}' > badge.json
+          echo "Using fallback badge due to missing coverage summary"
 
       - name: Upload badge JSON artifact (optional)
         uses: actions/upload-artifact@v4
