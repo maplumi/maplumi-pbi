@@ -43,7 +43,6 @@ Notes
 ## Documentation & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))
 - Issues: https://github.com/maplumi/maplumi-pbi/issues
-- Discussions: https://github.com/maplumi/maplumi-pbi/discussions
 
 ## License
 MIT. See [LICENSE](LICENSE).
