@@ -621,16 +621,17 @@
         "https://api.maptiler.com",
         "https://*.humdata.org",
         "https://*.itos.uga.edu",
-        "https://*.githubusercontent.com",
+        "https://*.githubusercontent.com",  
         "https://*.googleapis.com",
         "https://*.amazonaws.com",
         "https://*.blob.core.windows.net",
         "https://*.github.io",
         "https://*.cloudfront.net",
         "https://*.r2.dev",
-  "https://*.datauga.com",
-  "https://*.geoboundaries.org",
-  "https://www.geoboundaries.org"
+        "https://*.datauga.com",
+        "https://*.geoboundaries.org",
+        "https://www.geoboundaries.org",
+        "https://github.com"
       ]
     },
     {

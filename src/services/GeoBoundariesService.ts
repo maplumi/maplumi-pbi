@@ -43,17 +43,17 @@ export interface GeoBoundariesMetadata {
 }
 
 export class GeoBoundariesService {
+    // In-memory caches for country list and metadata to avoid repeated network calls in a session
+    private static countryItemsCache: { value: string; displayName: string }[] | null = null;
+    private static countryItemsCacheTime = 0;
+    private static allCountriesMetadataCache: { [release: string]: { data: GeoBoundariesMetadata[]; ts: number } } = {};
+
     /**
      * Constructs the geoBoundaries API URL based on the options
      */
     public static buildApiUrl(options: ChoroplethOptions): string {
         const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
-
-        // Special case: when "ALL" countries is selected, use the official API at ADM0 level
-        if (geoBoundariesCountry === "ALL") {
-            return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/ALL/ADM0/`;
-        }
-
+        // For ALL we still use the geoBoundaries API (ADM0 enforced by validation)
         return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
     }
 
@@ -72,7 +72,19 @@ export class GeoBoundariesService {
                 return { data: null, response };
             }
 
-            const metadata: GeoBoundariesMetadata = await response.json();
+            const body: any = await response.json();
+            // Some geoBoundaries endpoints return an array; normalize to a single metadata object.
+            // Prefer the first entry that actually includes a download URL.
+            let metadata: GeoBoundariesMetadata | null;
+            if (Array.isArray(body)) {
+                metadata = (body as any[]).find((item: any) => !!(item?.tjDownloadURL || item?.gjDownloadURL)) || null;
+                if (!metadata && body.length > 0) {
+                    // Fallback to first item if none includes a download URL
+                    metadata = body[0] as GeoBoundariesMetadata;
+                }
+            } else {
+                metadata = body as GeoBoundariesMetadata;
+            }
             return { data: metadata, response };
         } catch (error) {
             console.error("Error fetching geoBoundaries metadata:", error);
@@ -85,10 +97,87 @@ export class GeoBoundariesService {
      * Prioritizes TopoJSON for smaller file sizes, falls back to GeoJSON
      */
     public static getDownloadUrl(metadata: GeoBoundariesMetadata, preferTopoJSON: boolean = true): string {
-        if (preferTopoJSON && metadata.tjDownloadURL) {
-            return metadata.tjDownloadURL;
+    return (preferTopoJSON && metadata.tjDownloadURL) ? metadata.tjDownloadURL : metadata.gjDownloadURL;
+    }
+
+    /**
+     * Normalize GitHub raw URLs to media.githubusercontent.com to avoid CORS issues.
+     * - https://github.com/<owner>/<repo>/raw/<sha>/<path> -> https://media.githubusercontent.com/media/<owner>/<repo>/<sha>/<path>
+     * Leaves other hosts unchanged.
+     */
+    public static normalizeGithubRaw(url: string | undefined | null): string | null {
+        if (!url) return null;
+        try {
+            const u = new URL(url);
+            if (u.hostname === "github.com") {
+                // Expecting /<owner>/<repo>/raw/<sha>/<path>
+                const parts = u.pathname.split("/").filter(Boolean);
+                const idx = parts.indexOf("raw");
+                if (idx >= 2 && idx + 2 < parts.length) {
+                    const owner = parts[0];
+                    const repo = parts[1];
+                    const sha = parts[idx + 1];
+                    const rest = parts.slice(idx + 2).join("/");
+                    return `https://media.githubusercontent.com/media/${owner}/${repo}/${sha}/${rest}`;
+                }
+            }
+            // Keep as-is for raw.githubusercontent.com and others
+            return url;
+        } catch {
+            return url as any;
         }
-        return metadata.gjDownloadURL;
+    }
+
+    /**
+     * Construct a simplified filename variant, e.g., geoBoundaries-AGO-ADM2.topojson -> geoBoundaries-AGO-ADM2_simplified.topojson
+     */
+    public static withSimplifiedFilename(url: string, targetExt: "topojson" | "geojson"): string {
+        try {
+            const u = new URL(url);
+            const segs = u.pathname.split("/");
+            const file = segs.pop() || "";
+            const dot = file.lastIndexOf(".");
+            const base = dot > 0 ? file.substring(0, dot) : file;
+            const hasSimplified = /_simplified$/i.test(base);
+            const newBase = hasSimplified ? base : `${base}_simplified`;
+            const newFile = `${newBase}.${targetExt}`;
+            segs.push(newFile);
+            u.pathname = segs.join("/");
+            return u.toString();
+        } catch {
+            // Fallback naive replace
+            return url.replace(/\.[a-z]+$/i, `.${targetExt}`).replace(/(\.[a-z]+)$/i, `_simplified$1`);
+        }
+    }
+
+    /**
+     * Get an ordered list of preferred download URLs for a metadata entry, favoring simplified TopoJSON then simplified GeoJSON.
+     * Includes normalization for GitHub raw URLs to media.githubusercontent.com.
+     */
+    public static getPreferredDownloadUrls(metadata: GeoBoundariesMetadata): string[] {
+        const candidates: string[] = [];
+        const push = (url: string | null | undefined) => {
+            if (!url) return;
+            const norm = this.normalizeGithubRaw(url) || url;
+            if (!candidates.includes(norm)) candidates.push(norm);
+        };
+
+        const tj = this.normalizeGithubRaw(metadata.tjDownloadURL) || metadata.tjDownloadURL;
+        const gj = this.normalizeGithubRaw(metadata.gjDownloadURL) || metadata.gjDownloadURL;
+        const simplifiedGJ = this.normalizeGithubRaw(metadata.simplifiedGeometryGeoJSON) || metadata.simplifiedGeometryGeoJSON;
+
+        // 1) Prefer simplified TopoJSON derived from tj (if available)
+        if (tj) push(this.withSimplifiedFilename(tj, "topojson"));
+        // 2) Prefer declared simplified GeoJSON if provided
+        push(simplifiedGJ);
+        // 3) Fallback simplified GeoJSON derived from gj
+        if (gj) push(this.withSimplifiedFilename(gj, "geojson"));
+        // 4) Original TopoJSON
+        push(tj);
+        // 5) Original GeoJSON
+        push(gj);
+
+        return candidates;
     }
 
     /**
@@ -102,7 +191,8 @@ export class GeoBoundariesService {
      * Gets the data URL for all countries case
      */
     public static getAllCountriesUrl(): string {
-        return VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL;
+        // Default to gbOpen ALL/ADM0 API endpoint for convenience
+        return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/gbOpen/ALL/ADM0/`;
     }
 
     /**
@@ -174,5 +264,55 @@ export class GeoBoundariesService {
         const count = metadata.admUnitCount;
 
         return `${country} ${adminLevel} boundaries (${year}) - ${count} units`;
+    }
+
+    /**
+     * Fetch a full list of ADM0 metadata objects for the given release.
+     * Caches results in-memory for VisualConfig.CACHE.METADATA_EXPIRY_MS.
+     */
+    public static async fetchAllCountriesMetadataByRelease(release: string): Promise<GeoBoundariesMetadata[] | null> {
+        const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS;
+        const cached = this.allCountriesMetadataCache[release];
+        const now = Date.now();
+        if (cached && now - cached.ts < ttl) {
+            return cached.data;
+        }
+        try {
+            const url = `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${release}/ALL/ADM0/`;
+            const resp = await fetch(url);
+            if (!resp.ok) return null;
+            const json = await resp.json();
+            const arr = Array.isArray(json) ? (json as GeoBoundariesMetadata[]) : [json as GeoBoundariesMetadata];
+            // Filter to entries with ISO codes, keep as-is otherwise
+            const cleaned = arr.filter(x => !!x?.boundaryISO);
+            this.allCountriesMetadataCache[release] = { data: cleaned, ts: now };
+            return cleaned;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Preload and cache dropdown items for the country list from the API.
+     * Keeps "ALL" as the first option. Falls back silently if fetch fails.
+     */
+    public static async preloadCountryItems(release: string): Promise<void> {
+        const now = Date.now();
+        const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS;
+        if (this.countryItemsCache && now - this.countryItemsCacheTime < ttl) return;
+        const meta = await this.fetchAllCountriesMetadataByRelease(release);
+        if (!meta) return;
+        const items = meta
+            .map(m => ({ value: (m.boundaryISO || '').toUpperCase(), displayName: m.boundaryName }))
+            .filter(it => it.value && it.displayName)
+            // Sort alphabetically by displayName for nicer UX
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        // Prepend ALL
+        this.countryItemsCache = [{ value: "ALL", displayName: "All Countries" }, ...items];
+        this.countryItemsCacheTime = now;
+    }
+
+    public static getCachedCountryItems(): { value: string; displayName: string }[] | null {
+        return this.countryItemsCache;
     }
 }

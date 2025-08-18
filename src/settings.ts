@@ -29,6 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
+import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
@@ -657,7 +658,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
         }
 
-        // Handle visibility based on data source
+    // Handle visibility based on data source
         const isCustomSource = selectedSource === "custom";
         
         // Show/hide fields based on data source
@@ -665,6 +666,25 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     this.topojsonObjectName.visible = isCustomSource;
         this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
         this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
+
+        // Dynamically populate country list from GeoBoundaries API when selected
+        if (isGeoBoundaries) {
+            const release = this.geoBoundariesReleaseType.value?.value?.toString() || "gbOpen";
+            const cached = GeoBoundariesService.getCachedCountryItems();
+            if (cached && cached.length > 1) {
+                this.geoBoundariesCountry.items = cached;
+            } else {
+                // Fire-and-forget preload; items will update on next options refresh
+                GeoBoundariesService.preloadCountryItems(release)
+                    .then(() => {
+                        const items = GeoBoundariesService.getCachedCountryItems();
+                        if (items && items.length > 1) {
+                            this.geoBoundariesCountry.items = items;
+                        }
+                    })
+                    .catch(() => { /* ignore async errors */ });
+            }
+        }
     }
 }
 
