@@ -1,13 +1,18 @@
 import { Layer } from 'ol/layer.js';
-import { fromLonLat, toLonLat } from 'ol/proj.js';
+import { fromLonLat } from 'ol/proj.js';
 import { State } from 'ol/source/Source';
 import { ChoroplethLayerOptions, GeoJSONFeature } from '../types/index';
-import { geoBounds, geoMercator, geoPath } from 'd3-geo';
+import { geoBounds, geoPath } from 'd3-geo';
 import { Extent } from 'ol/extent.js';
 import { FrameState } from 'ol/Map';
+import { DomIds } from "../constants/strings";
 import rbush from 'rbush';
-import { simplify } from '@turf/turf';
+import { topology } from 'topojson-server';
+import { feature as topoFeature } from 'topojson-client';
+import { presimplify, simplify as topoSimplify, quantile as topoQuantile } from 'topojson-simplify';
 import ISelectionId = powerbi.visuals.ISelectionId;
+import { createWebMercatorProjection } from "../utils/map";
+import { reorderForCirclesAboveChoropleth, selectionOpacity, setSvgSize } from "../utils/graphics";
 
 export class ChoroplethLayer extends Layer {
 
@@ -19,7 +24,11 @@ export class ChoroplethLayer extends Layer {
     private d3Path: any;
     private selectedIds: powerbi.extensibility.ISelectionId[] = [];
     private isActive: boolean = true;
-    private simplifiedCache: Map<number, any>;
+    private simplifiedCache: Map<string, any>;
+    private topo: any;
+    private topoPresimplified: any;
+    private topoThresholds: { coarse: number; low: number; medium: number; high: number; max: number };
+    private simplificationStrength: number = 50; // 0-100
 
     constructor(options: ChoroplethLayerOptions) {
         super({ ...options, zIndex: options.zIndex || 10 });
@@ -27,6 +36,9 @@ export class ChoroplethLayer extends Layer {
         this.svg = options.svg;
         this.options = options;
         this.geojson = options.geojson;
+        if (typeof options.simplificationStrength === 'number') {
+            this.simplificationStrength = Math.max(0, Math.min(100, options.simplificationStrength));
+        }
 
         // Create a lookup table for measure values
         this.valueLookup = {};
@@ -51,7 +63,21 @@ export class ChoroplethLayer extends Layer {
         this.spatialIndex.load(features);
 
         this.d3Path = null;
-    this.simplifiedCache = new Map();
+        this.simplifiedCache = new Map();
+
+        // Build a topology from GeoJSON once, with quantization to reduce precision (and size) safely for web rendering
+        try {
+            // Wrap the collection under a named object; we'll refer to it as 'layer'
+            this.topo = topology({ layer: this.geojson });
+            // Compute triangle areas for effective topology-preserving simplify
+            this.topoPresimplified = presimplify(this.topo);
+            this.recomputeThresholds();
+        } catch (e) {
+            // Fallback: leave topo undefined; will render original GeoJSON
+            this.topo = undefined;
+            this.topoPresimplified = undefined;
+            this.topoThresholds = { coarse: 0, low: 0, medium: 0, high: 0, max: 0 };
+        }
 
         this.changed();
     }
@@ -68,32 +94,24 @@ export class ChoroplethLayer extends Layer {
     render(frameState: FrameState) {
         if (!this.isActive) return;
 
-        const width = frameState.size[0];
-        const height = frameState.size[1];
-        const resolution = frameState.viewState.resolution;
-        const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
+    const width = frameState.size[0];
+    const height = frameState.size[1];
+    const resolution = frameState.viewState.resolution;
 
         // Clear existing paths
-        this.svg.select('#choropleth-group').remove();
+    this.svg.select(`#${DomIds.ChoroplethGroup}`).remove();
 
         // Set SVG dimensions to match the map viewport
-        this.svg
-            .attr('width', width)
-            .attr('height', height);
+    setSvgSize(this.svg, width, height);
 
         // Calculate the correct scale factor for D3's geoMercator (Web Mercator)
-        const scale = 6378137 / resolution;
-
-        // Configure D3's projection to align with OpenLayers
-        const d3Projection = geoMercator()
-            .scale(scale)
-            .center(center)
-            .translate([width / 2, height / 2]);
+    // Configure D3's projection to align with OpenLayers
+    const d3Projection = createWebMercatorProjection(frameState, width, height);
 
         this.d3Path = geoPath().projection(d3Projection);
 
         // Create a group element for choropleth
-        const choroplethGroup = this.svg.append('g').attr('id', 'choropleth-group');
+    const choroplethGroup = this.svg.append('g').attr('id', DomIds.ChoroplethGroup);
 
         // Create a lookup for data points
         const dataPointsLookup = this.options.dataPoints?.reduce((acc, dpoint) => {
@@ -101,9 +119,8 @@ export class ChoroplethLayer extends Layer {
             return acc;
         }, {} as { [key: string]: any }) || {};
 
-    // Simplify features dynamically based on zoom level with caching
-    const tolerance = this.getSimplificationTolerance(resolution);
-    const simplified = this.getSimplifiedGeoJson(tolerance);
+    // Simplify features dynamically based on zoom level with topology-preserving LODs
+    const simplified = this.getSimplifiedGeoJsonForResolution(resolution);
 
         // Render features
     simplified.features.forEach((feature: GeoJSONFeature) => {
@@ -127,16 +144,7 @@ export class ChoroplethLayer extends Layer {
                 .attr('stroke', this.options.strokeColor)
                 .attr('stroke-width', this.options.strokeWidth)
                 .attr('fill', fillColor)
-                .attr('fill-opacity', (d: any) => {
-                    if (this.selectedIds.length === 0) {
-                        return this.options.fillOpacity;
-                    } else {
-                        return this.selectedIds.some(selectedId =>
-                            selectedId === dataPoint?.selectionId)
-                            ? this.options.fillOpacity
-                            : this.options.fillOpacity / 2;
-                    }
-                });
+                .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, dataPoint?.selectionId, this.options.fillOpacity));
 
             // Add tooltip
             if (dataPoint?.tooltip) {
@@ -162,14 +170,7 @@ export class ChoroplethLayer extends Layer {
         });
 
         // Re-order layers to ensure circles are on top
-        const choroplethGroupNode = choroplethGroup.node();
-        const circles1GroupNode = this.svg.select('#circles-group-1').node();
-        const circles2GroupNode = this.svg.select('#circles-group-2').node();
-
-        if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
-            choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
-            choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
-        }
+    reorderForCirclesAboveChoropleth(this.svg);
 
         // Append the SVG element to the div
         this.options.svgContainer.appendChild(this.svg.node());
@@ -177,23 +178,63 @@ export class ChoroplethLayer extends Layer {
         return this.options.svgContainer;
     }
 
-    // Retrieve a simplified GeoJSON from cache or compute and cache by rounded tolerance
-    private getSimplifiedGeoJson(tolerance: number) {
-        // Quantize tolerance to reduce cache key cardinality
-        const key = Number(tolerance.toFixed(4));
-        const cached = this.simplifiedCache.get(key);
+    // Retrieve a simplified GeoJSON based on resolution using TopoJSON thresholds; fallback to original if topology unavailable
+    private getSimplifiedGeoJsonForResolution(resolution: number) {
+        if (!this.topoPresimplified) {
+            return this.geojson;
+        }
+
+        const level = this.getLodLevel(resolution);
+        const cacheKey = `lod:${level}`;
+        const cached = this.simplifiedCache.get(cacheKey);
         if (cached) return cached;
 
-        const simplified = simplify(this.geojson, { tolerance: key, highQuality: false });
+    const threshold = this.getThresholdForLevel(level);
+    const simplifiedTopo = topoSimplify(this.topoPresimplified, threshold);
+    const geo = topoFeature(simplifiedTopo, simplifiedTopo.objects.layer);
 
-        // Simple size cap to avoid unbounded growth
-        const MAX_ENTRIES = 12;
+        // Cap cache size
+        const MAX_ENTRIES = 8;
         if (this.simplifiedCache.size >= MAX_ENTRIES) {
             const oldestKey = this.simplifiedCache.keys().next().value;
             this.simplifiedCache.delete(oldestKey);
         }
-        this.simplifiedCache.set(key, simplified);
-        return simplified;
+        this.simplifiedCache.set(cacheKey, geo);
+        return geo;
+    }
+
+    private getLodLevel(resolution: number): 'coarse' | 'low' | 'medium' | 'high' | 'max' {
+        if (resolution > 7500) return 'coarse';
+        if (resolution > 5000) return 'low';
+        if (resolution > 2500) return 'medium';
+        if (resolution > 1000) return 'high';
+        return 'max';
+    }
+
+    private getThresholdForLevel(level: 'coarse' | 'low' | 'medium' | 'high' | 'max'): number {
+        return this.topoThresholds[level] || 0;
+    }
+
+    // Map user strength (0-100) to shifting quantiles per LOD; higher strength => larger threshold => more simplification
+    private recomputeThresholds() {
+        const s = this.simplificationStrength / 100; // 0..1
+        // Base quantiles for LODs, then lerp towards 0.95 (aggressive) as s increases
+        const base = { coarse: 0.8, low: 0.6, medium: 0.4, high: 0.2, max: 0.0 };
+        const target = 0.95; // very aggressive
+        const q = {
+            coarse: base.coarse + (target - base.coarse) * s,
+            low:    base.low    + (target - base.low)    * s,
+            medium: base.medium + (target - base.medium) * s,
+            high:   base.high   + (target - base.high)   * s,
+            max:    base.max    + (target - base.max)    * s,
+        };
+        this.topoThresholds = {
+            coarse: topoQuantile(this.topoPresimplified, q.coarse),
+            low:    topoQuantile(this.topoPresimplified, q.low),
+            medium: topoQuantile(this.topoPresimplified, q.medium),
+            high:   topoQuantile(this.topoPresimplified, q.high),
+            max:    topoQuantile(this.topoPresimplified, q.max),
+        };
     }
 
     getSpatialIndex() {
@@ -220,59 +261,5 @@ export class ChoroplethLayer extends Layer {
         this.selectedIds = selectionIds;
     }
 
-    private simplifyThresholds = {
-        high: 0.15,
-        high_medium: 0.1,
-        medium: 0.05,
-        low_medium: 0.02,
-        low: 0.005
-    };
-
-    private getSimplificationTolerance(resolution: number): number {
-        
-        // Get the total extent of all features
-        const bounds = geoBounds(this.geojson);
-        const width = Math.abs(bounds[1][0] - bounds[0][0]);  // longitude span
-        const height = Math.abs(bounds[1][1] - bounds[0][1]); // latitude span
-
-        // Calculate feature density factor (smaller area = less simplification needed)
-        const area = width * height;
-        const densityFactor = Math.min(1, Math.max(0.1, area / 1000));  // Normalize between 0.1 and 1
-
-        // Adjust thresholds based on feature density
-        let tolerance: number;
-        if (resolution > 7500) {
-            tolerance = this.simplifyThresholds.high * densityFactor;
-        } else if (resolution > 5000) {
-            tolerance = this.simplifyThresholds.high_medium * densityFactor;
-        } else if (resolution > 2500) {
-            tolerance = this.simplifyThresholds.medium * densityFactor;
-        } else if (resolution > 1000) {
-            tolerance = this.simplifyThresholds.low_medium * densityFactor;
-        } else {
-            tolerance = this.simplifyThresholds.low * densityFactor;
-        }
-
-        // Add feature count factor (more features = more aggressive simplification)
-        const featureCount = this.geojson.features.length;
-        const featureCountFactor = Math.min(1.5, Math.max(0.5, featureCount / 1000));
-
-        // Clamp tolerance to avoid oversimplification
-        const minTolerance = 0.00001;
-        const maxTolerance = 0.01;
-        let finalTolerance = tolerance * featureCountFactor;
-        finalTolerance = Math.max(minTolerance, Math.min(maxTolerance, finalTolerance));
-
-        // Debug log
-        // console.log('Simplification:', {
-        //     resolution,
-        //     tolerance,
-        //     featureCount,
-        //     featureCountFactor,
-        //     densityFactor,
-        //     finalTolerance
-        // });
-
-        return finalTolerance;
-    }
+    // Old numeric tolerance-based simplify removed in favor of topology-preserving LODs
 }

@@ -13,6 +13,7 @@ function createStubSelection() {
   } as any;
 }
 
+
 // Mock ChoroplethLayer to avoid importing OpenLayers ESM in unit tests
 jest.mock("../../src/layers/choroplethLayer", () => ({
   ChoroplethLayer: jest.fn().mockImplementation(() => ({
@@ -51,7 +52,7 @@ function makeOrchestrator() {
     selectionManager: mockSelMgr,
     tooltipServiceWrapper: mockTooltip,
     cacheService
-  });
+  } as any);
 }
 
 describe("ChoroplethOrchestrator edge cases", () => {

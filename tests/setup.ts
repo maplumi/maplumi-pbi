@@ -59,3 +59,8 @@ global.URL.createObjectURL = jest.fn();
 afterEach(() => {
   jest.clearAllMocks();
 });
+
+// No deprecation suppression needed; Jest maps 'punycode' to userland implementation.
+
+// Ensure this file is treated as a module to avoid polluting the global scope
+export {};

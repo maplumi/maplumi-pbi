@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation and behavior of the scaled circle visualization system in the Maplumi Power BI visual. The system provides intelligent, proportional circle scaling with robust outlier handling and adaptive scaling algorithms.
+Diagram-first summary of scaled circles: proportional sizes, adaptive outliers, exact legend mapping.
 
 ## Table of Contents
 
@@ -23,14 +23,14 @@ This document describes the implementation and behavior of the scaled circle vis
 
 ```mermaid
 graph TD
-    A[Raw Data Input] --> B[Data Validation & Filtering]
+    A["Raw Data Input"] --> B["Data Validation & Filtering"]
     B --> C[Statistical Analysis]
-    C --> D[Outlier Detection]
-    D --> E[Adaptive Scaling Strategy]
-    E --> F[Circle Radius Calculation]
-    F --> G[Map Rendering]
-    F --> H[Legend Generation]
-    G --> I[Visual Output]
+    C --> D["Outlier Detection"]
+    D --> E["Adaptive Scaling Strategy"]
+    E --> F["Circle Radius Calculation"]
+    F --> G["Map Rendering"]
+    F --> H["Legend Generation"]
+    G --> I["Visual Output"]
     H --> I
 ```
 
@@ -47,7 +47,7 @@ graph TD
 
 ### Primary Scaling Method: Square-Root Scaling
 
-The visual uses **square-root scaling** as the default method, where circle areas scale linearly with data values, providing optimal visual perception.
+Areas scale linearly with data; radii scale with square root.
 
 ```typescript
 // Mathematical relationship
@@ -62,10 +62,7 @@ radius = √(minRadius² + (value - minValue) × scaleFactor)
 
 #### Why Square-Root Scaling?
 
-1. **Perceptual Accuracy**: Human perception better interprets area than radius
-2. **Linear Area Relationship**: Circle area scales linearly with data magnitude
-3. **Visual Clarity**: Prevents extreme size differences that obscure smaller values
-4. **Cartographic Standard**: Widely adopted in professional mapping
+1) Perceptual accuracy  2) Linear area relation  3) Visual clarity  4) Cartographic standard
 
 ### Scaling Factor Calculation
 
@@ -118,11 +115,11 @@ const scaleFactor = (maxRadiusSquared - minRadiusSquared) / (maxValue - minValue
 
 ### Visual Proportions
 
-The legend maintains strict visual hierarchy with mathematically precise proportions:
+Legend sizing matches map exactly:
 
-- **Large Circle**: Represents the actual largest circles visible on the map
-- **Medium Circle**: 50% diameter of large circle
-- **Small Circle**: 25% diameter of large circle
+- Large: max map circle
+- Medium: 50% diameter
+- Small: 25% diameter
 
 ### Adaptive Legend Generation Algorithm
 

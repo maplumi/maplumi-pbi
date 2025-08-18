@@ -3,6 +3,8 @@ import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
 import * as topojson from 'topojson-client';
 import { ColorRampManager } from "./ColorRampManager";
+import { ClassificationMethods } from "../constants/strings";
+import { RoleNames } from "../constants/roles";
 import { ChoroplethOptions } from "../types/index";
 import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
@@ -61,7 +63,7 @@ export class ChoroplethDataService {
 
         // Get all fields that have the Tooltips role
         const tooltipFields = categorical.values
-            .filter(v => v.source.roles["Tooltips"])
+            .filter(v => v.source.roles[RoleNames.Tooltips])
             // Sort by the original order in Power BI
             .sort((a, b) => {
                 const aIndex = a.source.index || 0;
@@ -211,7 +213,7 @@ export class ChoroplethDataService {
      */
     public getClassBreaks(values: any[], options: any): any[] {
 
-        if (options.classificationMethod === "u") {
+    if (options.classificationMethod === ClassificationMethods.Unique) {
             // Unique value (categorical) classification for numbers
             // Sort numerically and cap to 7 unique values
             const unique = Array.from(new Set(values)).sort((a, b) => a - b);
@@ -228,10 +230,10 @@ export class ChoroplethDataService {
             return Array.from(uniqueValues).sort((a, b) => a - b);
         }
 
-        switch (options.classificationMethod) {
-            case "j":
+    switch (options.classificationMethod) {
+        case ClassificationMethods.Jenks:
                 return ss.jenks(values, adjustedClasses);
-            case "k": {
+        case ClassificationMethods.KMeans: {
                 const clusters = ss.ckmeans(values, adjustedClasses);
                 const maxValues = clusters.map(cluster => Math.max(...cluster));
                 return [Math.min(...values), ...maxValues.sort((a, b) => a - b)];
@@ -239,7 +241,7 @@ export class ChoroplethDataService {
             default:
                 return chroma.limits(
                     values,
-                    options.classificationMethod as "q" | "e" | "l",
+            options.classificationMethod as "q" | "e" | "l",
                     adjustedClasses
                 );
         }
@@ -257,7 +259,7 @@ export class ChoroplethDataService {
     public getColorScale(classBreaks: any[], options: ChoroplethOptions): string[] {
         
         // For unique values, use the number of unique values as classes (max 7)
-        if (options.classificationMethod === "u") {
+    if (options.classificationMethod === ClassificationMethods.Unique) {
             // Sort unique values and cap to 7 for color mapping
             const unique = Array.from(new Set(classBreaks)).sort((a, b) => a - b);
             const n = Math.min(options.classes || 7, 7);
@@ -306,7 +308,7 @@ export class ChoroplethDataService {
         classificationMethod: string
     ): string {
 
-        if (classificationMethod === "u") {
+    if (classificationMethod === ClassificationMethods.Unique) {
             // Unique value (categorical): only top 7 get mapped, others get black
             const index = classBreaks.indexOf(value);
             // Only allow mapping for index 0-6 (top 7), all others get black

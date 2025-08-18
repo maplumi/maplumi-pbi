@@ -1,403 +1,97 @@
-# Maplumi Power BI Visual - Main Specification
+# Maplumi Power BI Visual — Diagram-First Spec
 
-## Overview
+This is a short, diagram-first overview of the visual. Use it to orient quickly; jump into the quick references when you need details.
 
-Maplumi is a comprehensive Power BI custom visual for advanced geographic data visualization. It combines interactive mapping capabilities with sophisticated data rendering techniques, supporting both choropleth (area-based) and proportional circle visualizations with intelligent scaling and adaptive features.
+## TL;DR
+- Circles: Single, nested, or donut; smart scaling and selection.
+- Choropleth: GeoBoundaries or custom Geo/TopoJSON; multiple classification methods and ramps.
+- Basemaps: OSM, Mapbox, MapTiler, or none.
+- Legends: Auto-generated; configurable position and style.
 
-## Quick Start Guide
-
-### What Can Maplumi Do?
-- **Proportional Circles**: Display data as circles sized by values with support for single, nested, or donut chart circles
-- **Choropleth Maps**: Color administrative boundaries based on data values with built-in GeoBoundaries integration
-- **Interactive Mapping**: Pan, zoom, and explore data with multiple basemap options
-- **Smart Legends**: Automatically generated legends that adapt to your data
-
-### Basic Setup
-1. Add longitude and latitude fields to place your data geographically
-2. Choose your visualization type: circles or choropleth areas
-3. Add value fields for sizing (circles) or coloring (choropleth)
-4. Configure styling and legends through the format pane
+Links:
+- Choropleth quick reference → ./choropleth/quick-reference.md
+- Scaled circles quick reference → ./scaled-circles/quick-reference.md
+- Choropleth spec → ./choropleth/choropleth-specification.md
+- Scaled circles spec → ./scaled-circles/scaled-circles-specification.md
 
 ---
 
-## Feature Documentation
+## How it fits together
 
-### 🗺️ [Choropleth Mapping](#choropleth-mapping)
-**Color administrative boundaries based on data values**
-- Built-in access to 91+ countries' boundaries via GeoBoundaries
-- Support for custom boundary data (GeoJSON/TopoJSON)
-- Statistical classification methods and color schemes
-
-### 🔵 [Proportional Circles](#proportional-circles)
-**Display data as sized circles with advanced scaling**
-- Single value circles with outlier handling
-- Nested circles for dual-value comparisons
-- Donut chart circles for part-to-whole relationships
-
-### 🖼️ [Interactive Basemaps](#interactive-basemaps)
-**Choose from multiple map styles and providers**
-- OpenStreetMap (free, no API key required)
-- Mapbox (custom styles with API key)
-- MapTiler (premium styles with API key)
-
-### 📊 [Smart Legends](#smart-legends)
-**Automatically generated, mathematically precise legends**
-- Proportional circle legends with exact size relationships
-- Choropleth legends with value ranges and colors
-- Flexible positioning and styling options
-
-### 📋 [Data Requirements](#data-requirements)
-**Understand what data you need for each visualization type**
-- Geographic coordinates (longitude/latitude)
-- Value fields for sizing and coloring
-- Location codes for boundary matching
-
----
-
-## Technical Reference
-
-<details>
-<summary><strong>🏗️ Architecture & Services</strong></summary>
-
-### [System Architecture](#system-architecture)
-- Component structure and relationships
-- Technology stack and dependencies
-- Class hierarchy and design patterns
-
-### [Services Documentation](#services-documentation)
-- MapService, LegendService, ChoroplethDataService
-- GeoBoundariesService and API integration
-- CacheService and ColorRampManager
-
-</details>
-
-<details>
-<summary><strong>⚙️ Configuration & Integration</strong></summary>
-
-### [Power BI Integration](#power-bi-integration)
-- Data roles and capabilities
-- Required privileges (WebAccess, LocalStorage, ExportContent)
-- Selection management and tooltip integration
-
-### [External Services](#external-services)
-- API key management and security
-- Boundary data sources and providers
-- Network resilience and error handling
-
-</details>
-
-<details>
-<summary><strong>🚀 Performance & Development</strong></summary>
-
-### [Performance Optimization](#performance-optimization)
-- Rendering optimization and spatial indexing
-- Memory management and data volume handling
-- Caching strategies and network efficiency
-
-### [Development Workflow](#development-workflow)
-- Build system and testing strategy
-- Code quality and deployment process
-- Future enhancements and roadmap
-
-</details>
-
----
-
-## Choropleth Mapping
-
-### Overview
-Choropleth maps visualize data by coloring administrative boundaries (countries, states, counties, etc.) based on data values. Maplumi provides built-in access to standardized boundary data and supports custom sources.
-
-### Key Features
-- **Integrated GeoBoundaries Support**: Built-in access to 91+ countries' administrative boundaries
-- **Multiple Data Sources**: GeoBoundaries API or custom TopoJSON/GeoJSON URLs
-- **Dynamic Field Mapping**: Automatic field options based on data source selection
-- **Statistical Classification**: Equal Interval, Quantile, Natural Breaks methods
-- **Smart Color Management**: 15+ built-in color schemes with accessibility considerations
-
-### Data Requirements
-1. **Location Codes**: Administrative codes that match your boundary data
-   - For GeoBoundaries: ISO codes, names, or administrative IDs
-   - For custom data: any field that matches your boundary dataset
-2. **Values**: Numeric data to determine color intensity
-3. **Optional**: Additional fields for tooltips and categorization
-
-### Configuration Options
-
-#### Boundary Data Source Selection
-```typescript
-// Built-in GeoBoundaries (Recommended)
-boundaryDataSource: "GeoBoundaries"
-geoBoundariesCountry: "USA" | "GBR" | "FRA" | "All Countries" | ... // 91+ options
-geoBoundariesReleaseType: "gbOpen" | "gbHumanitarian" | "gbAuthoritative"
-geoBoundariesAdminLevel: "ADM0" | "ADM1" | "ADM2" | "ADM3"
-boundaryIdField: "shapeISO" | "shapeName" | "shapeID" | "shapeGroup"
-
-// Custom Boundary Data
-boundaryDataSource: "Custom"
-topoJSON_geoJSON_FileUrl: "https://example.com/boundaries.geojson"
-customBoundaryIdField: "FIPS_CODE" // Field in your custom data
-```
-
-#### GeoBoundaries Integration Details
-- **Coverage**: 91+ countries with comprehensive administrative boundaries
-- **Release Types**: 
-  - **gbOpen** (CC-BY 4.0): General use with fastest updates
-  - **gbHumanitarian** (UN OCHA): Optimized for humanitarian operations
-  - **gbAuthoritative** (UN SALB): Official government boundaries
-- **Administrative Levels**: ADM0 (countries) through ADM3 (municipalities)
-- **Global Support**: Special "All Countries" dataset for worldwide visualizations
-
-#### Classification Methods
-- **Equal Interval**: Fixed value ranges across the data distribution
-- **Quantile**: Equal number of data points in each class
-- **Natural Breaks**: Jenks optimization for natural groupings
-
-#### Color Schemes
-- Built-in ColorBrewer-inspired palettes for accessibility
-- Custom color ramp support with user-defined sequences
-- Automatic color-to-value mapping based on classification method
-
-### Best Practices
-1. **Data Quality**: Ensure location codes match exactly with boundary data
-2. **Coverage**: Verify boundary data covers all your locations
-3. **Performance**: Use GeoBoundaries for standardized, cached boundaries
-4. **Classification**: Choose methods appropriate for your data distribution
-5. **Colors**: Select color schemes appropriate for your data type and audience
-
-> **📋 Detailed Reference**: See [choropleth-specification.md](choropleth/choropleth-specification.md) for complete technical documentation
-
----
-
-## Proportional Circles
-
-### Overview
-Proportional circles display data as circles sized according to numeric values, providing an intuitive way to show magnitude differences across geographic locations.
-
-### Circle Types
-
-#### Single Value Circles
-- **Purpose**: Display one metric spatially
-- **Scaling**: Square-root scaling for perceptual accuracy
-- **Features**: Adaptive outlier handling, configurable size ranges
-
-#### Nested Circles
-- **Purpose**: Compare two related metrics
-- **Rendering**: Concentric circles with independent scaling
-- **Use Cases**: Inner/outer relationships, before/after comparisons
-
-#### Donut Chart Circles
-- **Purpose**: Show part-to-whole relationships
-- **Calculation**: Angular segments based on value proportions
-- **Enhancement**: Total size reflects combined magnitude
-
-### Data Requirements
-1. **Geographic Coordinates**: Longitude and latitude (decimal degrees, WGS84)
-2. **Size Values**: 
-   - Primary: Required numeric values for circle sizing
-   - Secondary: Optional second values for nested visualizations
-3. **Optional**: Additional fields for tooltips and categorization
-
-### Scaling Algorithms
-
-#### Outlier Handling
-- **Detection**: Statistical methods to identify extreme values
-- **Compression**: Logarithmic scaling for outlier accommodation
-- **Transparency**: Clear visual indication of scaling adjustments
-
-#### Size Calculation
-```typescript
-// Square-root scaling for perceptual accuracy
-circleRadius = Math.sqrt(dataValue / maxValue) * maxRadius;
-
-// Outlier compression when enabled
-if (outlierDetected && compressionEnabled) {
-    circleRadius = Math.log(dataValue + 1) / Math.log(maxValue + 1) * maxRadius;
-}
-```
-
-### Configuration Options
-- **Size Range**: Minimum and maximum circle sizes
-- **Outlier Handling**: Enable/disable compression algorithms
-- **Styling**: Fill colors, stroke properties, opacity
-- **Interaction**: Hover effects and selection behavior
-
-> **📋 Detailed Reference**: See [scaled-circles-specification.md](scaled-circles/scaled-circles-specification.md) for complete technical documentation
-
----
-
-## Interactive Basemaps
-
-### Overview
-Basemaps provide geographic context for your data visualizations. Maplumi supports multiple providers with different styling options and authentication requirements.
-
-### Basemap Providers
-
-#### OpenStreetMap (Free)
-- **Features**: Community-maintained, worldwide coverage
-- **Cost**: Free, no API key required
-- **Styles**: Standard OSM style
-- **Best For**: General use, development, cost-sensitive projects
-
-#### Mapbox (Premium)
-- **Features**: Custom styles, high-performance tiles
-- **Authentication**: Requires Mapbox access token
-- **Styles**: Wide variety including satellite, terrain, custom designs
-- **Best For**: Professional applications, custom branding
-
-#### MapTiler (Premium)
-- **Features**: High-quality cartography, multiple styles
-- **Authentication**: Requires MapTiler API key
-- **Styles**: Streets, satellite, terrain, vintage, and more
-- **Best For**: High-quality visualizations, European focus
-
-#### No Basemap
-- **Features**: Plain background for data focus
-- **Performance**: Fastest rendering, lowest bandwidth
-- **Best For**: Dense data, presentation focus on data patterns
-
-### API Key Management
-
-API keys for premium providers (Mapbox, MapTiler) are managed through Power BI's formatting settings:
-
-1. **User Input**: Enter API keys through text fields in the Power BI format pane
-2. **Security**: Keys are stored within Power BI's secure settings system
-3. **Transmission**: Keys are sent directly to tile providers over HTTPS
-4. **Scope**: Keys are scoped to the specific visual instance and report
-5. **Access Control**: Only users with edit permissions can view/modify keys
-
-### Map Controls
-- **Pan & Zoom**: Full interactive navigation
-- **Zoom Controls**: Optional +/- buttons for zoom control
-- **Extent Management**: Automatic fitting or manual extent locking
-- **Responsive Design**: Adapts to container size changes
-
----
-
-## Smart Legends
-
-### Overview
-Maplumi automatically generates mathematically precise legends that adapt to your data and visualization choices.
-
-### Legend Types
-
-#### Proportional Circle Legends
-- **Size Accuracy**: Exact mathematical relationship between legend and data circles
-- **Value Display**: Clear numeric labels showing size relationships
-- **Adaptive Generation**: Automatically adjusts to outlier detection and scaling
-
-#### Choropleth Legends
-- **Color-Coded Ranges**: Visual representation of data classification
-- **Value Ranges**: Clear display of minimum and maximum values for each class
-- **Classification Method**: Indicates which statistical method was used
-
-### Positioning & Styling
-- **Flexible Placement**: Top, bottom, left, right positioning
-- **Size Control**: Adjustable legend dimensions
-- **Font Styling**: Customizable text appearance
-- **Background Options**: Transparent or solid backgrounds
-
-### Dynamic Behavior
-- **Data-Driven**: Legends update automatically when data changes
-- **Method-Aware**: Adapts to different classification and scaling methods
-- **Responsive**: Adjusts to available space and visual container size
-
----
-
-## Data Requirements
-
-### Geographic Coordinates
-- **Longitude**: Decimal degrees (WGS84 coordinate system)
-- **Latitude**: Decimal degrees (WGS84 coordinate system)
-- **Format**: Standard numeric fields from Power BI data sources
-- **Validation**: Automatic range checking (-180 to 180 for longitude, -90 to 90 for latitude)
-
-### Value Fields
-
-#### For Proportional Circles
-- **Size (Primary)**: Required numeric values for circle scaling
-- **Size (Secondary)**: Optional second numeric value for nested visualizations
-- **Supported Types**: Integer, decimal, currency, percentage measures
-
-#### For Choropleth Maps
-- **Choropleth Value**: Numeric values for area coloring
-- **Location Code**: Administrative codes for boundary matching
-  - GeoBoundaries: Supports shapeISO, shapeName, shapeID, shapeGroup formats
-  - Custom Data: Any field that matches your boundary dataset
-- **Supported Types**: All numeric measure types
-
-### Optional Fields
-- **Tooltips**: Additional fields for hover information display
-- **Category**: Grouping fields for data segmentation and filtering
-- **Custom Labels**: Override default tooltip content
-
-### Data Quality Guidelines
-1. **Completeness**: Ensure geographic coordinates are present for all data points
-2. **Accuracy**: Verify coordinate precision appropriate for your analysis scale
-3. **Consistency**: Use consistent location code formats for choropleth mapping
-4. **Validation**: Check for outliers that might affect scaling and classification
-
----
-
-## System Architecture
-
-### Core Framework
+Note: Diagrams use fenced code blocks with the language set to "mermaid", which GitHub renders natively.
 
 ```mermaid
 graph TD
-    A[Power BI Host] --> B[MaplumiVisual Class]
-    B --> C[Map Service]
-    B --> D[Layer Management]
-    B --> E[Legend Service]
-    B --> F[Data Services]
-    
-    C --> G[OpenLayers Map]
-    C --> H[Basemap Providers]
-    
-    D --> I[Circle Layer]
-    D --> J[Choropleth Layer]
-    
-    F --> K[Choropleth Data Service]
-    F --> L[GeoBoundaries Service]
-    F --> M[Cache Service]
-    F --> N[Color Ramp Manager]
-    
-    G --> O[SVG Overlay]
-    O --> P[D3.js Rendering]
+  host[Power BI Host] --> visual[MaplumiVisual]
+  visual --> mapSvc["MapService (OpenLayers)"]
+  visual --> legends[LegendService]
+  visual --> circlesOrch[Circle Orchestrator]
+  visual --> choroOrch[Choropleth Orchestrator]
+  choroOrch --> dataSvc[ChoroplethDataService]
+  choroOrch --> geoSvc[GeoBoundariesService]
+  choroOrch --> cache[CacheService]
+  dataSvc --> ramps[ColorRampManager]
+  mapSvc --> map["OL Map + SVG Overlay"]
+  circlesOrch --> circleLayer[CircleLayer]
+  choroOrch --> choroLayer[ChoroplethLayer]
 ```
 
-### Technology Stack
+## What renders when
 
-- **Framework**: Power BI Visual API v5.11.0
-- **Mapping Engine**: OpenLayers v10.3.1
-- **Data Visualization**: D3.js v7.9.0
-- **Spatial Operations**: Turf.js v7.2.0
-- **Color Management**: Chroma.js v3.1.2
-- **Statistics**: Simple Statistics v7.8.7
-- **Spatial Indexing**: RBush v4.0.1
-
-### Component Architecture
-
-```typescript
-class MaplumiVisual implements IVisual {
-    // Core Power BI visual implementation
-    
-    // Primary Components
-    private mapService: MapService;
-    private legendService: LegendService;
-    private circleLayer: CircleLayer;
-    private choroplethLayer: ChoroplethLayer;
-    
-    // Data Management
-    private dataService: ChoroplethDataService;
-    private geoBoundariesService: GeoBoundariesService;
-    private cacheService: CacheService;
-    private colorRampManager: ColorRampManager;
-    
-    // Configuration
-    private visualFormattingSettingsModel: MaplumiVisualFormattingSettingsModel;
-}
+```mermaid
+flowchart LR
+  A["Format pane toggles"] -->|Circles ON| B["Render Circles"]
+  A -->|Choropleth ON| C["Render Choropleth"]
+  B --> D["Legend - if enabled"]
+  C --> D
+  A -->|Both OFF| E["Nothing renders"]
 ```
+
+## Render pipeline (simplified)
+
+```mermaid
+sequenceDiagram
+  participant PBI as Power BI
+  participant V as MaplumiVisual
+  participant MO as Orchestrators
+  participant MS as MapService
+  participant LS as LegendService
+  participant DS as ChoroplethDataService
+
+  PBI->>V: update(dataView, settings)
+  V->>V: read user settings (Format pane)
+  V->>MS: basemap/update controls
+  V->>MO: render choropleth (if ON)
+  MO->>DS: breaks + color scale
+  MO->>MS: add OL layer
+  MO->>LS: draw legend (if ON)
+  V->>MO: render circles (if ON)
+  MO->>MS: add OL layer + SVG
+  MO->>LS: draw legend (if ON)
+```
+
+## Minimal setup
+1) Circles: bind Longitude, Latitude, and a numeric Size value.
+2) Choropleth: bind AdminPCodeNameID and a numeric Choropleth Value.
+3) Pick basemap and toggle "Show legend" per layer.
+
+## Tips
+- Layers are user-driven. Toggle each layer in the Format pane.
+- Custom color ramps accept comma-separated hex (e.g., #fee,#f55,#900).
+- Legend container appears when any active layer’s legend is enabled.
+
+## Troubleshooting at a glance
+- No circles? Ensure both Lat and Lon are bound and non-empty.
+- No choropleth? Check AdminPCodeNameID matches boundary source field.
+- No legend? Ensure layer is ON and its "Show legend" is enabled.
+- GeoBoundaries fetch issues? Try a different release type or country/admin level.
+
+---
+
+## Tech stack (quick)
+- Power BI Visual API, OpenLayers, D3, chroma.js, simple-statistics
+- Data caching, boundary fetch via GeoBoundaries
+- Tested with Jest; packaged via pbiviz
 
 ### Data Processing Pipeline
 
@@ -471,11 +165,21 @@ graph LR
 **Intelligent caching for external resources**
 
 - **Benefits**:
-  - Reduced API calls for boundary data
+  - Reduced API calls for boundary data and metadata
   - Improved performance for repeated visualizations
-  - Memory-efficient storage with size limits
-  - Cache invalidation strategies
-  - Cross-session persistence via LocalStorage
+  - In-memory cache with size cap and per-entry TTLs (shorter TTL for metadata)
+  - In-flight request coalescing to dedupe concurrent fetches
+  - Optional respect for server Cache-Control max-age headers
+  - Debug logging (HIT/MISS/PENDING) toggleable via global flag/localStorage
+
+#### Caveats and limitations
+- Not persisted: In-memory entries are cleared on report reload, page switch (if the visual is re-instantiated), or when the host reclaims memory.
+- Per-instance only: Cache is not shared across visuals or report pages; each visual instance maintains its own cache.
+- Memory footprint: Large boundary datasets can consume memory; the size cap may evict items earlier than TTL suggests.
+- Staleness trade-offs: TTLs are best-effort. When respecting server Cache-Control, misconfigured headers can cause shorter-than-desired lifetimes. We cap TTLs to max-age; we don’t extend them beyond local defaults.
+- No offline guarantee: After a reload, nothing is cached; offline views won’t benefit from prior fetches.
+- Key hygiene: Cache keys are URL-based. If a URL contains tokens or secrets, avoid enabling verbose cache logs, and prefer using keys without sensitive query params.
+- Data scope: Only public, non-sensitive resources should be cached (e.g., boundary files). Don’t cache PII.
 
 ---
 
@@ -523,10 +227,10 @@ Essential for accessing external mapping and boundary data services:
 - `https://*.r2.dev` - Cloudflare R2 storage
 
 #### LocalStorage Privilege
-Essential for caching boundary data and user preferences:
-- Boundary data caching for reduced API calls and improved performance
-- User settings persistence for map view state and configuration
-- Offline-capable visualization for cached data
+Used for user preferences and optional debugging toggles:
+- Persist legend and UI preferences where applicable
+- Enable cache debug logs via `localStorage.setItem('maplumi:debugCache','1')`
+- Note: Boundary and metadata caches are in-memory and not persisted across sessions
 
 #### ExportContent Privilege
 Essential for Power BI export functionality:
@@ -569,10 +273,10 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 ```
 
 ### Network Resilience
-- **Retry Mechanisms**: Automatic retry for failed requests with exponential backoff
-- **Timeout Handling**: Configurable timeouts for slow network connections
-- **Fallback Options**: Graceful degradation when external services are unavailable
-- **Error Recovery**: Clear error messages and recovery suggestions
+- **Timeout Handling**: Enforced fetch timeouts for boundary downloads
+- **Validation**: HTTPS-only enforcement and JSON schema checks
+- **Coalescing**: Concurrent callers share the same in-flight request
+- **Error Recovery**: Clear user messages and graceful fallbacks
 
 ### Security Considerations
 - **HTTPS Only**: All external requests use HTTPS for secure data transmission
@@ -587,7 +291,7 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 ### Rendering Optimization
 
 1. **Spatial Indexing**: RBush spatial index for fast hit-testing and collision detection
-2. **Feature Simplification**: Turf.js simplification for complex geometries based on zoom level
+2. **Feature Simplification**: Topology-preserving TopoJSON simplification with zoom-level LOD and user-controlled Simplification Strength
 3. **Level-of-Detail**: Adaptive rendering quality based on current map zoom
 4. **SVG Optimization**: Efficient D3.js selection and data binding patterns
 
@@ -607,10 +311,11 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 
 ### Caching Strategies
 
-1. **Boundary Data**: Long-term caching of static boundary geometries
-2. **Tile Caching**: Browser-level caching of map tiles
-3. **Computation Results**: Caching of expensive calculations (classifications, statistics)
-4. **Configuration State**: Persistent storage of user preferences and settings
+1. **Boundary Data**: In-memory caching with per-entry TTL and optional Cache-Control max-age; not persisted cross-session
+2. **Metadata**: Separate, shorter TTL; honors server Cache-Control when available
+3. **Tile Caching**: Browser-level caching of map tiles
+4. **Computation Results**: Caching of expensive calculations (classifications, statistics)
+5. **Configuration State**: Persistent storage of user preferences and settings
 
 ---
 
@@ -667,7 +372,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     geoBoundariesAdminLevel: DropDown;   // ADM0-ADM3 with conditional restrictions
     boundaryIdField: DropDown;           // Dynamic field options based on source
     customBoundaryIdField: TextInput;    // Custom field mapping for non-GeoBoundaries
-    topoJSON_geoJSON_FileUrl: TextInput; // Custom boundary data URL
+  topoJSON_geoJSON_FileUrl: TextInput; // Custom boundary data URL
+  simplificationStrength: NumUpDown;   // 0–100, controls simplification aggressiveness
 }
 ```
 

@@ -1,11 +1,13 @@
 import { Layer } from 'ol/layer.js';
 import { FrameState } from 'ol/Map';
 import { State } from 'ol/source/Source';
-import { toLonLat, transformExtent } from 'ol/proj.js';
+import { transformExtent } from 'ol/proj.js';
 import { Extent } from 'ol/extent.js';
-import { geoMercator } from 'd3-geo';
 import { arc as d3Arc } from 'd3-shape';
 import { CircleLayerOptions, GeoJSONFeature } from '../types/index';
+import { DomIds } from "../constants/strings";
+import { createWebMercatorProjection } from "../utils/map";
+import { reorderForCirclesAboveChoropleth, selectionOpacity, setSvgSize } from "../utils/graphics";
 
 export class CircleLayer extends Layer {
 
@@ -49,17 +51,15 @@ export class CircleLayer extends Layer {
     render(frameState: FrameState) {
         if (!this.isActive) return;
 
-        const width = frameState.size[0];
-        const height = frameState.size[1];
-        const resolution = frameState.viewState.resolution;
-        const center = toLonLat(frameState.viewState.center, frameState.viewState.projection) as [number, number];
+    const width = frameState.size[0];
+    const height = frameState.size[1];
+    const resolution = frameState.viewState.resolution;
 
-        this.svg.select('#circles-group-1').remove();
-        this.svg.select('#circles-group-2').remove();
-        this.svg.attr('width', width).attr('height', height);
+    this.svg.select(`#${DomIds.CirclesGroup1}`).remove();
+    this.svg.select(`#${DomIds.CirclesGroup2}`).remove();
+    setSvgSize(this.svg, width, height);
 
-        const scale = 6378137 / resolution;
-        const d3Projection = geoMercator().scale(scale).center(center).translate([width / 2, height / 2]);
+    const d3Projection = createWebMercatorProjection(frameState, width, height);
 
         const { combinedCircleSizeValues = [], circle1SizeValues = [], circle2SizeValues = [], circleOptions, minCircleSizeValue = 0, maxCircleSizeValue = 100, circleScale: scaleFactor = 1 } = this.options;
         const { minRadius, color1, color2, layer1Opacity, layer2Opacity, strokeColor, strokeWidth, chartType } = circleOptions;
@@ -80,8 +80,8 @@ export class CircleLayer extends Layer {
             return this.applyAdaptiveScaling(value, minCircleSizeValue, maxCircleSizeValue, scaleFactor, circleOptions, allRelevantValues);
         };
 
-        const circles1Group = this.svg.append('g').attr('id', 'circles-group-1');
-        const circles2Group = this.svg.append('g').attr('id', 'circles-group-2');
+    const circles1Group = this.svg.append('g').attr('id', DomIds.CirclesGroup1);
+    const circles2Group = this.svg.append('g').attr('id', DomIds.CirclesGroup2);
 
         this.features.forEach((feature: GeoJSONFeature, i: number) => {
             if (!feature.geometry || feature.geometry.type !== 'Point') return;
@@ -120,13 +120,7 @@ export class CircleLayer extends Layer {
                         .datum(feature.properties.selectionId)
                         .style('cursor', 'pointer')
                         .style('pointer-events', 'all')
-                        .attr('fill-opacity', (d: any) => {
-                            if (this.selectedIds.length === 0) {
-                                return layer1Opacity;
-                            } else {
-                                return this.selectedIds.some(selectedId => selectedId === d) ? layer1Opacity : layer1Opacity / 2;
-                            }
-                        });
+                        .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, d, layer1Opacity));
 
                     // Second arc (value2)
                     const arc2 = circles2Group.append('path')
@@ -143,13 +137,7 @@ export class CircleLayer extends Layer {
                         .datum(feature.properties.selectionId)
                         .style('cursor', 'pointer')
                         .style('pointer-events', 'all')
-                        .attr('fill-opacity', (d: any) => {
-                            if (this.selectedIds.length === 0) {
-                                return layer2Opacity;
-                            } else {
-                                return this.selectedIds.some(selectedId => selectedId === d) ? layer2Opacity : layer2Opacity / 2;
-                            }
-                        });
+                        .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, d, layer2Opacity));
 
                     // Tooltip for donut
                     if (feature.properties.tooltip) {
@@ -175,7 +163,7 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds;
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed();
                                 });
                         });
@@ -260,13 +248,12 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds;
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed();
                                 });
                         });
                     });
-                } else {
-                    // ...existing code for circles...
+                } else {                   
                     const circle1 = circles1Group.append('circle')
                         .attr('cx', x)
                         .attr('cy', y)
@@ -277,14 +264,7 @@ export class CircleLayer extends Layer {
                         .datum(feature.properties.selectionId)
                         .style('cursor', 'pointer')
                         .style('pointer-events', 'all')
-                        .attr('fill-opacity', (d: any) => { // Set opacity based on selection
-                            if (this.selectedIds.length === 0) {
-                                return layer1Opacity;
-                            } else {
-                                return this.selectedIds.some(selectedId => 
-                                    selectedId === d) ? layer1Opacity : layer1Opacity / 2; // Dim unselected circles
-                            }
-                        });
+                        .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, d, layer1Opacity));
 
                     if (feature.properties.tooltip) {
                         this.options.tooltipServiceWrapper.addTooltip(
@@ -301,7 +281,7 @@ export class CircleLayer extends Layer {
                         this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                             .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                 this.selectedIds = selectedIds; // Update selected IDs
-                                console.log('Selected IDs:', this.selectedIds);
+                                // Selection updated; trigger re-render
                                 this.changed(); // Trigger re-render to apply new opacity
                             });
                     });
@@ -317,14 +297,7 @@ export class CircleLayer extends Layer {
                             .datum(feature.properties.selectionId)
                             .style('cursor', 'pointer')
                             .style('pointer-events', 'all')
-                            .attr('fill-opacity', (d: any) => { // Set opacity based on selection
-                                if (this.selectedIds.length === 0) {
-                                    return layer2Opacity;
-                                } else {
-                                    return this.selectedIds.some(selectedId => 
-                                        selectedId === d) ? layer2Opacity : layer2Opacity / 2; // Dim unselected circles
-                                }
-                            });
+                            .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, d, layer2Opacity));
 
                         if (feature.properties.tooltip) {
                             this.options.tooltipServiceWrapper.addTooltip(
@@ -341,7 +314,7 @@ export class CircleLayer extends Layer {
                             this.options.selectionManager.select(selectionId, nativeEvent.ctrlKey || nativeEvent.metaKey)
                                 .then((selectedIds: powerbi.extensibility.ISelectionId[]) => {
                                     this.selectedIds = selectedIds; // Update selected IDs
-                                    console.log('Selected IDs:', this.selectedIds);
+                                    // Selection updated; trigger re-render
                                     this.changed(); // Trigger re-render to apply new opacity
                                 });
                         });
@@ -351,14 +324,7 @@ export class CircleLayer extends Layer {
         });
 
         // Reorder groups to ensure circles are above choropleth
-        const choroplethGroupNode = this.svg.select('#choropleth-group').node();
-        const circles1GroupNode = circles1Group.node();
-        const circles2GroupNode = circles2Group.node();
-
-        if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
-            choroplethGroupNode.parentNode.appendChild(circles1GroupNode);
-            choroplethGroupNode.parentNode.appendChild(circles2GroupNode);
-        }
+    reorderForCirclesAboveChoropleth(this.svg);
 
         this.options.svgContainer.appendChild(this.svg.node());
         return this.options.svgContainer;
@@ -430,7 +396,7 @@ export class CircleLayer extends Layer {
                     const finalRadius = Math.min(p95Radius + outlierRadiusBonus, circleOptions.maxRadius);
                     
                     // Debug logging for outlier scaling
-                    console.log(`CircleLayer outlier scaling: value=${value}, p95=${maxValue}, max=${actualMax}, finalRadius=${finalRadius.toFixed(1)}, p95Radius=${p95Radius.toFixed(1)}`);
+                    // Outlier scaling applied
                     
                     return finalRadius;
                 }

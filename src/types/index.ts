@@ -1,3 +1,8 @@
+import { LegendOrientations, LegendLabelPositions, ClassificationMethods } from "../constants/strings";
+
+export type LegendOrientation = typeof LegendOrientations[keyof typeof LegendOrientations];
+export type LegendLabelPosition = typeof LegendLabelPositions[keyof typeof LegendLabelPositions];
+export type ClassificationMethod = typeof ClassificationMethods[keyof typeof ClassificationMethods];
 import { FeatureCollection } from "geojson";
 import * as d3 from "d3";
 import { Collection } from "ol";
@@ -24,7 +29,8 @@ export interface MapState {
 
 export interface CacheEntry<T> {
     data: T;
-    timestamp: number;
+    timestamp: number; // time stored
+    expiresAt: number; // absolute expiry time in ms epoch
 }
 
 export interface MapData {
@@ -106,6 +112,7 @@ export interface ChoroplethLayerOptions extends LayerOptions {
     measureValues: number[];
     selectionManager: ISelectionManager;
     tooltipServiceWrapper: ITooltipServiceWrapper;
+    simplificationStrength?: number;
     dataPoints?: Array<{
         pcode: string;
         value: number;
@@ -216,15 +223,16 @@ export interface ChoroplethOptions {
     customColorRamp: string;
 
     classes: number;
-    classificationMethod: string;
+    classificationMethod: ClassificationMethod;
 
     strokeColor: string;
     strokeWidth: number;
     layerOpacity: number;
+    simplificationStrength?: number;
 
     showLegend: boolean;
-    legendLabelPosition: string;
-    legendOrientation: string;
+    legendLabelPosition: LegendLabelPosition;
+    legendOrientation: LegendOrientation;
     legendTitle: string;
     legendTitleAlignment: string;
     legendTitleColor: string;

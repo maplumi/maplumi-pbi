@@ -1,0 +1,150 @@
+name: Coverage Badge
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  workflow_run:
+    workflows: [ "Build and Release" ]
+    types: [ completed ]
+
+permissions:
+  contents: read
+
+env:
+  # Configure these repository secrets to enable gist updates
+  GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+  GIST_TOKEN: ${{ secrets.COVERAGE_GIST_TOKEN }}
+  GIST_FILENAME: coverage.json
+  GIST_OWNER: ${{ secrets.COVERAGE_GIST_OWNER || github.repository_owner }}
+
+jobs:
+  coverage:
+    # Only proceed for successful upstream runs when triggered by workflow_run
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (from upstream workflow_run commit)
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Checkout (regular)
+        if: ${{ github.event_name != 'workflow_run' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage --silent
+
+      - name: Ensure coverage summary exists
+        id: ensure_summary
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "coverage-summary.json not found; attempting to derive from lcov.info"
+            if [ -f coverage/lcov.info ]; then
+              node -e "const fs=require('fs');const l=fs.readFileSync('coverage/lcov.info','utf8');const m=l.match(/lines\.*?\s(\d+\.\d+)/);const pct=m?Number(m[1]):0;const p={total:{lines:{pct}}};fs.writeFileSync('coverage/coverage-summary.json',JSON.stringify(p));console.log('Derived lines % from lcov:',pct);" || true
+            fi
+          fi
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "summary_missing=true" >> $GITHUB_OUTPUT
+          else
+            echo "summary_missing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build shields endpoint JSON
+        id: make_badge
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8'));const pct=Number((p.total&&p.total.lines&&p.total.lines.pct)||0);const color=pct>=90?'brightgreen':pct>=80?'green':pct>=70?'yellowgreen':pct>=60?'yellow':pct>=50?'orange':'red';const message=pct.toFixed(1)+'%';const out={schemaVersion:1,label:'coverage',message,color};fs.writeFileSync('badge.json',JSON.stringify(out));console.log('Coverage:',message,'Color:',color);"
+        shell: bash
+
+      - name: Fallback badge when summary missing
+        if: steps.ensure_summary.outputs.summary_missing == 'true'
+        run: |
+          echo '{"schemaVersion":1,"label":"coverage","message":"n/a","color":"lightgrey"}' > badge.json
+          echo "Using fallback badge due to missing coverage summary"
+
+      - name: Upload badge JSON artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-badge-json
+          path: badge.json
+          retention-days: 7
+
+      - name: Update Gist with badge JSON (push only)
+        if: ${{ github.event_name == 'push' && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            --input gist-payload.json
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
+      - name: Update Gist with badge JSON (PRs from same repository)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && env.GIST_ID != '' && env.GIST_TOKEN != '' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) with coverage badge JSON (PR same repo)"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            --input gist-payload.json
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
+
+      - name: Update Gist with badge JSON (after Build and Release)
+        if: ${{ github.event_name == 'workflow_run' && env.GIST_ID != '' && env.GIST_TOKEN != '' && github.event.workflow_run.conclusion == 'success' }}
+        env:
+          GH_TOKEN: ${{ env.GIST_TOKEN }}
+        run: |
+          echo "Updating gist $GIST_ID ($GIST_FILENAME) after Build and Release"
+          node -e "const fs=require('fs');const fn=process.env.GIST_FILENAME||'coverage.json';const content=fs.readFileSync('badge.json','utf8');const body=JSON.stringify({files:{[fn]:{content}}});fs.writeFileSync('gist-payload.json',body);"
+          gh api \
+            -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            /gists/$GIST_ID \
+            --input gist-payload.json
+          OWNER=$(gh api /gists/$GIST_ID --jq .owner.login 2>/dev/null || true)
+          if [ -z "$OWNER" ]; then OWNER="$GIST_OWNER"; fi
+          if [ -z "$OWNER" ]; then OWNER="${{ github.repository_owner }}"; fi
+          echo "Gist updated. Badge URL:"
+          echo "https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/$OWNER/$GIST_ID/raw/$GIST_FILENAME"
+
+      - name: Skip gist update (PRs from forks do not receive secrets)
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          echo "Pull requests from forks do not get repository secrets."
+          echo "Gist update is intentionally skipped for PRs; it will run on push to main/develop."
+
+      - name: Skip gist update (secrets not configured on push)
+        if: ${{ github.event_name == 'push' && (env.GIST_ID == '' || env.GIST_TOKEN == '') }}
+        run: |
+          echo "COVERAGE_GIST_ID and/or COVERAGE_GIST_TOKEN not set; skipping gist update on push."
+          echo "Add repository or organization secrets: COVERAGE_GIST_ID (gist id) and COVERAGE_GIST_TOKEN (token with 'gist' scope)."

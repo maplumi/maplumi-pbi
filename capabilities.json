@@ -457,6 +457,11 @@
             "numeric": true
           }
         },
+        "simplificationStrength": {
+          "type": {
+            "numeric": true
+          }
+        },
         "showLegend": {
           "type": {
             "bool": true

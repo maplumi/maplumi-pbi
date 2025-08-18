@@ -1,5 +1,6 @@
 import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as format from "../utils/format";
+import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "../constants/strings";
 
 export class LegendService {
 
@@ -229,7 +230,7 @@ export class LegendService {
         // Collect all labels and colors
         let allLabels: string[] = [];
         let colors: string[] = [];
-        if (options.classificationMethod === "u") {
+    if (options.classificationMethod === ClassificationMethods.Unique) {
             // Unique value legend
             // Use classBreaks (already sorted and capped) for both labels and color mapping
             const uniqueValues = classBreaks;
@@ -253,8 +254,8 @@ export class LegendService {
         // Calculate max width when needed
         let maxWidth = 0;
         const needsUniformWidth =
-            (options.legendOrientation === "horizontal" && ["top", "center", "bottom"].includes(options.legendLabelPosition)) ||
-            (options.legendOrientation === "vertical" && options.legendLabelPosition === "center");
+            (options.legendOrientation === LegendOrientations.Horizontal && [LegendLabelPositions.Top, LegendLabelPositions.Center, LegendLabelPositions.Bottom].includes(options.legendLabelPosition as any)) ||
+            (options.legendOrientation === LegendOrientations.Vertical && options.legendLabelPosition === LegendLabelPositions.Center);
 
         if (needsUniformWidth) {
             const tempDiv = document.createElement("div");
@@ -262,7 +263,7 @@ export class LegendService {
             tempDiv.style.visibility = "hidden";
             tempDiv.style.whiteSpace = "nowrap";
             tempDiv.style.fontSize = "10px";
-            if (options.legendLabelPosition === "center") {
+            if (options.legendLabelPosition === LegendLabelPositions.Center) {
                 tempDiv.style.padding = "0 4px";
             }
             document.body.appendChild(tempDiv);
@@ -278,7 +279,7 @@ export class LegendService {
         // Create items container
         const itemsContainer = document.createElement("div");
         itemsContainer.style.display = "flex";
-        itemsContainer.style.flexDirection = options.legendOrientation === "vertical" ? "column" : "row";
+    itemsContainer.style.flexDirection = options.legendOrientation === LegendOrientations.Vertical ? "column" : "row";
         itemsContainer.style.gap = `${options.legendItemMargin}px`;
         itemsContainer.style.alignItems = "flex-start";
 
@@ -460,24 +461,24 @@ export class LegendService {
         container.style.gap = "0px";
 
         // Handle different layouts
-        if (orientation === "vertical") {
-            if (["left", "right"].includes(labelPosition)) {
-                container.style.flexDirection = labelPosition === "left" ? "row-reverse" : "row";
+        if (orientation === LegendOrientations.Vertical) {
+            if ([LegendLabelPositions.Left, LegendLabelPositions.Right].includes(labelPosition as any)) {
+                container.style.flexDirection = labelPosition === LegendLabelPositions.Left ? "row-reverse" : "row";
                 container.style.width = "100%";
-                container.style.justifyContent = labelPosition === "left" ? "flex-end" : "flex-start";
+                container.style.justifyContent = labelPosition === LegendLabelPositions.Left ? "flex-end" : "flex-start";
             } else {
                 container.style.flexDirection = "column";
             }
         } else {
-            container.style.flexDirection = ["top", "bottom"].includes(labelPosition)
-                ? (labelPosition === "top" ? "column-reverse" : "column")
+            container.style.flexDirection = [LegendLabelPositions.Top, LegendLabelPositions.Bottom].includes(labelPosition as any)
+                ? (labelPosition === LegendLabelPositions.Top ? "column-reverse" : "column")
                 : "row";
         }
 
         // Configure color box sizing
         const useUniformWidth =
-            (orientation === "horizontal" && ["top", "center", "bottom"].includes(labelPosition)) ||
-            (orientation === "vertical" && labelPosition === "center");
+            (orientation === LegendOrientations.Horizontal && [LegendLabelPositions.Top, LegendLabelPositions.Center, LegendLabelPositions.Bottom].includes(labelPosition as any)) ||
+            (orientation === LegendOrientations.Vertical && labelPosition === LegendLabelPositions.Center);
 
         colorBox.style.height = "20px";
         // Use RGBA for background color with opacity
@@ -492,7 +493,7 @@ export class LegendService {
 
         if (useUniformWidth) {
             colorBox.style.width = `${maxWidth}px`;
-            if (labelPosition === "center") {
+            if (labelPosition === LegendLabelPositions.Center) {
                 colorBox.style.display = "flex";
                 colorBox.style.alignItems = "center";
                 colorBox.style.justifyContent = "center";
@@ -510,11 +511,11 @@ export class LegendService {
         label.style.whiteSpace = "nowrap";
 
         // Handle positioning
-        if (labelPosition === "center") {
+        if (labelPosition === LegendLabelPositions.Center) {
             colorBox.appendChild(label);
             container.appendChild(colorBox);
         } else {
-            if (["top", "left"].includes(labelPosition)) {
+            if ([LegendLabelPositions.Top, LegendLabelPositions.Left].includes(labelPosition as any)) {
                 container.appendChild(label);
                 container.appendChild(colorBox);
             } else {

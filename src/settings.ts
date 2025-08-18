@@ -29,6 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
+import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
 import TextInput = formattingSettings.TextInput;
@@ -40,14 +41,14 @@ class basemapSelectSettingsGroup extends formattingSettings.SimpleCard {
         name: "selectedBasemap",
         displayName: "Select Basemap",
         value: {
-            value: "openstreetmap",  // The actual value
+            value: BasemapNames.OpenStreetMap,  // The actual value
             displayName: "OpenStreetMap" // The display name
         },
         items: [
-            { value: "openstreetmap", displayName: "OpenStreetMap" },
-            { value: "mapbox", displayName: "Mapbox" },
-            { value: "maptiler", displayName: "MapTiler" },
-            { value: "none", displayName: "No Basemap" }
+            { value: BasemapNames.OpenStreetMap, displayName: "OpenStreetMap" },
+            { value: BasemapNames.Mapbox, displayName: "Mapbox" },
+            { value: BasemapNames.MapTiler, displayName: "MapTiler" },
+            { value: BasemapNames.None, displayName: "No Basemap" }
         ]
     });
 
@@ -171,11 +172,11 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
         const selectedBasemap = this.basemapSelectSettingsGroup.selectedBasemap.value?.value;
 
         // Show Mapbox settings only if Mapbox is selected
-        const isMapbox = selectedBasemap === "mapbox";
+    const isMapbox = selectedBasemap === BasemapNames.Mapbox;
         this.mapBoxSettingsGroup.visible = isMapbox;
 
         // Show MapTiler settings only if MapTiler is selected
-        const isMaptiler = selectedBasemap === "maptiler";
+    const isMaptiler = selectedBasemap === BasemapNames.MapTiler;
         this.maptilerSettingsGroup.visible = isMaptiler;
 
         // Show/hide custom attribution field (you can decide its logic)
@@ -691,16 +692,16 @@ class choroplethClassificationSettingsGroup extends formattingSettings.SimpleCar
         name: "classificationMethod",
         displayName: "Method",
         value: {
-            value: "q",  //default value
+            value: ClassificationMethods.Quantile,  //default value
             displayName: "Quantile"
         },
         items: [
-            { value: "u", displayName: "Categorical/Ordinal" },
-            { value: "q", displayName: "Quantile" },
-            { value: "e", displayName: "Equal Interval" },
-            { value: "l", displayName: "Logarithmic" },
-            { value: "k", displayName: "K-means" },
-            { value: "j", displayName: "Jenks Natural Breaks" }
+            { value: ClassificationMethods.Unique, displayName: "Categorical/Ordinal" },
+            { value: ClassificationMethods.Quantile, displayName: "Quantile" },
+            { value: ClassificationMethods.EqualInterval, displayName: "Equal Interval" },
+            { value: ClassificationMethods.Logarithmic, displayName: "Logarithmic" },
+            { value: ClassificationMethods.KMeans, displayName: "K-means" },
+            { value: ClassificationMethods.Jenks, displayName: "Jenks Natural Breaks" }
         ]
     });
 
@@ -805,6 +806,23 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
+    simplificationStrength: formattingSettings.NumUpDown = new formattingSettings.Slider({
+        name: "simplificationStrength",
+        displayName: "Simplification Strength",
+        value: 50,
+        options:
+        {
+            maxValue: {
+                type: powerbi.visuals.ValidatorType.Max,
+                value: 100
+            },
+            minValue: {
+                type: powerbi.visuals.ValidatorType.Min,
+                value: 0
+            }
+        }
+    });
+
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
@@ -815,7 +833,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.colorMode,
         this.strokeColor,
         this.strokeWidth,
-        this.layerOpacity
+    this.layerOpacity,
+    this.simplificationStrength
     ];
 
     public applyConditionalDisplayRules(): void {
@@ -849,13 +868,13 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendTitleAlignment",
         displayName: "Legend Title Alignment",
         value: {
-            value: "left",  //default value
+            value: TitleAlignments.Left,  //default value
             displayName: "Left"
         },
         items: [
-            { value: "left", displayName: "Left" },
-            { value: "center", displayName: "Center" },
-            { value: "right", displayName: "Right" }
+            { value: TitleAlignments.Left, displayName: "Left" },
+            { value: TitleAlignments.Center, displayName: "Center" },
+            { value: TitleAlignments.Right, displayName: "Right" }
         ]
     });
 
@@ -875,15 +894,15 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendLabelPosition",
         displayName: "Legend Label Position",
         value: {
-            value: "top",  //default value
-            displayName: "top"
+            value: LegendLabelPositions.Top,  //default value
+            displayName: "Top"
         },
         items: [
-            { value: "top", displayName: "Top" },
-            { value: "center", displayName: "Center" },
-            { value: "bottom", displayName: "Bottom" },
-            { value: "right", displayName: "Right" },
-            { value: "left", displayName: "Left" }
+            { value: LegendLabelPositions.Top, displayName: "Top" },
+            { value: LegendLabelPositions.Center, displayName: "Center" },
+            { value: LegendLabelPositions.Bottom, displayName: "Bottom" },
+            { value: LegendLabelPositions.Right, displayName: "Right" },
+            { value: LegendLabelPositions.Left, displayName: "Left" }
         ]
     });
 
@@ -892,12 +911,12 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendOrientation",
         displayName: "Legend Orientation",
         value: {
-            value: "horizontal",  //default value
+            value: LegendOrientations.Horizontal,  //default value
             displayName: "Horizontal"
         },
         items: [
-            { value: "horizontal", displayName: "Horizontal" },
-            { value: "vertical", displayName: "Vertical" }
+            { value: LegendOrientations.Horizontal, displayName: "Horizontal" },
+            { value: LegendOrientations.Vertical, displayName: "Vertical" }
         ]
     });
 
@@ -1007,16 +1026,16 @@ class legendContainerSettingsGroup extends formattingSettings.SimpleCard {
         name: "legendPosition",
         displayName: "Position",
         value: {
-            value: "top-right",  //default value
+            value: LegendPositions.TopRight,  //default value
             displayName: "Top Right"
         },
         items: [
-            { value: "top-right", displayName: "Top Right" },
-            { value: "top-left", displayName: "Top Left" },
-            { value: "top-center", displayName: "Top Center" },
-            { value: "bottom-right", displayName: "Bottom Right" },
-            { value: "bottom-left", displayName: "Bottom Left" },
-            { value: "bottom-center", displayName: "Bottom Center" }
+            { value: LegendPositions.TopRight, displayName: "Top Right" },
+            { value: LegendPositions.TopLeft, displayName: "Top Left" },
+            { value: LegendPositions.TopCenter, displayName: "Top Center" },
+            { value: LegendPositions.BottomRight, displayName: "Bottom Right" },
+            { value: LegendPositions.BottomLeft, displayName: "Bottom Left" },
+            { value: LegendPositions.BottomCenter, displayName: "Bottom Center" }
 
         ]
     });

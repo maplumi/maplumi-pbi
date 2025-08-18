@@ -37,13 +37,11 @@ import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
+import { MessageService } from "./services/MessageService";
 
 import { MaplumiVisualFormattingSettingsModel } from "./settings"; import "ol/ol.css";
 import Map from "ol/Map";
-import {
-    BasemapOptions, ChoroplethOptions,
-    CircleOptions, MapToolsOptions
-} from "./types/index";
+import { BasemapOptions, ChoroplethOptions, CircleOptions, MapToolsOptions } from "./types/index";
 import type { CircleLayer } from "./layers/circleLayer";
 import type { ChoroplethLayer } from "./layers/choroplethLayer";
 import * as d3 from "d3";
@@ -58,6 +56,10 @@ import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
 import { ChoroplethOrchestrator } from "./orchestration/ChoroplethOrchestrator";
 import { CircleOrchestrator } from "./orchestration/CircleOrchestrator";
+import { OptionsService } from "./services/OptionsService";
+import { ColorRampHelper } from "./services/ColorRampHelper";
+import { DataRoleService } from "./services/DataRoleService";
+import { DomIds, LegendPositions, VisualObjectNames, VisualObjectProps } from "./constants/strings";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -79,23 +81,35 @@ export class MaplumiVisual implements IVisual {
     private mapToolsOptions: MapToolsOptions;
     private circleLayer: CircleLayer;
     private choroplethLayer: ChoroplethLayer;
-    private mapExtent: Extent | undefined;
+   
     private choroplethDisplayed: boolean = false;
     private cacheService: CacheService;
-    private abortController: AbortController | null = null;
+    
+    // Auto-toggle removed: layers are user-driven via format pane toggles
     private events: IVisualEventService;
-    private circleGroup1: string = "#circles-group-1";
-    private circleGroup2: string = "#circles-group-2";
-    private choroplethGroup: string = "#choropleth-group";
+    
     private previousLockMapExtent: boolean | undefined;
     private mapToolsOrchestrator: MapToolsOrchestrator;
     private circleOrchestrator: CircleOrchestrator;
     private choroplethOrchestrator: ChoroplethOrchestrator;
+    private messages: MessageService;
 
     constructor(options: VisualConstructorOptions) {
 
         this.host = options.host;
         this.events = options.host.eventService;
+    this.messages = new MessageService(options.host);
+
+        // Opt-in cache debug logging: enable via DevTools, localStorage, or URL query
+        try {
+            const already = (globalThis as any).__MAPLUMI_DEBUG_CACHE__ === true;
+            const byLocalStorage = typeof localStorage !== 'undefined' && localStorage.getItem('maplumi:debugCache') === '1';
+            const byQuery = typeof location !== 'undefined' && /(^|[?&])debugCache=1(&|$)/.test(location.search || '');
+            if (!already && (byLocalStorage || byQuery)) {
+                (globalThis as any).__MAPLUMI_DEBUG_CACHE__ = true;
+                console.info('[Maplumi] Cache debug logging enabled');
+            }
+        } catch { /* ignore */ }
 
         this.formattingSettingsService = new FormattingSettingsService();
         this.visualFormattingSettingsModel = new MaplumiVisualFormattingSettingsModel();
@@ -106,8 +120,8 @@ export class MaplumiVisual implements IVisual {
         this.container = options.element;
 
         //legend container
-        this.legendContainer = document.createElement("div");
-        this.legendContainer.setAttribute("id", "legendContainer");
+    this.legendContainer = document.createElement("div");
+    this.legendContainer.setAttribute("id", DomIds.LegendContainer);
         this.legendContainer.style.position = "absolute";
         this.legendContainer.style.zIndex = "1000";
         this.legendContainer.style.display = "none"; // Hidden by default
@@ -127,7 +141,7 @@ export class MaplumiVisual implements IVisual {
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            this.svgOverlay.id = 'svgOverlay'
+            this.svgOverlay.id = DomIds.SvgOverlay
             this.svgOverlay.style.position = 'absolute';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
@@ -137,7 +151,11 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.svg = d3.select(this.svgOverlay);
-        this.svgContainer = document.createElement('div'); // svg node container      
+        this.svgContainer = document.createElement('div'); // svg node container     
+        // Ensure legend container is part of DOM
+        if (!this.legendContainer.parentElement) {
+            this.container.appendChild(this.legendContainer);
+        }
 
         // Subscribe to selection changes
         this.selectionManager.registerOnSelectCallback(() => {
@@ -192,7 +210,7 @@ export class MaplumiVisual implements IVisual {
             .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel, options.dataViews[0]);
 
         // Get latest options early for lockMapExtent
-        this.mapToolsOptions = this.getMapToolsOptions();
+    this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
 
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
@@ -206,10 +224,15 @@ export class MaplumiVisual implements IVisual {
         this.svgOverlay.style.display = 'none';
 
         // Get latest options
-        const basemapOptions = this.getBasemapOptions();
-        const circleOptions = this.getCircleOptions();
-        const choroplethOptions = this.getChoroplethOptions();
-        this.mapToolsOptions = this.getMapToolsOptions();
+    const basemapOptions = OptionsService.getBasemapOptions(this.visualFormattingSettingsModel);
+    const circleOptions = OptionsService.getCircleOptions(this.visualFormattingSettingsModel);
+    const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
+    this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+
+    // Auto-toggle removed: use user-driven settings directly
+    // No computation or persistence of auto state
+    circleOptions.layerControl = circleOptions.layerControl;
+    choroplethOptions.layerControl = choroplethOptions.layerControl;
 
 
         // Dynamically toggle zoom control
@@ -219,31 +242,11 @@ export class MaplumiVisual implements IVisual {
         this.updateLegendContainer();
 
         // Create color ramp service and data service
-        const colorRampName = choroplethOptions.colorRamp;
-        const colorRamp: string[] = VisualConfig.COLORRAMPS[colorRampName.toUpperCase()];
-        const customColorRamp: string[] = choroplethOptions.customColorRamp.split(",");
-
-        // Validate custom color ramp: trim and check for valid hex colors
-        const validCustomColorRamp = customColorRamp
-            .map(c => c.trim())
-            .filter(c => /^#([0-9A-Fa-f]{3}){1,2}$/.test(c));
-
-        let selectedColorRamp: string[];
-        if (colorRampName === "custom") {
-            if (validCustomColorRamp.length > 0) {
-                selectedColorRamp = validCustomColorRamp;
-            } else {
-                selectedColorRamp = colorRamp;
-
-                this.host.displayWarningIcon(
-                    "Invalid or empty custom color ramp.",
-                    "maplumiWarning: Invalid or empty custom color ramp. Using default color ramp instead. Please provide a valid comma-separated list of hex color codes."
-                );
-
-            }
-        } else {
-            selectedColorRamp = colorRamp;
-        }
+    const selectedColorRamp = ColorRampHelper.selectColorRamp(
+            choroplethOptions.colorRamp,
+            choroplethOptions.customColorRamp,
+            this.messages
+        );
 
         // Initialize color ramp and data service
         this.colorRampManager = new ColorRampManager(selectedColorRamp);
@@ -257,7 +260,7 @@ export class MaplumiVisual implements IVisual {
             return;
         }
 
-        this.choroplethDisplayed = choroplethOptions.layerControl;
+    this.choroplethDisplayed = choroplethOptions.layerControl;
         this.mapService.updateBasemap(basemapOptions);
 
         // Render layers based on settings
@@ -271,7 +274,7 @@ export class MaplumiVisual implements IVisual {
             ).then(layer => { this.choroplethLayer = layer; });
         } else {
 
-            const group = this.svg.select(`#choropleth-group`);
+            const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
 
             group.selectAll("*").remove();  // Clear children
 
@@ -295,8 +298,8 @@ export class MaplumiVisual implements IVisual {
             this.circleLayer = layer;
         } else {
 
-            const group1 = this.svg.select(`#circles-group-1`);
-            const group2 = this.svg.select(`#circles-group-2`);
+            const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
+            const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
 
             // Always clean up children
             group1.selectAll("*").remove();
@@ -310,10 +313,11 @@ export class MaplumiVisual implements IVisual {
             this.legendService.hideLegend("circle");
         }
 
-        // Update legend visibility
-        if (choroplethOptions.layerControl == false && circleOptions.layerControl == false) {
-            this.legendContainer.style.display = "none";
-        }
+        // Update legend container visibility based on layers' legend settings
+        const parentLegendVisible =
+            (choroplethOptions.layerControl === true && choroplethOptions.showLegend === true) ||
+            (circleOptions.layerControl === true && circleOptions.showLegend === true);
+        this.legendContainer.style.display = parentLegendVisible ? "block" : "none";
 
         this.map.updateSize();
 
@@ -354,24 +358,24 @@ export class MaplumiVisual implements IVisual {
 
         // Set new position
         switch (this.mapToolsOptions.legendPosition) {
-            case 'top-right':
+            case LegendPositions.TopRight:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.right = '10px';
                 break;
-            case 'top-left':
+            case LegendPositions.TopLeft:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.left = '10px';
                 break;
-            case 'bottom-right':
+            case LegendPositions.BottomRight:
                 this.legendContainer.style.bottom = '10px';
                 this.legendContainer.style.right = '10px';
                 break;
-            case 'top-center':
+            case LegendPositions.TopCenter:
                 this.legendContainer.style.top = '10px';
                 this.legendContainer.style.left = '50%';
                 this.legendContainer.style.transform = 'translateX(-50%)';
                 break;
-            case 'bottom-center':
+            case LegendPositions.BottomCenter:
                 this.legendContainer.style.bottom = '10px';
                 this.legendContainer.style.left = '50%';
                 this.legendContainer.style.transform = 'translateX(-50%)';
@@ -518,8 +522,8 @@ export class MaplumiVisual implements IVisual {
     private persistCurrentExtentAsLocked(extentString: string, zoom: number) {
         this.host.persistProperties({
             merge: [{
-                objectName: "mapControlsVisualCardSettings",
-                properties: { lockedMapExtent: extentString, lockedMapZoom: zoom },
+                objectName: VisualObjectNames.MapControls,
+                properties: { [VisualObjectProps.LockedMapExtent]: extentString, [VisualObjectProps.LockedMapZoom]: zoom },
                 selector: null
             }]
         });
