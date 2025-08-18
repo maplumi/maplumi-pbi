@@ -1,7 +1,7 @@
 import { ChoroplethOrchestrator } from "../../src/orchestration/ChoroplethOrchestrator";
 import { LegendService } from "../../src/services/LegendService";
 import { ChoroplethDataService } from "../../src/services/ChoroplethDataService";
-import { CacheService } from "../../src/services/cacheService";
+import { CacheService } from "../../src/services/CacheService";
 // Avoid importing d3 ESM in tests; create a tiny stub selection instead
 function createStubSelection() {
   return {

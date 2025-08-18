@@ -2,29 +2,7 @@
 
 ## Overview
 
-This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual. I##### `processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection>`
-Processes geographic boundary data from GeoBoundaries API or custom sources.
-
-**Parameters:**
-- `options: ChoroplethOptions` - Configuration options including data source settings
-- `validPCodes: string[]` - Array of valid administrative codes to include
-
-**Returns:**
-- `Promise<FeatureCollection>` - Processed GeoJSON feature collection
-
-**Example:**
-```typescript
-const processedData = await dataService.processGeoData(
-    {
-        boundaryDataSource: 'geoboundaries',
-        geoBoundariesCountry: 'KEN',
-        geoBoundariesReleaseType: 'gbOpen',
-        geoBoundariesAdminLevel: 'ADM1',
-        sourceFieldID: 'shapeISO'
-    },
-    ['KE-01', 'KE-02', 'KE-03']
-);
-``` methods, interfaces, configuration options, and integration patterns for developers working with or extending the choropleth functionality.
+This document provides comprehensive API reference for the choropleth visualization component of the Maplumi Power BI visual. It covers methods, interfaces, configuration options, and integration patterns for developers working with or extending the choropleth functionality.
 
 ## Table of Contents
 
@@ -192,13 +170,14 @@ constructor(colorRampManager: ColorRampManager, host: IVisualHost)
 
 #### Public Methods
 
-##### `processGeoData(data: any, pcodeKey: string, validPCodes: string[]): FeatureCollection`
+##### `processGeoData(data: any, pcodeKey: string, validPCodes: string[], topojsonObjectName?: string): FeatureCollection`
 Processes raw geographic data into rendering-ready format.
 
 **Parameters:**
 - `data: any` - Raw GeoJSON or TopoJSON data
 - `pcodeKey: string` - Property key for administrative codes
 - `validPCodes: string[]` - Array of valid administrative codes to include
+- `topojsonObjectName?: string` - Optional TopoJSON object name to select when multiple objects are present
 
 **Returns:**
 - `FeatureCollection` - Processed GeoJSON feature collection
@@ -208,7 +187,8 @@ Processes raw geographic data into rendering-ready format.
 const processedData = dataService.processGeoData(
     rawBoundaryData,
     'ADM1_PCODE',
-    ['AF001', 'AF002', 'AF003']
+    ['AF001', 'AF002', 'AF003'],
+    'ADM1'
 );
 ```
 
@@ -333,6 +313,7 @@ interface ChoroplethOptions {
     // Custom data source options
     topoJSON_geoJSON_FileUrl: string; // Custom boundary data URL
     locationPcodeNameId: string; // Custom field name for P-codes
+    topojsonObjectName?: string; // Optional: specific TopoJSON object to use when multiple objects are present
     
     // Classification
     classificationMethod: string;
@@ -495,6 +476,18 @@ const ADMIN_LEVELS = {
 #### Supported Formats
 - **GeoJSON**: RFC 7946 compliant feature collections
 - **TopoJSON**: Topology-preserving format with automatic conversion
+
+#### Multi-object TopoJSON selection
+Some TopoJSON files contain multiple named objects (e.g., ADM0, ADM1, ADM2). The visual selects which object to render using the following order:
+
+1. If `topojsonObjectName` is provided in options/settings, that object is used (when present).
+2. Otherwise, the object with the greatest number of polygonal geometries is chosen (heuristic best fit for administrative boundaries).
+3. As a final fallback, the first object in the Topology is used.
+
+Notes:
+- The selected object is always converted to a GeoJSON FeatureCollection; single features are wrapped for consistency.
+- If the provided `topojsonObjectName` doesn’t exist, the heuristic/fallback is applied automatically.
+- If the resulting GeoJSON fails schema validation (must be a FeatureCollection with a non-empty `features` array), a user-facing warning is displayed in the visual.
 
 #### URL Requirements
 ```typescript

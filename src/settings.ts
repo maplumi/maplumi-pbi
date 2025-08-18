@@ -588,6 +588,15 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         placeholder: "" // Placeholder text
     });
 
+    // Optional: specify which object in a TopoJSON file to use when multiple exist
+    topojsonObjectName: formattingSettings.TextInput = new TextInput({
+        name: "topojsonObjectName",
+        displayName: "TopoJSON Object Name (optional)",
+        value: "",
+        placeholder: "e.g. ADM1, polygons, boundaries",
+        description: "If your TopoJSON has multiple objects, specify the object name to use. Leave blank to auto-detect the polygon layer."
+    });
+
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
@@ -597,6 +606,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         this.geoBoundariesReleaseType,
         this.geoBoundariesAdminLevel,
         this.topoJSON_geoJSON_FileUrl, 
+    this.topojsonObjectName,
         this.boundaryIdField,
         this.customBoundaryIdField
     ];
@@ -613,8 +623,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         // Handle "All Countries" special case
         const isAllCountries = isGeoBoundaries && this.geoBoundariesCountry.value?.value === "ALL";
         
-        // Hide Release Type when "All Countries" is selected (since custom URL doesn't use release type)
-        this.geoBoundariesReleaseType.visible = isGeoBoundaries && !isAllCountries;
+    // Release Type is applicable for all GeoBoundaries requests, including "All Countries"
+    this.geoBoundariesReleaseType.visible = isGeoBoundaries;
 
         if (isAllCountries) {
             // Restrict admin level options to ADM0 only when "All Countries" is selected
@@ -651,6 +661,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         
         // Show/hide fields based on data source
         this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
+    this.topojsonObjectName.visible = isCustomSource;
         this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
         this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
     }

@@ -206,6 +206,7 @@ export interface ChoroplethOptions {
 
     locationPcodeNameId: string,
     topoJSON_geoJSON_FileUrl: string,
+    topojsonObjectName?: string,
 
     //usePredefinedColorRamp: boolean;
 

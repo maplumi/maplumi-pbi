@@ -14,7 +14,7 @@ import ISelectionId = powerbi.extensibility.ISelectionId;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import * as requestHelpers from "../utils/requestHelpers";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
-import { CacheService } from "../services/cacheService";
+import { CacheService } from "../services/CacheService";
 
 export class ChoroplethOrchestrator {
     private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -204,16 +204,25 @@ export class ChoroplethOrchestrator {
                 return;
             }
             try {
-                const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
-                if (!metadata) {
-                    this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
-                    return;
+                // Special case: efficiently support multiple countries by using a consolidated world dataset at ADM0
+                if (GeoBoundariesService.isAllCountriesRequest(choroplethOptions)) {
+                    serviceUrl = GeoBoundariesService.getAllCountriesUrl();
+                    const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
+                    pcodeKey = boundaryFieldName;
+                    cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_ALL_ADM0`;
+                    console.log("Loading All Countries ADM0 boundaries (consolidated dataset)");
+                } else {
+                    const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
+                    if (!metadata) {
+                        this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
+                        return;
+                    }
+                    serviceUrl = GeoBoundariesService.getDownloadUrl(metadata, true);
+                    const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
+                    pcodeKey = boundaryFieldName;
+                    cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
+                    console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata)}`);
                 }
-                serviceUrl = GeoBoundariesService.getDownloadUrl(metadata, true);
-                const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
-                pcodeKey = boundaryFieldName;
-                cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata)}`);
             } catch (error) {
                 this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Error connecting to GeoBoundaries API. Please check your network connection.");
                 return;
@@ -253,11 +262,22 @@ export class ChoroplethOrchestrator {
 
             if (!data || !choroplethOptions.layerControl) return;
 
-            const processedGeoData = dataService.processGeoData(
-                data,
-                pcodeKey,
-                AdminPCodeNameIDCategory.values
-            );
+            let processedGeoData;
+            try {
+                processedGeoData = dataService.processGeoData(
+                    data,
+                    pcodeKey,
+                    AdminPCodeNameIDCategory.values,
+                    choroplethOptions.topojsonObjectName
+                );
+            } catch (e: any) {
+                this.host.displayWarningIcon(
+                    "Invalid Geo/TopoJSON Data",
+                    "maplumiWarning: The boundary data isn't valid GeoJSON (FeatureCollection with features). " +
+                    "Please verify the URL, selected object name, and file format."
+                );
+                return;
+            }
 
             const layerOptions: ChoroplethLayerOptions = {
                 geojson: processedGeoData,

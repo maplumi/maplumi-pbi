@@ -30,12 +30,17 @@ export class ChoroplethDataService {
      * @param validPCodes Array of valid PCodes to filter features by
      * @returns Processed GeoJSON FeatureCollection with simplified and filtered features
      */
-    public processGeoData(data: any, pcodeKey: string, validPCodes: string[]): FeatureCollection {
+    public processGeoData(data: any, pcodeKey: string, validPCodes: string[], topojsonObjectName?: string): FeatureCollection {
 
         // Handle topojson if needed
         let geojson: FeatureCollection = this.isTopoJSON(data)
-            ? this.convertTopoJSONToGeoJSON(data)
+            ? this.convertTopoJSONToGeoJSON(data, topojsonObjectName)
             : data as FeatureCollection;
+
+        // Stricter GeoJSON schema validation
+        if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
+            throw new Error("Invalid GeoJSON: expected a FeatureCollection with a features array.");
+        }
 
         // Filter features based on valid PCodes
         return {
@@ -341,7 +346,7 @@ export class ChoroplethDataService {
      * @param topology TopoJSON data to convert
      * @returns GeoJSON FeatureCollection
      */
-    private convertTopoJSONToGeoJSON(topology: any): FeatureCollection {
+    private convertTopoJSONToGeoJSON(topology: any, preferredObjectName?: string): FeatureCollection {
 
         if (!topology || typeof topology !== "object") {
             throw new Error("Invalid TopoJSON object provided.");
@@ -351,16 +356,55 @@ export class ChoroplethDataService {
             throw new Error("Invalid or missing 'objects' property in TopoJSON.");
         }
 
-        const layerNames = Object.keys(topology.objects);
+    const layerNames = Object.keys(topology.objects);
 
-        if (layerNames.length !== 1) {
-            throw new Error(
-                `Expected a single layer in TopoJSON, but found ${layerNames.length}.`
-            );
+        // Helper to count polygonal geometries within a TopoJSON object
+        const countPolygonGeometries = (obj: any): number => {
+            if (!obj) return 0;
+            const polyTypes = new Set(["Polygon", "MultiPolygon"]);
+            if (obj.type === "GeometryCollection" && Array.isArray(obj.geometries)) {
+                return obj.geometries.reduce((acc: number, g: any) => acc + (polyTypes.has(g?.type) ? 1 : 0), 0);
+            }
+            return polyTypes.has(obj.type) ? 1 : 0;
+        };
+
+        let selectedLayerName: string | null = null;
+
+        if (preferredObjectName && layerNames.includes(preferredObjectName)) {
+            selectedLayerName = preferredObjectName;
+        } else if (layerNames.length === 1) {
+            selectedLayerName = layerNames[0];
+        } else {
+            // Prefer the object with the highest count of polygonal geometries
+            let maxCount = -1;
+            for (const name of layerNames) {
+                const count = countPolygonGeometries((topology.objects as any)[name]);
+                if (count > maxCount) {
+                    maxCount = count;
+                    selectedLayerName = name;
+                }
+            }
+
+            // If none appear polygonal, fall back to the first object deterministically
+            if (maxCount <= 0 && layerNames.length > 0) {
+                selectedLayerName = layerNames[0];
+            }
         }
 
-        const layerName = layerNames[0]; // Extract the name of the single layer
-        return topojson.feature(topology, topology.objects[layerName]);
+        if (!selectedLayerName) {
+            throw new Error("Unable to select a TopoJSON object for conversion.");
+        }
+
+        const geo = topojson.feature(topology, (topology.objects as any)[selectedLayerName]) as any;
+        // Ensure a FeatureCollection is returned
+        if (geo && geo.type === "FeatureCollection") {
+            return geo as FeatureCollection;
+        }
+        if (geo && geo.type === "Feature") {
+            return { type: "FeatureCollection", features: [geo] } as FeatureCollection;
+        }
+        // Fallback: wrap empty collection if unexpected
+        return { type: "FeatureCollection", features: [] } as FeatureCollection;
     }
 
 }

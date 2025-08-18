@@ -48,12 +48,12 @@ export class GeoBoundariesService {
      */
     public static buildApiUrl(options: ChoroplethOptions): string {
         const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
-        
-        // Special case: when "ALL" countries is selected, use custom URL
+
+        // Special case: when "ALL" countries is selected, use the official API at ADM0 level
         if (geoBoundariesCountry === "ALL") {
-            return VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL;
+            return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/ALL/ADM0/`;
         }
-        
+
         return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
     }
 
@@ -62,46 +62,9 @@ export class GeoBoundariesService {
      */
     public static async fetchMetadata(options: ChoroplethOptions): Promise<GeoBoundariesMetadata | null> {
         try {
-            // Special handling for "ALL" countries - return a mock metadata object pointing to custom URL
-            if (options.geoBoundariesCountry === "ALL") {
-                return {
-                    boundaryID: "ALL-COUNTRIES",
-                    boundaryName: "All Countries",
-                    boundaryISO: "ALL",
-                    boundaryYearRepresented: "2024",
-                    boundaryType: "ADM0",
-                    boundaryCanonical: "All Countries Boundaries",
-                    boundarySource: "Custom GeoBoundaries Collection",
-                    boundaryLicense: "Various",
-                    licenseDetail: "See individual country licenses",
-                    licenseSource: "geoBoundaries.org",
-                    sourceDataUpdateDate: new Date().toISOString(),
-                    buildDate: new Date().toISOString(),
-                    Continent: "Global",
-                    "UNSDG-region": "Global",
-                    "UNSDG-subregion": "Global",
-                    worldBankIncomeGroup: "All Income Groups",
-                    admUnitCount: "195+",
-                    meanVertices: "N/A",
-                    minVertices: "N/A",
-                    maxVertices: "N/A",
-                    meanPerimeterLengthKM: "N/A",
-                    minPerimeterLengthKM: "N/A",
-                    maxPerimeterLengthKM: "N/A",
-                    meanAreaSqKM: "N/A",
-                    minAreaSqKM: "N/A",
-                    maxAreaSqKM: "N/A",
-                    staticDownloadLink: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL,
-                    gjDownloadURL: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL,
-                    tjDownloadURL: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL,
-                    imagePreview: "",
-                    simplifiedGeometryGeoJSON: VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL
-                } as GeoBoundariesMetadata;
-            }
-
             const apiUrl = this.buildApiUrl(options);
             const response = await fetch(apiUrl);
-            
+
             if (!response.ok) {
                 console.error(`GeoBoundaries API error: ${response.status} ${response.statusText}`);
                 return null;

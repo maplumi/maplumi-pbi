@@ -114,6 +114,16 @@ Notes
 - Data reduction: up to ~30,000 category rows are sampled (subject to Power BI limits and environment).
 - If only choropleth is enabled, Latitude/Longitude/Size are not required. If only circles are enabled, Boundary ID isn’t required.
 
+### Custom TopoJSON with multiple objects
+
+If your TopoJSON file contains multiple named objects (e.g., `ADM1`, `polygons`, `lines`), you can direct the visual to use a specific object:
+
+- Format pane → Choropleth → Boundary → TopoJSON Object Name (optional)
+- Enter the exact object name from your TopoJSON `objects` dictionary.
+- Leave blank to auto-detect; the visual prefers polygonal objects when choosing automatically.
+
+Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `polygons`.
+
 ## Real-World Examples
 
 ### Business Dashboard

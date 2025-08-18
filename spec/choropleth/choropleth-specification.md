@@ -81,6 +81,15 @@ class ChoroplethDataService {
 - **TopoJSON**: Automatic conversion to GeoJSON with topology preservation
 - **Feature Filtering**: Boundary features filtered by valid administrative codes
 
+Note on TopoJSON with multiple objects
+- When a TopoJSON file contains multiple entries under `objects`, the visual will:
+    1) Use the object name provided in the Format pane (Boundary → TopoJSON Object Name), if specified.
+    2) Otherwise auto-select the object with the most polygonal geometries (Polygon/MultiPolygon).
+    3) If no polygonal object is found, it falls back to the first object.
+
+GeoJSON validation
+- After conversion, the visual requires a valid GeoJSON FeatureCollection with a `features` array. If validation fails, a user-facing warning is shown suggesting to verify the URL, object name, and file format.
+
 #### Data Flow
 ```typescript
 // Geographic data processing workflow

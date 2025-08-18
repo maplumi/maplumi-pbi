@@ -53,7 +53,7 @@ import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
 import type { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
-import { CacheService } from "./services/cacheService";
+import { CacheService } from "./services/CacheService";
 import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
 import { ChoroplethOrchestrator } from "./orchestration/ChoroplethOrchestrator";
@@ -478,6 +478,7 @@ export class MaplumiVisual implements IVisual {
                 ? choroplethLocationSettings.customBoundaryIdField.value
                 : choroplethLocationSettings.boundaryIdField.value.value.toString(),
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
+            topojsonObjectName: choroplethLocationSettings.topojsonObjectName.value,
 
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
             colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
