@@ -16,16 +16,11 @@ import * as requestHelpers from "../utils/requestHelpers";
 import { VisualConfig } from "../config/VisualConfig";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
 import { CacheService } from "../services/CacheService";
+import { BaseOrchestrator } from "./BaseOrchestrator";
+import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
+import { validateChoroplethInput, parseChoroplethCategorical, filterValidPCodes } from "../data/choropleth";
 
-export class ChoroplethOrchestrator {
-    private svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
-    private svgOverlay: SVGSVGElement;
-    private svgContainer: HTMLElement;
-    private legendService: LegendService;
-    private host: IVisualHost;
-    private map: Map;
-    private selectionManager: ISelectionManager;
-    private tooltipServiceWrapper: ITooltipServiceWrapper;
+export class ChoroplethOrchestrator extends BaseOrchestrator {
     private cacheService: CacheService;
 
     private choroplethLayer: ChoroplethLayer | undefined;
@@ -43,8 +38,8 @@ export class ChoroplethOrchestrator {
         tooltipServiceWrapper: ITooltipServiceWrapper;
         cacheService: CacheService;
     }) {
-    super(args);
-    this.cacheService = args.cacheService;
+        super(args);
+        this.cacheService = args.cacheService;
         this.choroplethOptsBuilder = new ChoroplethLayerOptionsBuilder({
             svg: this.svg,
             svgContainer: this.svgContainer,
@@ -163,7 +158,7 @@ export class ChoroplethOrchestrator {
         let serviceUrl: string;
         let cacheKey: string;
 
-        if (choroplethOptions.boundaryDataSource === "geoboundaries") {
+    if (choroplethOptions.boundaryDataSource === "geoboundaries") {
             const validation = GeoBoundariesService.validateOptions(choroplethOptions);
             if (!validation.isValid) {
                 this.host.displayWarningIcon("GeoBoundaries Configuration Error", `maplumiWarning: ${validation.message}`);
@@ -178,7 +173,7 @@ export class ChoroplethOrchestrator {
                     cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_ALL_ADM0`;
                     console.log("Loading All Countries ADM0 boundaries (consolidated dataset)");
                 } else {
-                    const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
+                    const { data: metadata } = await GeoBoundariesService.fetchMetadata(choroplethOptions);
                     if (!metadata) {
                         this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
                         return;
@@ -203,7 +198,7 @@ export class ChoroplethOrchestrator {
         this.abortController = new AbortController();
 
         try {
-            const data = await this.cacheService.getOrFetch(cacheKey, async () => {
+            const result = await this.cacheService.getOrFetch(cacheKey, async () => {
                 if (!requestHelpers.isValidURL(serviceUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
                 if (!requestHelpers.enforceHttps(serviceUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
                 let response: Response;
@@ -217,10 +212,11 @@ export class ChoroplethOrchestrator {
                 }
                 const json = await response.json();
                 if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); return null; }
-                return { data: json, response };
-            }, { respectCacheHeaders: true });
+                return json;
+            }, /* options ignored by CacheService */ undefined as any);
 
-            if (!data || !choroplethOptions.layerControl) return;
+            if (!result || !choroplethOptions.layerControl) return;
+            const data = result as any;
 
             let processedGeoData;
             try {
@@ -239,7 +235,7 @@ export class ChoroplethOrchestrator {
                 return;
             }
 
-            const layerOptions: ChoroplethLayerOptions = {
+            const layerOptions = this.choroplethOptsBuilder.build({
                 geojson: processedGeoData,
                 strokeColor: choroplethOptions.strokeColor,
                 strokeWidth: choroplethOptions.strokeWidth,
@@ -253,7 +249,7 @@ export class ChoroplethOrchestrator {
             });
 
             this.renderChoroplethLayerOnMap(layerOptions, mapToolsOptions);
-    } catch (error) { this.messages.choroplethFetchError(); }
+        } catch (error) { this.messages.choroplethFetchError(); }
     }
 
     private renderChoroplethLayerOnMap(

@@ -31,6 +31,7 @@
     "@turf/turf": "^7.2.0",
     "chroma-js": "^3.1.2",
     "d3": "7.9.0",
+  "topojson-client": "^3.1.0",
     "ol": "^10.3.1",
     "ol-mapbox-style": "^12.4.0",
     "powerbi-visuals-api": "~5.11.0",
@@ -40,9 +41,6 @@
     "powerbi-visuals-utils-tooltiputils": "^6.0.4",
     "rbush": "^4.0.1",
     "simple-statistics": "^7.8.7",
-  "topojson-client": "^3.1.0",
-  "topojson-server": "^3.0.1",
-  "topojson-simplify": "^3.0.3",
     "turf": "^3.0.14",
     "visual": "file:"
   },
