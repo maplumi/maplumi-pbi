@@ -631,7 +631,8 @@
         "https://*.datauga.com",
         "https://*.geoboundaries.org",
         "https://www.geoboundaries.org",
-        "https://github.com"
+  "https://github.com",
+  "https://public.opendatasoft.com"
       ]
     },
     {

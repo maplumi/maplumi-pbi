@@ -19,6 +19,7 @@ import { CacheService } from "../services/CacheService";
 import { BaseOrchestrator } from "./BaseOrchestrator";
 import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
 import { validateChoroplethInput, parseChoroplethCategorical, filterValidPCodes } from "../data/choropleth";
+import { OpenDataSoftService } from "../services/OpenDataSoftService";
 
 export class ChoroplethOrchestrator extends BaseOrchestrator {
     private cacheService: CacheService;
@@ -159,7 +160,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
     let cacheKey: string;
     let usingMergedAllCountries = false;
 
-        if (choroplethOptions.boundaryDataSource === "geoboundaries") {
+    if (choroplethOptions.boundaryDataSource === "geoboundaries") {
             const validation = GeoBoundariesService.validateOptions(choroplethOptions);
             if (!validation.isValid) {
                 this.host.displayWarningIcon("GeoBoundaries Configuration Error", `maplumiWarning: ${validation.message}`);
@@ -231,80 +232,79 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                         }
                         // Skip merged branch by continuing into the common fetch pipeline
                     } else {
-
-                    // Fetch metadata list for the selected release; fallback to gbOpen if necessary
-                    let allMeta = await GeoBoundariesService.fetchAllCountriesMetadataByRelease(usedRelease);
-                    if ((!allMeta || allMeta.length === 0) && usedRelease !== "gbOpen") {
-                        allMeta = await GeoBoundariesService.fetchAllCountriesMetadataByRelease("gbOpen");
-                        if (allMeta && allMeta.length > 0) {
-                            usedRelease = "gbOpen";
-                            this.host.displayWarningIcon(
-                                "GeoBoundaries Fallback",
-                                "maplumiWarning: No data found for the selected release type; falling back to gbOpen."
-                            );
-                        }
-                    }
-                    if (!allMeta || allMeta.length === 0) {
-                        this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
-                        return;
-                    }
-
-                    // Index metadata by ISO code
-                    const metaByISO: { [iso: string]: any } = Object.create(null);
-                    for (const m of allMeta) {
-                        const iso = (m.boundaryISO || "").toUpperCase();
-                        if (iso) metaByISO[iso] = m;
-                    }
-
-                    // Composite cache key for merged dataset
-                    const sortedIso = isoTargets.slice().sort().join("_");
-                    cacheKey = `geoboundaries_multi_${usedRelease}_${sortedIso}_${choroplethOptions.geoBoundariesAdminLevel}`;
-
-                    // Try cache first for merged result
-            const cachedMerged = this.cacheService.get<any>(cacheKey as any);
-                    if (!cachedMerged) {
-                        // Fetch and merge datasets sequentially to avoid excessive concurrency
-                        const mergedFeatures: any[] = [];
-                        for (const iso of isoTargets) {
-                const md = metaByISO[String(iso)];
-                            if (!md) continue; // skip unknown
-                            const candidates = GeoBoundariesService.getPreferredDownloadUrls(md);
-                            const perKey = `geoboundaries_${usedRelease}_${iso}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                            const data = await this.cacheService.getOrFetch<any>(perKey, async () => {
-                                for (const url of candidates) {
-                                    if (!requestHelpers.isValidURL(url)) { continue; }
-                                    if (!requestHelpers.enforceHttps(url)) { continue; }
-                                    try {
-                                        const resp = await requestHelpers.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
-                                        if (!resp.ok) continue;
-                                        const json = await resp.json();
-                                        if (!(await requestHelpers.isValidJsonResponse(json))) continue;
-                                        return json;
-                                    } catch { /* try next */ }
-                                }
-                                return null;
-                            });
-                            if (!data) continue;
-                            try {
-                                // Convert and filter features per dataset, using the full AdminPCodeNameIDCategory.values as valid list
-                                const geo = dataService.processGeoData(
-                                    data,
-                                    boundaryFieldName,
-                                    AdminPCodeNameIDCategory.values,
-                                    choroplethOptions.topojsonObjectName
+                        // Fetch metadata list for the selected release; fallback to gbOpen if necessary
+                        let allMeta = await GeoBoundariesService.fetchAllCountriesMetadataByRelease(usedRelease);
+                        if ((!allMeta || allMeta.length === 0) && usedRelease !== "gbOpen") {
+                            allMeta = await GeoBoundariesService.fetchAllCountriesMetadataByRelease("gbOpen");
+                            if (allMeta && allMeta.length > 0) {
+                                usedRelease = "gbOpen";
+                                this.host.displayWarningIcon(
+                                    "GeoBoundaries Fallback",
+                                    "maplumiWarning: No data found for the selected release type; falling back to gbOpen."
                                 );
-                                if (geo && Array.isArray(geo.features)) {
-                                    mergedFeatures.push(...geo.features);
-                                }
-                            } catch { /* skip problematic country */ }
+                            }
                         }
-                        const merged = { type: "FeatureCollection", features: mergedFeatures } as any;
-                        // Cache merged result
-                        this.cacheService.set(cacheKey, merged, VisualConfig.CACHE.EXPIRY_MS);
-                    }
-                    // Use merged dataset as if it's the downloaded data for the remaining pipeline
-                    usingMergedAllCountries = true;
-                    serviceUrl = ""; // Not used in merged path
+                        if (!allMeta || allMeta.length === 0) {
+                            this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
+                            return;
+                        }
+
+                        // Index metadata by ISO code
+                        const metaByISO: { [iso: string]: any } = Object.create(null);
+                        for (const m of allMeta) {
+                            const iso = (m.boundaryISO || "").toUpperCase();
+                            if (iso) metaByISO[iso] = m;
+                        }
+
+                        // Composite cache key for merged dataset
+                        const sortedIso = isoTargets.slice().sort().join("_");
+                        cacheKey = `geoboundaries_multi_${usedRelease}_${sortedIso}_${choroplethOptions.geoBoundariesAdminLevel}`;
+
+                        // Try cache first for merged result
+                        const cachedMerged = this.cacheService.get(cacheKey as any);
+                        if (!cachedMerged) {
+                            // Fetch and merge datasets sequentially to avoid excessive concurrency
+                            const mergedFeatures: any[] = [];
+                            for (const iso of isoTargets) {
+                                const md = metaByISO[String(iso)];
+                                if (!md) continue; // skip unknown
+                                const candidates = GeoBoundariesService.getPreferredDownloadUrls(md);
+                                const perKey = `geoboundaries_${usedRelease}_${iso}_${choroplethOptions.geoBoundariesAdminLevel}`;
+                                const data = await this.cacheService.getOrFetch<any>(perKey, async () => {
+                                    for (const url of candidates) {
+                                        if (!requestHelpers.isValidURL(url)) { continue; }
+                                        if (!requestHelpers.enforceHttps(url)) { continue; }
+                                        try {
+                                            const resp = await requestHelpers.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+                                            if (!resp.ok) continue;
+                                            const json = await resp.json();
+                                            if (!(await requestHelpers.isValidJsonResponse(json))) continue;
+                                            return json;
+                                        } catch { /* try next */ }
+                                    }
+                                    return null;
+                                });
+                                if (!data) continue;
+                                try {
+                                    // Convert and filter features per dataset, using the full AdminPCodeNameIDCategory.values as valid list
+                                    const geo = dataService.processGeoData(
+                                        data,
+                                        boundaryFieldName,
+                                        AdminPCodeNameIDCategory.values,
+                                        choroplethOptions.topojsonObjectName
+                                    );
+                                    if (geo && Array.isArray(geo.features)) {
+                                        mergedFeatures.push(...geo.features);
+                                    }
+                                } catch { /* skip problematic country */ }
+                            }
+                            const merged = { type: "FeatureCollection", features: mergedFeatures } as any;
+                            // Cache merged result
+                            this.cacheService.set(cacheKey, merged, VisualConfig.CACHE.EXPIRY_MS);
+                        }
+                        // Use merged dataset as if it's the downloaded data for the remaining pipeline
+                        usingMergedAllCountries = true;
+                        serviceUrl = ""; // Not used in merged path
                     }
                 } else {
                     // Single-country path (existing behavior)
@@ -340,6 +340,26 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Error connecting to GeoBoundaries API. Please check your network connection.");
                 return;
             }
+        } else if (choroplethOptions.boundaryDataSource === "opendatasoft") {
+            // ODS provides a world ADM0 dataset; we always fetch full dataset then filter by pCodes
+            try {
+                // Cache the full dataset once; filtering happens later in processGeoData
+                cacheKey = `ods_world_adm0`;
+                const data = await this.cacheService.getOrFetch<any>(cacheKey as any, async () => {
+                    const gj = await OpenDataSoftService.fetchWorldAdm0();
+                    // basic validation
+                    if (!(await requestHelpers.isValidJsonResponse(gj))) return null;
+                    return gj;
+                });
+                if (!data) {
+                    this.host.displayWarningIcon("OpenDataSoft Error", "maplumiWarning: Failed to fetch ODS world administrative boundaries.");
+                    return;
+                }
+                serviceUrl = ""; // not used; we already have data in cache
+            } catch (e) {
+                this.host.displayWarningIcon("OpenDataSoft Error", "maplumiWarning: Error connecting to OpenDataSoft API.");
+                return;
+            }
         } else {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
             // Cache by resource URL (not by location field) so different URLs don't collide
@@ -353,6 +373,9 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             let result: any;
             if (usingMergedAllCountries) {
                 // Retrieve merged data directly from cache
+                result = this.cacheService.get<any>(cacheKey as any);
+            } else if (choroplethOptions.boundaryDataSource === "opendatasoft") {
+                // Read the ODS dataset from cache
                 result = this.cacheService.get<any>(cacheKey as any);
             } else {
                 result = await this.cacheService.getOrFetch(cacheKey, async () => {

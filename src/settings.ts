@@ -510,6 +510,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         },
         items: [
             { value: "geoboundaries", displayName: "GeoBoundaries" },
+            { value: "opendatasoft", displayName: "OpenDataSoft (World ADM0)" },
             { value: "custom", displayName: "Custom" }
         ]
     });
@@ -618,7 +619,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         const selectedSource = this.boundaryDataSource.value?.value;
 
         // Show/hide geoBoundaries-specific fields
-        const isGeoBoundaries = selectedSource === "geoboundaries";
+    const isGeoBoundaries = selectedSource === "geoboundaries";
+    const isODS = selectedSource === "opendatasoft";
         this.geoBoundariesCountry.visible = isGeoBoundaries;
         this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
@@ -647,8 +649,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             ];
         }
 
-        // Dynamically update boundaryIdField items based on selected boundaryDataSource
-        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
+    // Dynamically update boundaryIdField items based on selected boundaryDataSource
+    if (selectedSource && this.sourceFieldOptions[selectedSource]) {
             this.boundaryIdField.items = this.sourceFieldOptions[selectedSource];
 
             // If current value is not in the new items, reset to first
@@ -659,16 +661,17 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         }
 
     // Handle visibility based on data source
-        const isCustomSource = selectedSource === "custom";
+    const isCustomSource = selectedSource === "custom";
         
         // Show/hide fields based on data source
-        this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
+    this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
     this.topojsonObjectName.visible = isCustomSource;
-        this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
-        this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
+    // Boundary ID dropdown visible for GB and ODS
+    this.boundaryIdField.visible = isGeoBoundaries || isODS;
+    this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
 
         // Dynamically populate country list from GeoBoundaries API when selected
-        if (isGeoBoundaries) {
+    if (isGeoBoundaries) {
             const release = this.geoBoundariesReleaseType.value?.value?.toString() || "gbOpen";
             const cached = GeoBoundariesService.getCachedCountryItems();
             if (cached && cached.length > 1) {

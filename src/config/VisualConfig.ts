@@ -173,10 +173,17 @@ export const VisualConfig = {
                 { value: "shapeID", displayName: "shapeID (Unique ID)" },
                 { value: "shapeGroup", displayName: "shapeGroup (Country)" }           
             ],
+            opendatasoft: [
+                { value: "iso3", displayName: "iso3 (ISO Code)" },
+                { value: "name", displayName: "name (Country Name)" }
+            ],
             custom: [
                 { value: "custom", displayName: "Custom" }
             ]
         }
+    },
+    OPENDATASOFT: {
+        WORLD_ADM0_URL: "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/world-administrative-boundaries/records?limit=-1"
     },
     MAP_BASE_URL: {
         MAPBOX: "https://api.mapbox.com/styles/v1",
