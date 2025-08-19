@@ -44,9 +44,14 @@ export class ChoroplethDataService {
             throw new Error("Invalid GeoJSON: expected a FeatureCollection with a features array.");
         }
 
-    // Do NOT filter out unmatched features here.
-    // Keep full geometry set so rendering layer can either hide or grey them out.
-    return geojson;
+        // Filter features based on valid PCodes
+        return {
+            ...geojson,
+            //features: geojson.features
+            features: geojson.features.filter(feature =>
+                validPCodes.includes(feature.properties[pcodeKey])
+            )
+        };
     }
 
     /**
@@ -392,30 +397,16 @@ export class ChoroplethDataService {
             throw new Error("Unable to select a TopoJSON object for conversion.");
         }
 
-    const geo = topojson.feature(topology, (topology.objects as any)[selectedLayerName]) as any;
+        const geo = topojson.feature(topology, (topology.objects as any)[selectedLayerName]) as any;
         // Ensure a FeatureCollection is returned
-        let fc: FeatureCollection;
         if (geo && geo.type === "FeatureCollection") {
-            fc = geo as FeatureCollection;
-        } else if (geo && geo.type === "Feature") {
-            fc = { type: "FeatureCollection", features: [geo] } as FeatureCollection;
-        } else {
-            // Fallback: wrap empty collection if unexpected
-            fc = { type: "FeatureCollection", features: [] } as FeatureCollection;
+            return geo as FeatureCollection;
         }
-
-        // Augment: copy Feature.id into properties.id if missing to support joins (e.g., World Atlas)
-        try {
-            for (const f of fc.features as any[]) {
-                if (!f) continue;
-                if (!f.properties) f.properties = {};
-                if (f.id !== undefined && f.properties.id === undefined) {
-                    f.properties.id = f.id;
-                }
-            }
-        } catch { /* ignore */ }
-
-        return fc;
+        if (geo && geo.type === "Feature") {
+            return { type: "FeatureCollection", features: [geo] } as FeatureCollection;
+        }
+        // Fallback: wrap empty collection if unexpected
+        return { type: "FeatureCollection", features: [] } as FeatureCollection;
     }
 
 }

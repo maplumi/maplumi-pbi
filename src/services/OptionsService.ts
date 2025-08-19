@@ -91,8 +91,6 @@ export class OptionsService {
                 ? choroplethLocationSettings.customBoundaryIdField.value
                 : choroplethLocationSettings.boundaryIdField.value.value.toString(),
             topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
-            topojsonObjectName: choroplethLocationSettings.topojsonObjectName.value,
-            worldAtlasScale: choroplethLocationSettings.worldAtlasScale?.value?.value?.toString?.(),
             invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
             colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
             colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
@@ -103,9 +101,6 @@ export class OptionsService {
             strokeWidth: choroplethDisplaySettings.strokeWidth.value,
             layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
             simplificationStrength: choroplethDisplaySettings.simplificationStrength.value,
-            greyOutUnmatchedBoundaries: choroplethDisplaySettings.greyOutUnmatchedBoundaries.value,
-            greyOutUnmatchedBoundariesColor: choroplethDisplaySettings.greyOutUnmatchedBoundariesColor.value.value,
-            greyOutUnmatchedBoundariesOpacity: (choroplethDisplaySettings.greyOutUnmatchedBoundariesOpacity.value / 100),
             showLegend: choroplethLegendSettings.showLegend.value,
             legendTitle: choroplethLegendSettings.legendTitle.value,
             legendTitleAlignment: choroplethLegendSettings.legendTitleAlignment.value.value.toString(),

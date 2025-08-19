@@ -8,9 +8,7 @@ export default [
             "dist/**", 
             ".vscode/**", 
             ".tmp/**",
-            "scripts/**",  // Ignore scripts directory for now
-            "coverage/**",
-            "tests/**"
+            "scripts/**"  // Ignore scripts directory for now
         ],
     },
     {

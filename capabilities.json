@@ -378,11 +378,6 @@
             "enumeration": []
           }
         },
-        "worldAtlasScale": {
-          "type": {
-            "enumeration": []
-          }
-        },
         "geoBoundariesReleaseType": {
           "type": {
             "enumeration": []
@@ -463,25 +458,6 @@
           }
         },
         "simplificationStrength": {
-          "type": {
-            "numeric": true
-          }
-        },
-        "greyOutUnmatchedBoundaries": {
-          "type": {
-            "bool": true
-          }
-        },
-        "greyOutUnmatchedBoundariesColor": {
-          "type": {
-            "fill": {
-              "solid": {
-                "color": true
-              }
-            }
-          }
-        },
-        "greyOutUnmatchedBoundariesOpacity": {
           "type": {
             "numeric": true
           }
@@ -650,19 +626,16 @@
         "https://api.maptiler.com",
         "https://*.humdata.org",
         "https://*.itos.uga.edu",
-        "https://*.githubusercontent.com",  
+        "https://*.githubusercontent.com",
         "https://*.googleapis.com",
         "https://*.amazonaws.com",
         "https://*.blob.core.windows.net",
         "https://*.github.io",
         "https://*.cloudfront.net",
         "https://*.r2.dev",
-        "https://*.datauga.com",
-        "https://*.geoboundaries.org",
-        "https://www.geoboundaries.org",
-        "https://public.opendatasoft.com",
-        "https://cdn.jsdelivr.net",
-        "https://*.jsdelivr.net"
+  "https://*.datauga.com",
+  "https://*.geoboundaries.org",
+  "https://www.geoboundaries.org"
       ]
     },
     {

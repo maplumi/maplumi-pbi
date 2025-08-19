@@ -113,9 +113,6 @@ export interface ChoroplethLayerOptions extends LayerOptions {
     selectionManager: ISelectionManager;
     tooltipServiceWrapper: ITooltipServiceWrapper;
     simplificationStrength?: number;
-    greyOutUnmatchedBoundaries?: boolean;
-    greyOutUnmatchedBoundariesColor?: string;
-    greyOutUnmatchedBoundariesOpacity?: number; // 0..1
     dataPoints?: Array<{
         pcode: string;
         value: number;
@@ -207,7 +204,6 @@ export interface ChoroplethOptions {
 
     // Boundary data source options
     boundaryDataSource: string;
-    // Supported values include: "geoboundaries", "maplumi", "opendatasoft", "custom"
     
     // GeoBoundaries-specific options
     geoBoundariesReleaseType: string;
@@ -218,7 +214,6 @@ export interface ChoroplethOptions {
     locationPcodeNameId: string,
     topoJSON_geoJSON_FileUrl: string,
     topojsonObjectName?: string,
-    worldAtlasScale?: string,
 
     //usePredefinedColorRamp: boolean;
 
@@ -234,9 +229,6 @@ export interface ChoroplethOptions {
     strokeWidth: number;
     layerOpacity: number;
     simplificationStrength?: number;
-    greyOutUnmatchedBoundaries?: boolean;
-    greyOutUnmatchedBoundariesColor?: string;
-    greyOutUnmatchedBoundariesOpacity?: number; // 0..1
 
     showLegend: boolean;
     legendLabelPosition: LegendLabelPosition;

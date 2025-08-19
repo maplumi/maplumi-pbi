@@ -87,9 +87,6 @@ export class ChoroplethLayerOptionsBuilder {
         measureValues: number[];
         dataPoints: any[];
         simplificationStrength?: number;
-        greyOutUnmatchedBoundaries?: boolean;
-        greyOutUnmatchedBoundariesColor?: string;
-        greyOutUnmatchedBoundariesOpacity?: number;
     }): ChoroplethLayerOptions {
         return {
             geojson: params.geojson,
@@ -107,9 +104,6 @@ export class ChoroplethLayerOptionsBuilder {
             tooltipServiceWrapper: this.tooltipServiceWrapper,
             simplificationStrength: params.simplificationStrength,
             dataPoints: params.dataPoints,
-            greyOutUnmatchedBoundaries: params.greyOutUnmatchedBoundaries,
-            greyOutUnmatchedBoundariesColor: params.greyOutUnmatchedBoundariesColor,
-            greyOutUnmatchedBoundariesOpacity: params.greyOutUnmatchedBoundariesOpacity,
         };
     }
 }

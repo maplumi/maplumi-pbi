@@ -29,7 +29,6 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
-import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
@@ -173,11 +172,11 @@ class basemapVisualCardSettings extends formattingSettings.CompositeCard {
         const selectedBasemap = this.basemapSelectSettingsGroup.selectedBasemap.value?.value;
 
         // Show Mapbox settings only if Mapbox is selected
-        const isMapbox = selectedBasemap === BasemapNames.Mapbox;
+    const isMapbox = selectedBasemap === BasemapNames.Mapbox;
         this.mapBoxSettingsGroup.visible = isMapbox;
 
         // Show MapTiler settings only if MapTiler is selected
-        const isMaptiler = selectedBasemap === BasemapNames.MapTiler;
+    const isMaptiler = selectedBasemap === BasemapNames.MapTiler;
         this.maptilerSettingsGroup.visible = isMaptiler;
 
         // Show/hide custom attribution field (you can decide its logic)
@@ -307,7 +306,7 @@ class proportionalCirclesDisplaySettingsGroup extends formattingSettings.SimpleC
         this.proportionalCirclesStrokeWidth,
         this.proportionalCircles1LayerOpacity,
         this.proportionalCircles2LayerOpacity
-
+        
     ];
 
 }
@@ -501,49 +500,28 @@ class proportionalCirclesVisualCardSettings extends formattingSettings.Composite
 
 class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleCard {
 
-    // Track last applied source to avoid unnecessary resets that can break dropdown interaction
-    private _lastBoundarySource: string = "";
-
     boundaryDataSource: DropDown = new DropDown({
         name: "boundaryDataSource",
         displayName: "Boundary Source",
         value: {
             value: "geoboundaries",  //default value
-            displayName: "GeoBoundaries (ADM1 - ADM3)"
+            displayName: "GeoBoundaries"
         },
         items: [
-            { value: "geoboundaries", displayName: "GeoBoundaries (ADM1 - ADM3)" },
-            { value: "worldatlas", displayName: "World Atlas (World ADM0)" },
-            { value: "maplumi", displayName: "Maplumi (World ADM0)" },
-            { value: "opendatasoft", displayName: "OpenDataSoft (World ADM0)" },
+            { value: "geoboundaries", displayName: "GeoBoundaries" },
             { value: "custom", displayName: "Custom" }
         ]
     });
 
-    // Country Selection for GeoBoundaries
+    // Country/Region Selection for GeoBoundaries
     geoBoundariesCountry: DropDown = new DropDown({
         name: "geoBoundariesCountry",
-        displayName: "Country",
+        displayName: "Country/Region",
         value: {
-            value: "",
-            displayName: "Select…"
+            value: "KEN",
+            displayName: "Kenya"
         },
-        items: []
-    });
-
-    // World Atlas scale selection (visible only when World Atlas is selected)
-    worldAtlasScale: DropDown = new DropDown({
-        name: "worldAtlasScale",
-        displayName: "World Atlas Scale",
-        value: {
-            value: "110m",
-            displayName: "110m (small scale)"
-        },
-        items: [
-            { value: "10m", displayName: "10m (large scale, detailed)" },
-            { value: "50m", displayName: "50m (medium scale)" },
-            { value: "110m", displayName: "110m (small scale)" }
-        ]
+        items: VisualConfig.GEOBOUNDARIES.COUNTRIES
     });
 
     // GeoBoundaries Release Type Selection (comes after country selection)
@@ -561,18 +539,19 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         ]
     });
 
-    // Administrative Level Selection for GeoBoundaries (ADM1–ADM3)
+    // Administrative Level Selection for GeoBoundaries
     geoBoundariesAdminLevel: DropDown = new DropDown({
         name: "geoBoundariesAdminLevel",
         displayName: "Administrative Level",
         value: {
-            value: "ADM1",
-            displayName: "ADM1 (States/Provinces)"
+            value: "ADM0",
+            displayName: "ADM0 (Country Borders)"
         },
         items: [
+            { value: "ADM0", displayName: "ADM0 (Country Borders)" },
             { value: "ADM1", displayName: "ADM1 (States/Provinces)" },
             { value: "ADM2", displayName: "ADM2 (Counties/Districts)" },
-            { value: "ADM3", displayName: "ADM3 (Municipalities)" }
+            { value: "ADM3", displayName: "ADM3 (Municipalities)" }           
         ]
     });
 
@@ -598,7 +577,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     // Text input for custom boundary ID field (only shown for custom sources)
     customBoundaryIdField: formattingSettings.TextInput = new TextInput({
         name: "customBoundaryIdField",
-        displayName: "Custom Boundary ID Field",
+        displayName: "Boundary ID Field",
         value: "",
         placeholder: "Enter field name"
     });
@@ -609,16 +588,6 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         value: "", // Default url
         placeholder: "" // Placeholder text
     });
-    // Default hidden; shown only when source is 'custom'
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     // Optional: specify which object in a TopoJSON file to use when multiple exist
     topojsonObjectName: formattingSettings.TextInput = new TextInput({
@@ -628,112 +597,74 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         placeholder: "e.g. ADM1, polygons, boundaries",
         description: "If your TopoJSON has multiple objects, specify the object name to use. Leave blank to auto-detect the polygon layer."
     });
-    // Default hidden; shown only when source is 'custom'
 
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
         this.boundaryDataSource,
-    this.worldAtlasScale,
         this.geoBoundariesCountry,
         this.geoBoundariesReleaseType,
         this.geoBoundariesAdminLevel,
-        this.topoJSON_geoJSON_FileUrl,
-        this.topojsonObjectName,
+        this.topoJSON_geoJSON_FileUrl, 
+    this.topojsonObjectName,
         this.boundaryIdField,
         this.customBoundaryIdField
     ];
 
-    constructor() {
-        super();
-        // Default-hide custom-only controls; they'll be toggled visible only for 'custom' source
-        (this.topoJSON_geoJSON_FileUrl as any).visible = false;
-        (this.topojsonObjectName as any).visible = false;
-        (this.customBoundaryIdField as any).visible = false;
-    }
-
     public applyConditionalDisplayRules(): void {
-        // Normalize selected source robustly to handle nested { value } wrappers
-        const unwrapValue = (input: any): string => {
-            let cur: any = input;
-            let hops = 0;
-            while (cur && typeof cur === "object" && "value" in cur && hops < 5) {
-                cur = cur.value;
-                hops++;
-            }
-            return typeof cur === "string" ? cur : "";
-        };
-        const selectedSource: string = unwrapValue((this.boundaryDataSource as any)?.value);
-        const isGeoBoundaries = selectedSource === "geoboundaries";
-    const isMaplumi = selectedSource === "maplumi";
-    const isWorldAtlas = selectedSource === "worldatlas";
-    const isODS = selectedSource === "opendatasoft";
-        const releaseForCountries = this.geoBoundariesReleaseType.value?.value?.toString() || "gbOpen";
 
-        // Populate country list from cache only when GeoBoundaries is selected
-        if (isGeoBoundaries) {
-            const cachedCountries = GeoBoundariesService.getCountriesSync(releaseForCountries);
-            if (cachedCountries.length) {
-                this.geoBoundariesCountry.items = cachedCountries;
-                // If current value is not in items, keep it untouched; user will pick.
-            }
-        }
+        const selectedSource = this.boundaryDataSource.value?.value;
 
         // Show/hide geoBoundaries-specific fields
-    this.worldAtlasScale.visible = isWorldAtlas;
-    this.geoBoundariesCountry.visible = isGeoBoundaries;
-    this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
+        const isGeoBoundaries = selectedSource === "geoboundaries";
+        this.geoBoundariesCountry.visible = isGeoBoundaries;
+        this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
-        // Release Type visible for GeoBoundaries
-        this.geoBoundariesReleaseType.visible = isGeoBoundaries;
-        if (isGeoBoundaries) {
-            // Start with ADM1–ADM3 by default
+        // Handle "All Countries" special case
+        const isAllCountries = isGeoBoundaries && this.geoBoundariesCountry.value?.value === "ALL";
+        
+    // Release Type is applicable for all GeoBoundaries requests, including "All Countries"
+    this.geoBoundariesReleaseType.visible = isGeoBoundaries;
+
+        if (isAllCountries) {
+            // Restrict admin level options to ADM0 only when "All Countries" is selected
             this.geoBoundariesAdminLevel.items = [
+                { value: "ADM0", displayName: "ADM0 (Country Borders)" }
+            ];
+            // Force ADM0 selection if not already selected
+            if (this.geoBoundariesAdminLevel.value?.value !== "ADM0") {
+                this.geoBoundariesAdminLevel.value = { value: "ADM0", displayName: "ADM0 (Country Borders)" };
+            }
+        } else if (isGeoBoundaries) {
+            // Restore full admin level options for specific countries
+            this.geoBoundariesAdminLevel.items = [
+                { value: "ADM0", displayName: "ADM0 (Country Borders)" },
                 { value: "ADM1", displayName: "ADM1 (States/Provinces)" },
                 { value: "ADM2", displayName: "ADM2 (Counties/Districts)" },
                 { value: "ADM3", displayName: "ADM3 (Municipalities)" }
             ];
-            // Do not force a default here; preserve user's selection if set.
+        }
 
-            // Admin levels handled below
+        // Dynamically update boundaryIdField items based on selected boundaryDataSource
+        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
+            this.boundaryIdField.items = this.sourceFieldOptions[selectedSource];
+
+            // If current value is not in the new items, reset to first
+            const validValues = this.sourceFieldOptions[selectedSource].map(opt => opt.value);
+            if (!validValues.includes(String(this.boundaryIdField.value.value))) {
+                this.boundaryIdField.value = { ...this.boundaryIdField.items[0] };
+            }
         }
 
         // Handle visibility based on data source
         const isCustomSource = selectedSource === "custom";
-
-            // Dynamically update boundaryIdField items ONLY when the boundary source actually changes
-    if (!isCustomSource && selectedSource && this.sourceFieldOptions[selectedSource]) {
-                const expectedItems = this.sourceFieldOptions[selectedSource];
-                // Only update items when source changed OR current items differ from expected
-                const currentItems = this.boundaryIdField.items || [];
-                const currentValues = currentItems.map((i: any) => i.value);
-                const expectedValues = expectedItems.map((i: any) => i.value);
-                const itemsDiffer = currentValues.length !== expectedValues.length || currentValues.some((v: any, idx: number) => v !== expectedValues[idx]);
-
-                if (this._lastBoundarySource !== selectedSource || itemsDiffer) {
-                    this.boundaryIdField.items = expectedItems;
-                    this._lastBoundarySource = selectedSource;
-                }
-            }
-
+        
         // Show/hide fields based on data source
-        // Custom-only fields must remain hidden unless the source is explicitly 'custom'
-        this.topoJSON_geoJSON_FileUrl.visible = !!isCustomSource;
-        this.topojsonObjectName.visible = !!isCustomSource;
-        // Boundary ID dropdown visible for GB, Maplumi, and ODS
-    this.boundaryIdField.visible = isGeoBoundaries || isMaplumi || isODS || isWorldAtlas;
-        this.customBoundaryIdField.visible = !!isCustomSource;      // Text input for custom sources
-
-        // Admin level refinement based on metadata is handled during render; avoid network calls here.
-
-        // Maplumi rules: ADM0-only world dataset, so fix admin level to ADM0 and hide GB controls
-    if (isMaplumi || isWorldAtlas) {
-            // Hide GB-specific controls not applicable to Maplumi
-            this.geoBoundariesCountry.visible = false;
-            this.geoBoundariesReleaseType.visible = false;
-            this.geoBoundariesAdminLevel.visible = false;
-        }
+        this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
+    this.topojsonObjectName.visible = isCustomSource;
+        this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
+        this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
     }
 }
 
@@ -892,29 +823,6 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         }
     });
 
-    greyOutUnmatchedBoundaries: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
-        name: "greyOutUnmatchedBoundaries",
-        displayName: "Grey out unmatched boundaries",
-        value: false
-    });
-
-    greyOutUnmatchedBoundariesColor: formattingSettings.ColorPicker = new formattingSettings.ColorPicker({
-        name: "greyOutUnmatchedBoundariesColor",
-        displayName: "Grey color",
-        value: { value: "#BDBDBD" }
-    });
-
-    greyOutUnmatchedBoundariesOpacity: formattingSettings.NumUpDown = new formattingSettings.Slider({
-        name: "greyOutUnmatchedBoundariesOpacity",
-        displayName: "Grey opacity",
-        value: 35,
-        options:
-        {
-            maxValue: { type: powerbi.visuals.ValidatorType.Max, value: 100 },
-            minValue: { type: powerbi.visuals.ValidatorType.Min, value: 0 }
-        }
-    });
-
     name: string = "choroplethDisplaySettingsGroup";
     displayName: string = "Display";
     slices: formattingSettings.Slice[] = [
@@ -925,11 +833,8 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
         this.colorMode,
         this.strokeColor,
         this.strokeWidth,
-        this.layerOpacity,
-        this.simplificationStrength,
-        this.greyOutUnmatchedBoundaries,
-        this.greyOutUnmatchedBoundariesColor,
-        this.greyOutUnmatchedBoundariesOpacity
+    this.layerOpacity,
+    this.simplificationStrength
     ];
 
     public applyConditionalDisplayRules(): void {
@@ -938,10 +843,6 @@ class choroplethDisplaySettingsGroup extends formattingSettings.SimpleCard {
 
         // Show custom ramp text input only if the choice of color ramp is 'custom'
         this.customColorRamp.visible = isCustomRamp;
-
-        const showGreyControls = this.greyOutUnmatchedBoundaries.value === true;
-        this.greyOutUnmatchedBoundariesColor.visible = showGreyControls;
-        this.greyOutUnmatchedBoundariesOpacity.visible = showGreyControls;
 
     }
 
@@ -1352,8 +1253,4 @@ export class MaplumiVisualFormattingSettingsModel extends FormattingSettingsMode
 
     cards = [this.mapControlsVisualCardSettings, this.BasemapVisualCardSettings, this.ProportionalCirclesVisualCardSettings, this.ChoroplethVisualCardSettings];
 
-    constructor() {
-        super();
-        // Avoid network calls in settings constructor to prevent CORS errors in sandbox.
-    }
 }

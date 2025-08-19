@@ -143,12 +143,7 @@ CHN       | 1439.3| China: 1,439.3M
 ```json
 {
   "type": "FeatureCollection",
-
-## GeoBoundaries levels (important)
-
-- Supported admin levels: ADM1–ADM3. ADM0 is available via Maplumi/OpenDataSoft sources.
-- If a selected country/level has no GeoBoundaries data, the visual shows a warning and does not render the layer. Try another level (ADM1–ADM3) or a different release type.
-
+  "features": [
     {
       "type": "Feature",
       "properties": {
