@@ -62,6 +62,7 @@ import { OptionsService } from "./services/OptionsService";
 import { ColorRampHelper } from "./services/ColorRampHelper";
 import { DataRoleService } from "./services/DataRoleService";
 import { DomIds, LegendPositions, VisualObjectNames, VisualObjectProps } from "./constants/strings";
+import { isWebGLAvailable } from "./utils/render";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -229,6 +230,11 @@ export class MaplumiVisual implements IVisual {
 
         // Get latest options early for lockMapExtent
     this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+    // Gracefully fallback to canvas if WebGL is selected but unavailable
+    if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
+        this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
+        // Keep the format pane value unchanged; this is a runtime fallback only
+    }
 
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
@@ -246,6 +252,9 @@ export class MaplumiVisual implements IVisual {
     const circleOptions = OptionsService.getCircleOptions(this.visualFormattingSettingsModel);
     const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
     this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+    if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
+        this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
+    }
 
     // Auto-toggle removed: use user-driven settings directly
     // No computation or persistence of auto state

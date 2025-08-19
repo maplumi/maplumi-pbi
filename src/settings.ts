@@ -981,7 +981,8 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
         value: { value: 'svg', displayName: 'SVG' },
         items: [
             { value: 'svg', displayName: 'SVG' },
-            { value: 'canvas', displayName: 'Canvas' }
+            { value: 'canvas', displayName: 'Canvas' },
+            { value: 'webgl', displayName: 'WebGL (preview)' }
         ]
     });
 

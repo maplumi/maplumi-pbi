@@ -78,7 +78,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
         const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
         group.selectAll("*").remove();
-        this.svgOverlay.style.display = 'flex';
+    this.svgOverlay.style.display = 'block';
 
     const validation = validateChoroplethInput(categorical);
     if (!validation.ok) { this.messages.missingMeasures(); return undefined; }
@@ -262,7 +262,8 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             try { (this.choroplethLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.choroplethLayer);
         }
-        this.choroplethLayer = mapToolsOptions.renderEngine === 'canvas'
+        // Phase 1: If engine is 'webgl', fall back to canvas for polygons until WebGL choropleth is implemented.
+        this.choroplethLayer = mapToolsOptions.renderEngine === 'canvas' || mapToolsOptions.renderEngine === 'webgl'
             ? new ChoroplethCanvasLayer(layerOptions)
             : new ChoroplethLayer(layerOptions);
         this.map.addLayer(this.choroplethLayer);

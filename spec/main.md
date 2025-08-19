@@ -7,7 +7,7 @@ This is a short, diagram-first overview of the visual. Use it to orient quickly;
 - Choropleth: GeoBoundaries or custom Geo/TopoJSON; multiple classification methods and ramps.
 - Basemaps: OSM, Mapbox, MapTiler, or none.
 - Legends: Auto-generated; configurable position and style.
- - Rendering: SVG (default) or Canvas for higher performance; both support zoom-to-extent.
+- Rendering: SVG (default), Canvas for higher performance, or WebGL (preview for circles); all support zoom-to-extent with runtime WebGL fallback.
 
 Links:
 - Choropleth quick reference → ./choropleth/quick-reference.md
@@ -38,9 +38,11 @@ graph TD
   subgraph Rendering Engines
     choroCanvas[ChoroplethCanvasLayer]
     circleCanvas[CircleCanvasLayer]
+    circleWebGL[CircleWebGLLayer]
   end
   choroOrch --> choroCanvas
   circlesOrch --> circleCanvas
+  circlesOrch --> circleWebGL
 ```
 
 ## What renders when
@@ -73,6 +75,7 @@ sequenceDiagram
   MO->>MS: add OL layer
   MO->>LS: draw legend (if ON)
   Note over MO,MS: If Canvas engine selected, layer is Canvas-backed; interactions use invisible SVG hit overlays.
+  Note over V,MS: If WebGL engine selected and available, circles render via WebGL; choropleth uses Canvas. If WebGL unavailable, engine downgrades to Canvas.
   V->>MO: render circles (if ON)
   MO->>MS: add OL layer + SVG
   MO->>LS: draw legend (if ON)
@@ -87,7 +90,7 @@ sequenceDiagram
 - Layers are user-driven. Toggle each layer in the Format pane.
 - Custom color ramps accept comma-separated hex (e.g., #fee,#f55,#900).
 - Legend container appears when any active layer’s legend is enabled.
- - Zoom-to-layer: Both engines compute feature extents; disable via "Lock map extent".
+- Zoom-to-layer: All engines compute feature extents; disable via "Lock map extent". WebGL mode uses Canvas for choropleth extents.
 
 ## Troubleshooting at a glance
 - No circles? Ensure both Lat and Lon are bound and non-empty.

@@ -10,6 +10,7 @@ import { LegendService } from "../services/LegendService";
 import { CircleLayer } from "../layers/circleLayer";
 import { CircleCanvasLayer } from "../layers/canvas/circleCanvasLayer";
 import { CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "../types";
+import { CircleWebGLLayer } from "../layers/webgl/circleWebGLLayer";
 import { ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import ISelectionId = powerbi.extensibility.ISelectionId;
@@ -23,7 +24,7 @@ import { BaseOrchestrator } from "./BaseOrchestrator";
 export class CircleOrchestrator extends BaseOrchestrator {
     private circleOptsBuilder: CircleLayerOptionsBuilder;
 
-    private circleLayer: CircleLayer | CircleCanvasLayer | undefined;
+    private circleLayer: CircleLayer | CircleCanvasLayer | CircleWebGLLayer | undefined;
 
     constructor(args: {
         svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -45,12 +46,12 @@ export class CircleOrchestrator extends BaseOrchestrator {
         });
     }
 
-    public getLayer(): CircleLayer | CircleCanvasLayer | undefined {
+    public getLayer(): CircleLayer | CircleCanvasLayer | CircleWebGLLayer | undefined {
         return this.circleLayer;
     }
 
     public setSelectedIds(selectionIds: ISelectionId[]) {
-        if (this.circleLayer) this.circleLayer.setSelectedIds(selectionIds);
+        if (this.circleLayer && (this.circleLayer as any).setSelectedIds) (this.circleLayer as any).setSelectedIds(selectionIds);
     }
 
     public render(
@@ -59,7 +60,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions,
         choroplethDisplayed: boolean
-    ): CircleLayer | CircleCanvasLayer | undefined {
+    ): CircleLayer | CircleCanvasLayer | CircleWebGLLayer | undefined {
         if (circleOptions.layerControl == false) {
             const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
             const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
@@ -78,8 +79,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
         group1.selectAll("*").remove();
         group2.selectAll("*").remove();
 
-        this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
-        this.svgOverlay.style.display = "block";
+    this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
+    this.svgOverlay.style.display = "block";
 
         const parsed = parseCircleCategorical(categorical);
         if (!parsed.hasLon || !parsed.hasLat) {
@@ -131,7 +132,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
             this.legendService.hideLegend("circle");
         }
 
-    return this.circleLayer;
+    return this.circleLayer as any;
     }
 
     // parsing moved to src/data/circle.ts
@@ -191,9 +192,11 @@ export class CircleOrchestrator extends BaseOrchestrator {
             try { (this.circleLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.circleLayer);
         }
-        this.circleLayer = mapToolsOptions.renderEngine === 'canvas'
-            ? new CircleCanvasLayer(circleLayerOptions)
-            : new CircleLayer(circleLayerOptions);
+        this.circleLayer = mapToolsOptions.renderEngine === 'webgl'
+            ? new CircleWebGLLayer(circleLayerOptions)
+            : mapToolsOptions.renderEngine === 'canvas'
+                ? new CircleCanvasLayer(circleLayerOptions)
+                : new CircleLayer(circleLayerOptions);
         this.map.addLayer(this.circleLayer);
 
         if (choroplethDisplayed === false && mapToolsOptions.lockMapExtent === false) {

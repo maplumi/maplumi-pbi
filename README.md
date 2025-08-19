@@ -8,6 +8,11 @@ Configured via workflow .github/workflows/coverage-badge.yml and repo secrets CO
 
 Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. Use either or both, with smart legends, tooltips, and base maps.
 
+Note on rendering engines
+- SVG (default): great quality, good for small–medium datasets.
+- Canvas: faster CPU rendering with crisp output; recommended for large polygons and many points.
+- WebGL (preview): GPU-accelerated circles; choropleth currently renders via Canvas when WebGL is selected. If WebGL isn’t available in the environment, the visual automatically falls back to Canvas.
+
 ## Features
 - Choropleth (color by numeric measure)
 - Scaled circles (size by one or two measures)
@@ -16,8 +21,8 @@ Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. 
 - Legends, tooltips, cross-filtering
 - Auto-fit to data (optional)
  - Topology-preserving simplification with a user "Simplification Strength" control
- - Canvas rendering engine option for faster drawing with crisp output
- - Zoom-to-layer works for both SVG and Canvas engines
+ - Rendering engines: SVG, Canvas, or WebGL (preview for circles)
+ - Zoom-to-layer works for SVG, Canvas, and WebGL modes
 
 ## Data roles
 Assign in the Visualizations pane. Only fill what you need for the layers you enable.
@@ -46,7 +51,7 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 1) Add the visual to your report (import the .pbiviz or use Developer Mode).
 2) Assign Boundary ID or Latitude/Longitude and your measures.
 3) In Format, toggle layers on/off and choose basemap and color ramp.
-4) Optional: switch Rendering Engine (SVG or Canvas). Canvas boosts performance and respects tooltips/selections via invisible hit overlays.
+4) Optional: switch Rendering Engine (SVG, Canvas, or WebGL preview). WebGL accelerates circles on the GPU; choropleth uses Canvas when WebGL is selected. If WebGL isn’t available, the visual falls back to Canvas automatically.
 
 ## Install
 - From release: download a .pbiviz from GitHub Releases and import into Power BI Desktop (Insert → More visuals → Import a visual from a file).
@@ -59,6 +64,11 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 - Run the full Jest suite: `npm test`
 - Canvas tests run under jsdom with a mocked 2D context; no native canvas dependency required.
 - GeoBoundaries “All Countries” uses a static ADM0 dataset and returns stub metadata in tests (no network call).
+
+### WebGL notes (preview)
+- Enable via Format pane → Map Tools → Rendering Engine → WebGL (preview).
+- Circles render with WebGL; choropleth polygons currently render with Canvas in WebGL mode.
+- Some environments (including certain VMs or restricted enterprise setups) may disable WebGL; Maplumi will automatically downgrade to Canvas to avoid blank output.
 
 ## Documentation & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))
