@@ -564,5 +564,3 @@ export class MaplumiVisual implements IVisual {
     }
 
 }
-
-

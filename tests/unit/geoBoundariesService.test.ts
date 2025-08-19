@@ -36,12 +36,10 @@ describe("GeoBoundariesService", () => {
     expect(url).toBe(`${VisualConfig.GEOBOUNDARIES.BASE_URL}/${baseOptions.geoBoundariesReleaseType}/${baseOptions.geoBoundariesCountry}/${baseOptions.geoBoundariesAdminLevel}/`);
   });
 
-  it("returns ALL countries URL when country is ALL", () => {
-    const opts = { ...baseOptions, geoBoundariesCountry: "ALL", geoBoundariesAdminLevel: "ADM0" };
-    const url = GeoBoundariesService.buildApiUrl(opts);
-    expect(url).toBe(VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL);
-    expect(GeoBoundariesService.isAllCountriesRequest(opts)).toBe(true);
-    expect(GeoBoundariesService.getAllCountriesUrl()).toBe(VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL);
+  it("does not support ALL countries at ADM0 anymore (ADM1–ADM3 only)", () => {
+    const opts = { ...baseOptions, geoBoundariesCountry: "ALL", geoBoundariesAdminLevel: "ADM0" } as any;
+    const validation = GeoBoundariesService.validateOptions(opts);
+    expect(validation.isValid).toBe(false);
   });
 
   it("maps boundary field names correctly", () => {
@@ -159,13 +157,24 @@ describe("GeoBoundariesService", () => {
       global.fetch = realFetch;
     });
 
-    it("returns mock metadata for ALL countries without calling fetch", async () => {
-      const spy = jest.spyOn(global as any, "fetch");
+    it("calls fetch for ALL countries and returns data/response", async () => {
+      const fake: Partial<Response> = {
+        ok: true,
+        json: async () => ({
+          boundaryName: "All Countries",
+          boundaryType: "ADM0",
+          boundaryYearRepresented: "2022",
+          admUnitCount: "200",
+          gjDownloadURL: "https://example.com/world.geo.json",
+          tjDownloadURL: "https://example.com/world.topo.json"
+        }) as any,
+      };
+      // @ts-ignore
+      global.fetch = jest.fn().mockResolvedValue(fake);
       const { data, response } = await GeoBoundariesService.fetchMetadata({ ...baseOptions, geoBoundariesCountry: "ALL", geoBoundariesAdminLevel: "ADM0" });
-      expect(spy).not.toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
       expect(data).not.toBeNull();
-      expect(response).toBeNull();
-      expect(data!.boundaryISO).toBe("ALL");
+      expect(response).toBeDefined();
     });
 
     it("returns data and response on successful fetch", async () => {

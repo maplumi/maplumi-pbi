@@ -4,6 +4,9 @@
 
 The choropleth visualization component of the Maplumi Power BI visual provides sophisticated area-based data mapping capabilities. It renders geographic boundaries (polygons) colored according to data values, with support for statistical classification, dynamic color schemes, and interactive features.
 
+Note on GeoBoundaries levels
+- This visual supports GeoBoundaries administrative levels up to ADM3. If a selected country/level doesn’t have available data (per GeoBoundaries), the visual will display a warning and skip rendering that layer. Use ADM1–ADM3 or switch release type. ADM0 boundaries are provided via Maplumi or OpenDataSoft sources.
+
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)

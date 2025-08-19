@@ -58,115 +58,7 @@ export const VisualConfig = {
     },
     GEOBOUNDARIES: {
         BASE_URL: "https://www.geoboundaries.org/api/current",
-        ALL_COUNTRIES_URL: "https://geodata-bi.datauga.com/geoBoundariesCGAZ_ADM0.json",
-        COUNTRIES: [
-            { value: "ALL", displayName: "All Countries" },
-            { value: "AFG", displayName: "Afghanistan" },
-            { value: "ARG", displayName: "Argentina" },
-            { value: "ARM", displayName: "Armenia" },
-            { value: "AUS", displayName: "Australia" },
-            { value: "AUT", displayName: "Austria" },
-            { value: "AZE", displayName: "Azerbaijan" },
-            { value: "BGD", displayName: "Bangladesh" },
-            { value: "BLR", displayName: "Belarus" },
-            { value: "BEL", displayName: "Belgium" },
-            { value: "BFA", displayName: "Burkina Faso" },
-            { value: "BTN", displayName: "Bhutan" },
-            { value: "BRA", displayName: "Brazil" },
-            { value: "BRN", displayName: "Brunei" },
-            { value: "BGR", displayName: "Bulgaria" },
-            { value: "KHM", displayName: "Cambodia" },
-            { value: "CMR", displayName: "Cameroon" },
-            { value: "CAN", displayName: "Canada" },
-            { value: "CAF", displayName: "Central African Republic" },
-            { value: "TCD", displayName: "Chad" },
-            { value: "CHL", displayName: "Chile" },
-            { value: "CHN", displayName: "China" },
-            { value: "COL", displayName: "Colombia" },
-            { value: "HRV", displayName: "Croatia" },
-            { value: "CYP", displayName: "Cyprus" },
-            { value: "CZE", displayName: "Czech Republic" },
-            { value: "COD", displayName: "Democratic Republic of Congo" },
-            { value: "DNK", displayName: "Denmark" },
-            { value: "EGY", displayName: "Egypt" },
-            { value: "EST", displayName: "Estonia" },
-            { value: "ETH", displayName: "Ethiopia" },
-            { value: "FIN", displayName: "Finland" },
-            { value: "FRA", displayName: "France" },
-            { value: "GAB", displayName: "Gabon" },
-            { value: "GEO", displayName: "Georgia" },
-            { value: "DEU", displayName: "Germany" },
-            { value: "GHA", displayName: "Ghana" },
-            { value: "GRC", displayName: "Greece" },
-            { value: "HUN", displayName: "Hungary" },
-            { value: "IND", displayName: "India" },
-            { value: "IDN", displayName: "Indonesia" },
-            { value: "IRN", displayName: "Iran" },
-            { value: "IRQ", displayName: "Iraq" },
-            { value: "IRL", displayName: "Ireland" },
-            { value: "ISR", displayName: "Israel" },
-            { value: "ITA", displayName: "Italy" },
-            { value: "JPN", displayName: "Japan" },
-            { value: "JOR", displayName: "Jordan" },
-            { value: "KAZ", displayName: "Kazakhstan" },
-            { value: "KEN", displayName: "Kenya" },
-            { value: "KGZ", displayName: "Kyrgyzstan" },
-            { value: "LAO", displayName: "Laos" },
-            { value: "LVA", displayName: "Latvia" },
-            { value: "LBN", displayName: "Lebanon" },
-            { value: "LTU", displayName: "Lithuania" },
-            { value: "LUX", displayName: "Luxembourg" },
-            { value: "MYS", displayName: "Malaysia" },
-            { value: "MDV", displayName: "Maldives" },
-            { value: "MLI", displayName: "Mali" },
-            { value: "MLT", displayName: "Malta" },
-            { value: "MEX", displayName: "Mexico" },
-            { value: "MDA", displayName: "Moldova" },
-            { value: "MNG", displayName: "Mongolia" },
-            { value: "MAR", displayName: "Morocco" },
-            { value: "MMR", displayName: "Myanmar" },
-            { value: "NPL", displayName: "Nepal" },
-            { value: "NLD", displayName: "Netherlands" },
-            { value: "NZL", displayName: "New Zealand" },
-            { value: "NER", displayName: "Niger" },
-            { value: "NGA", displayName: "Nigeria" },
-            { value: "NOR", displayName: "Norway" },
-            { value: "PAK", displayName: "Pakistan" },
-            { value: "PER", displayName: "Peru" },
-            { value: "PHL", displayName: "Philippines" },
-            { value: "POL", displayName: "Poland" },
-            { value: "PRT", displayName: "Portugal" },
-            { value: "COG", displayName: "Republic of Congo" },
-            { value: "ROU", displayName: "Romania" },
-            { value: "RUS", displayName: "Russia" },
-            { value: "RWA", displayName: "Rwanda" },
-            { value: "SAU", displayName: "Saudi Arabia" },
-            { value: "SEN", displayName: "Senegal" },
-            { value: "SGP", displayName: "Singapore" },
-            { value: "SVK", displayName: "Slovakia" },
-            { value: "SVN", displayName: "Slovenia" },
-            { value: "ZAF", displayName: "South Africa" },
-            { value: "KOR", displayName: "South Korea" },
-            { value: "ESP", displayName: "Spain" },
-            { value: "LKA", displayName: "Sri Lanka" },
-            { value: "SWE", displayName: "Sweden" },
-            { value: "CHE", displayName: "Switzerland" },
-            { value: "SYR", displayName: "Syria" },
-            { value: "TJK", displayName: "Tajikistan" },
-            { value: "TZA", displayName: "Tanzania" },
-            { value: "THA", displayName: "Thailand" },
-            { value: "TKM", displayName: "Turkmenistan" },
-            { value: "TUR", displayName: "Turkey" },
-            { value: "UGA", displayName: "Uganda" },
-            { value: "UKR", displayName: "Ukraine" },
-            { value: "ARE", displayName: "United Arab Emirates" },
-            { value: "GBR", displayName: "United Kingdom" },
-            { value: "USA", displayName: "United States" },
-            { value: "UZB", displayName: "Uzbekistan" },
-            { value: "VEN", displayName: "Venezuela" },
-            { value: "VNM", displayName: "Vietnam" }
-        ],
-        // Source field options for different boundary data sources
+    // Source field options for different boundary data sources
         SOURCE_FIELD_OPTIONS: {
             geoboundaries: [
                 { value: "shapeISO", displayName: "shapeISO (ISO Code)" },
@@ -174,10 +66,41 @@ export const VisualConfig = {
                 { value: "shapeID", displayName: "shapeID (Unique ID)" },
                 { value: "shapeGroup", displayName: "shapeGroup (Country)" }           
             ],
+            // Maplumi uses a self-hosted, simplified CGAZ ADM0 dataset
+            // with the same property fields as geoBoundaries
+            maplumi: [
+                { value: "shapeISO", displayName: "shapeISO (ISO Code)" },
+                { value: "shapeName", displayName: "shapeName (Name)" },
+                { value: "shapeID", displayName: "shapeID (Unique ID)" },
+                { value: "shapeGroup", displayName: "shapeGroup (Country)" }
+            ],
+            // World Atlas (Natural Earth ADM0 via TopoJSON)
+            // countries object has Feature.id (ISO numeric) and properties.name
+            worldatlas: [
+                { value: "id", displayName: "id (ISO 3166-1 numeric)" },
+                { value: "name", displayName: "name (Country Name)" }
+            ],
+            opendatasoft: [
+                { value: "iso3", displayName: "iso3 (ISO Code)" },
+                { value: "name", displayName: "name (Country Name)" }
+            ],
             custom: [
                 { value: "custom", displayName: "Custom" }
             ]
         }
+    },
+    MAPLUMI: {
+        // Self-hosted simplified CGAZ ADM0 dataset (world)
+        CGAZ_ADM0_URL: "https://geodata-bi.datauga.com/geoBoundariesCGAZ_ADM0.json"
+    },
+    OPENDATASOFT: {
+        WORLD_ADM0_URL: "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/world-administrative-boundaries/records?limit=-1"
+    },
+    WORLDATLAS: {
+    COUNTRIES_10M_URL: "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-10m.json",
+    COUNTRIES_50M_URL: "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json",
+    COUNTRIES_110M_URL: "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json",
+        DEFAULT_OBJECT: "countries"
     },
     MAP_BASE_URL: {
         MAPBOX: "https://api.mapbox.com/styles/v1",
