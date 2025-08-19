@@ -172,8 +172,7 @@ export class ChoroplethLayer extends Layer {
         // Re-order layers to ensure circles are on top
     reorderForCirclesAboveChoropleth(this.svg);
 
-        // Append the SVG element to the div
-        this.options.svgContainer.appendChild(this.svg.node());
+    // SVG is mounted once in visual.ts inside svgContainer
 
         return this.options.svgContainer;
     }

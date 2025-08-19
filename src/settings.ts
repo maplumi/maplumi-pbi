@@ -975,6 +975,15 @@ class choroplethVisualCardSettings extends formattingSettings.CompositeCard {
 }
 
 class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
+    renderEngine: DropDown = new DropDown({
+        name: "renderEngine",
+        displayName: "Render Engine",
+        value: { value: 'svg', displayName: 'SVG' },
+        items: [
+            { value: 'svg', displayName: 'SVG' },
+            { value: 'canvas', displayName: 'Canvas' }
+        ]
+    });
 
     lockMapExtent: formattingSettings.ToggleSwitch = new formattingSettings.ToggleSwitch({
         name: "lockMapExtent",
@@ -1005,7 +1014,7 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
 
     name: string = "mapToolsSettingsGroup";
     displayName: string = "Map Tools";
-    slices: formattingSettings.Slice[] = [this.lockMapExtent, this.showZoomControl, this.lockedMapExtent, this.lockedMapZoom];
+    slices: formattingSettings.Slice[] = [this.renderEngine, this.lockMapExtent, this.showZoomControl, this.lockedMapExtent, this.lockedMapZoom];
 
     public applyConditionalDisplayRules(): void {
 

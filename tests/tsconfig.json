@@ -10,6 +10,7 @@
   "include": [
     "**/*.ts",
     "**/*.test.ts",
+  "**/*.d.ts",
     "../src/**/*.ts"
   ],
   "exclude": [

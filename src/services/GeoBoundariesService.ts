@@ -49,9 +49,9 @@ export class GeoBoundariesService {
     public static buildApiUrl(options: ChoroplethOptions): string {
         const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
 
-        // Special case: when "ALL" countries is selected, use the official API at ADM0 level
+        // Special case: when "ALL" countries is selected, use the static consolidated ADM0 dataset
         if (geoBoundariesCountry === "ALL") {
-            return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/ALL/ADM0/`;
+            return VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL;
         }
 
         return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
@@ -63,6 +63,17 @@ export class GeoBoundariesService {
      * so callers/caches can optionally honor Cache-Control headers.
      */
     public static async fetchMetadata(options: ChoroplethOptions): Promise<{ data: GeoBoundariesMetadata | null; response: Response | null }> {
+        // For the consolidated ALL countries dataset, there's no metadata endpoint; return a minimal stub
+        if (this.isAllCountriesRequest(options)) {
+            const stub: Partial<GeoBoundariesMetadata> = {
+                boundaryISO: "ALL",
+                boundaryName: "All Countries",
+                boundaryType: "ADM0",
+                boundaryYearRepresented: "",
+                admUnitCount: ""
+            };
+            return { data: stub as GeoBoundariesMetadata, response: null };
+        }
         try {
             const apiUrl = this.buildApiUrl(options);
             const response = await fetch(apiUrl);

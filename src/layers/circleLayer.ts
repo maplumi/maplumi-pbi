@@ -326,7 +326,7 @@ export class CircleLayer extends Layer {
         // Reorder groups to ensure circles are above choropleth
     reorderForCirclesAboveChoropleth(this.svg);
 
-        this.options.svgContainer.appendChild(this.svg.node());
+    // SVG is mounted once in visual.ts inside svgContainer
         return this.options.svgContainer;
     }
 

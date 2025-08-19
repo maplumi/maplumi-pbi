@@ -44,6 +44,8 @@ import Map from "ol/Map";
 import { BasemapOptions, ChoroplethOptions, CircleOptions, MapToolsOptions } from "./types/index";
 import type { CircleLayer } from "./layers/circleLayer";
 import type { ChoroplethLayer } from "./layers/choroplethLayer";
+import type { CircleCanvasLayer } from "./layers/canvas/circleCanvasLayer";
+import type { ChoroplethCanvasLayer } from "./layers/canvas/choroplethCanvasLayer";
 import * as d3 from "d3";
 import { LegendService } from "./services/LegendService";
 import { MapService } from "./services/MapService";
@@ -79,8 +81,8 @@ export class MaplumiVisual implements IVisual {
     private map: Map;
     private view: View;
     private mapToolsOptions: MapToolsOptions;
-    private circleLayer: CircleLayer;
-    private choroplethLayer: ChoroplethLayer;
+    private circleLayer: CircleLayer | CircleCanvasLayer;
+    private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer;
    
     private choroplethDisplayed: boolean = false;
     private cacheService: CacheService;
@@ -141,7 +143,7 @@ export class MaplumiVisual implements IVisual {
         this.svgOverlay = this.container.querySelector('svg');
         if (!this.svgOverlay) {
             this.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            this.svgOverlay.id = DomIds.SvgOverlay
+            this.svgOverlay.id = DomIds.SvgOverlay;
             this.svgOverlay.style.position = 'absolute';
             this.svgOverlay.style.top = '0';
             this.svgOverlay.style.left = '0';
@@ -151,7 +153,23 @@ export class MaplumiVisual implements IVisual {
         }
 
         this.svg = d3.select(this.svgOverlay);
-        this.svgContainer = document.createElement('div'); // svg node container     
+        // Container that holds our overlay elements (SVG and any canvases)
+        this.svgContainer = document.createElement('div');
+        this.svgContainer.style.position = 'absolute';
+        this.svgContainer.style.top = '0';
+        this.svgContainer.style.left = '0';
+        this.svgContainer.style.width = '100%';
+        this.svgContainer.style.height = '100%';
+        this.svgContainer.style.pointerEvents = 'none';
+    this.svgContainer.style.zIndex = '100';
+
+        // Ensure the overlay elements are mounted in the DOM so Canvas/SVG are visible above the map
+        // (OpenLayers will also move this container into its layer element when rendering.)
+        this.svgContainer.appendChild(this.svgOverlay);
+        if (!this.container.contains(this.svgContainer)) {
+            this.container.appendChild(this.svgContainer);
+        }
+
         // Ensure legend container is part of DOM
         if (!this.legendContainer.parentElement) {
             this.container.appendChild(this.legendContainer);
@@ -271,14 +289,22 @@ export class MaplumiVisual implements IVisual {
                 choroplethOptions,
                 this.dataService,
                 this.mapToolsOptions
-            ).then(layer => { this.choroplethLayer = layer; });
+            ).then(layer => { this.choroplethLayer = layer as any; });
         } else {
 
             const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
 
             group.selectAll("*").remove();  // Clear children
 
+            // Remove any canvas and hit overlay for canvas engine
+            try { this.svg.select('#choropleth-hitlayer').remove(); } catch {}
+            try {
+                const el = this.svgContainer.querySelector('#choropleth-canvas');
+                if (el && el.parentElement) el.parentElement.removeChild(el);
+            } catch {}
+
             if (this.choroplethLayer) {
+                try { (this.choroplethLayer as any).dispose?.(); } catch {}
                 this.map.removeLayer(this.choroplethLayer);
                 this.choroplethLayer = undefined; // Reset choropleth layer
             }
@@ -295,7 +321,7 @@ export class MaplumiVisual implements IVisual {
                 this.mapToolsOptions,
                 this.choroplethDisplayed
             );
-            this.circleLayer = layer;
+            this.circleLayer = layer as any;
         } else {
 
             const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
@@ -305,7 +331,15 @@ export class MaplumiVisual implements IVisual {
             group1.selectAll("*").remove();
             group2.selectAll("*").remove();
 
+            // Remove any canvas and hit overlay for canvas engine
+            try { this.svg.select('#circles-hitlayer').remove(); } catch {}
+            try {
+                const el = this.svgContainer.querySelector('#circles-canvas');
+                if (el && el.parentElement) el.parentElement.removeChild(el);
+            } catch {}
+
             if (this.circleLayer) {
+                try { (this.circleLayer as any).dispose?.(); } catch {}
                 this.map.removeLayer(this.circleLayer);
                 this.circleLayer = undefined; // Reset circle layer
             }

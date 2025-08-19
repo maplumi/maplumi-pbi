@@ -1,6 +1,7 @@
 import type { Config } from 'jest';
 
 const config: Config = {
+  rootDir: '..',
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/tests', '<rootDir>/src'],
@@ -28,7 +29,7 @@ const config: Config = {
   globals: {
     'ts-jest': {
       isolatedModules: true,
-      tsconfig: 'tests/tsconfig.json'
+  tsconfig: '<rootDir>/tests/tsconfig.json'
     },
   },
   testTimeout: 10000,

@@ -515,6 +515,11 @@
     },
     "mapControlsVisualCardSettings": {
       "properties": {
+        "renderEngine": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "lockMapExtent": {
           "type": {
             "bool": true

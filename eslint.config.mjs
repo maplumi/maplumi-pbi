@@ -12,6 +12,15 @@ export default [
         ],
     },
     {
+        files: ["**/*.ts"],
+        languageOptions: {
+            parserOptions: {
+                project: ["./tsconfig.eslint.json"],
+                tsconfigRootDir: process.cwd(),
+            },
+        },
+    },
+    {
         // Configuration for Node.js TypeScript scripts
         files: ["scripts/*.ts"],
         languageOptions: {

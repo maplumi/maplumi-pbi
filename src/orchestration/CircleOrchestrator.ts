@@ -8,6 +8,7 @@ import { VisualConfig } from "../config/VisualConfig";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
 import { LegendService } from "../services/LegendService";
 import { CircleLayer } from "../layers/circleLayer";
+import { CircleCanvasLayer } from "../layers/canvas/circleCanvasLayer";
 import { CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "../types";
 import { ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
@@ -22,7 +23,7 @@ import { BaseOrchestrator } from "./BaseOrchestrator";
 export class CircleOrchestrator extends BaseOrchestrator {
     private circleOptsBuilder: CircleLayerOptionsBuilder;
 
-    private circleLayer: CircleLayer | undefined;
+    private circleLayer: CircleLayer | CircleCanvasLayer | undefined;
 
     constructor(args: {
         svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -44,7 +45,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
         });
     }
 
-    public getLayer(): CircleLayer | undefined {
+    public getLayer(): CircleLayer | CircleCanvasLayer | undefined {
         return this.circleLayer;
     }
 
@@ -58,7 +59,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions,
         choroplethDisplayed: boolean
-    ): CircleLayer | undefined {
+    ): CircleLayer | CircleCanvasLayer | undefined {
         if (circleOptions.layerControl == false) {
             const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
             const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
@@ -130,7 +131,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
             this.legendService.hideLegend("circle");
         }
 
-        return this.circleLayer;
+    return this.circleLayer;
     }
 
     // parsing moved to src/data/circle.ts
@@ -187,16 +188,18 @@ export class CircleOrchestrator extends BaseOrchestrator {
 
     private renderCircleLayerOnMap(circleLayerOptions: CircleLayerOptions, mapToolsOptions: MapToolsOptions, choroplethDisplayed: boolean): void {
         if (this.circleLayer) {
+            try { (this.circleLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.circleLayer);
         }
-        this.circleLayer = new CircleLayer(circleLayerOptions);
+        this.circleLayer = mapToolsOptions.renderEngine === 'canvas'
+            ? new CircleCanvasLayer(circleLayerOptions)
+            : new CircleLayer(circleLayerOptions);
         this.map.addLayer(this.circleLayer);
 
         if (choroplethDisplayed === false && mapToolsOptions.lockMapExtent === false) {
-            const extent = this.circleLayer.getFeaturesExtent();
-            if (extent) {
-                this.map.getView().fit(extent, VisualConfig.MAP.FIT_OPTIONS);
-            }
+            const anyLayer: any = this.circleLayer as any;
+            const extent = anyLayer?.getFeaturesExtent?.();
+            if (extent) this.map.getView().fit(extent, VisualConfig.MAP.FIT_OPTIONS);
         }
     }
 

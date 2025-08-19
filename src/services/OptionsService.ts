@@ -21,6 +21,7 @@ export class OptionsService {
     static getMapToolsOptions(model: MaplumiVisualFormattingSettingsModel): MapToolsOptions {
         const maptoolsSettings = model.mapControlsVisualCardSettings;
         return {
+            renderEngine: maptoolsSettings.mapToolsSettingsGroup.renderEngine.value.value as any,
             lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,
             showZoomControl: maptoolsSettings.mapToolsSettingsGroup.showZoomControl.value,
             lockedMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockedMapExtent.value,

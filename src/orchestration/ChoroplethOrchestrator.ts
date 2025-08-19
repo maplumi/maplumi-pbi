@@ -20,11 +20,12 @@ import { BaseOrchestrator } from "./BaseOrchestrator";
 import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
 import { filterValidPCodes, parseChoroplethCategorical, validateChoroplethInput } from "../data/choropleth";
 import { MessageService } from "../services/MessageService";
+import { ChoroplethCanvasLayer } from "../layers/canvas/choroplethCanvasLayer";
 
 export class ChoroplethOrchestrator extends BaseOrchestrator {
     private cacheService: CacheService;
 
-    private choroplethLayer: ChoroplethLayer | undefined;
+    private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer | undefined;
     private abortController: AbortController | null = null;
     private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
 
@@ -50,7 +51,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         });
     }
 
-    public getLayer(): ChoroplethLayer | undefined {
+    public getLayer(): ChoroplethLayer | ChoroplethCanvasLayer | undefined {
         return this.choroplethLayer;
     }
 
@@ -63,7 +64,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         choroplethOptions: ChoroplethOptions,
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions
-    ): Promise<ChoroplethLayer | undefined> {
+    ): Promise<ChoroplethLayer | ChoroplethCanvasLayer | undefined> {
         if (choroplethOptions.layerControl == false) {
             const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
             group.selectAll("*").remove();
@@ -258,12 +259,16 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         mapToolsOptions: MapToolsOptions
     ): void {
         if (this.choroplethLayer) {
+            try { (this.choroplethLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.choroplethLayer);
         }
-        this.choroplethLayer = new ChoroplethLayer(layerOptions);
+        this.choroplethLayer = mapToolsOptions.renderEngine === 'canvas'
+            ? new ChoroplethCanvasLayer(layerOptions)
+            : new ChoroplethLayer(layerOptions);
         this.map.addLayer(this.choroplethLayer);
         if (mapToolsOptions.lockMapExtent === false) {
-            const extent = this.choroplethLayer.getFeaturesExtent();
+            const anyLayer: any = this.choroplethLayer as any;
+            const extent = anyLayer?.getFeaturesExtent?.();
             if (extent) this.map.getView().fit(extent, VisualConfig.MAP.FIT_OPTIONS);
         }
     }

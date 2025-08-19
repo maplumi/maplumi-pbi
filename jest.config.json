@@ -27,5 +27,11 @@
     "^@/(.*)$": "<rootDir>/src/$1",
   "\\.(css|less|sass|scss)$": "identity-obj-proxy",
   "^punycode$": "punycode/"
+  },
+  "globals": {
+    "ts-jest": {
+      "tsconfig": "<rootDir>/tests/tsconfig.json",
+      "isolatedModules": true
+    }
   }
 }
