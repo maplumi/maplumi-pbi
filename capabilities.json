@@ -378,6 +378,11 @@
             "enumeration": []
           }
         },
+        "worldAtlasScale": {
+          "type": {
+            "enumeration": []
+          }
+        },
         "geoBoundariesReleaseType": {
           "type": {
             "enumeration": []
@@ -458,6 +463,25 @@
           }
         },
         "simplificationStrength": {
+          "type": {
+            "numeric": true
+          }
+        },
+        "greyOutUnmatchedBoundaries": {
+          "type": {
+            "bool": true
+          }
+        },
+        "greyOutUnmatchedBoundariesColor": {
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
+        },
+        "greyOutUnmatchedBoundariesOpacity": {
           "type": {
             "numeric": true
           }
@@ -631,8 +655,9 @@
         "https://*.datauga.com",
         "https://*.geoboundaries.org",
         "https://www.geoboundaries.org",
-  "https://github.com",
-  "https://public.opendatasoft.com"
+        "https://public.opendatasoft.com",
+        "https://cdn.jsdelivr.net",
+        "https://*.jsdelivr.net"
       ]
     },
     {

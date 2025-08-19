@@ -6,6 +6,7 @@
     "sourceMap": true,
     "declaration": true,
     "esModuleInterop": true,
+  "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -18,8 +19,10 @@
     "src/**/*.ts"
   ],
   "files": [
-    "src/visual.ts"
+    "src/visual.ts",
+    "src/services/MaplumiService.ts"
   ],
+  
   "exclude": [
     "node_modules",
     "tests",

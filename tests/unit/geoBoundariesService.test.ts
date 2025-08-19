@@ -36,12 +36,10 @@ describe("GeoBoundariesService", () => {
     expect(url).toBe(`${VisualConfig.GEOBOUNDARIES.BASE_URL}/${baseOptions.geoBoundariesReleaseType}/${baseOptions.geoBoundariesCountry}/${baseOptions.geoBoundariesAdminLevel}/`);
   });
 
-  it("returns API url for ALL countries at ADM0", () => {
-    const opts = { ...baseOptions, geoBoundariesCountry: "ALL", geoBoundariesAdminLevel: "ADM0" };
-    const url = GeoBoundariesService.buildApiUrl(opts);
-    expect(url).toBe(`${VisualConfig.GEOBOUNDARIES.BASE_URL}/${opts.geoBoundariesReleaseType}/ALL/ADM0/`);
-    expect(GeoBoundariesService.isAllCountriesRequest(opts)).toBe(true);
-    expect(GeoBoundariesService.getAllCountriesUrl()).toBe(`${VisualConfig.GEOBOUNDARIES.BASE_URL}/gbOpen/ALL/ADM0/`);
+  it("does not support ALL countries at ADM0 anymore (ADM1–ADM3 only)", () => {
+    const opts = { ...baseOptions, geoBoundariesCountry: "ALL", geoBoundariesAdminLevel: "ADM0" } as any;
+    const validation = GeoBoundariesService.validateOptions(opts);
+    expect(validation.isValid).toBe(false);
   });
 
   it("maps boundary field names correctly", () => {

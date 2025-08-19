@@ -102,13 +102,13 @@ describe("ChoroplethOrchestrator geoboundaries fallback", () => {
     jest.clearAllMocks();
   });
 
-  test("falls back to gbOpen when selected release has no data, warns user, and uses fallback URL", async () => {
+  test("falls back to gbOpen for a country when selected release has no data, warns user, and uses fallback URL", async () => {
     const orch = makeOrchestrator();
 
     // Build a minimal categorical with IDs and a color measure
-    const categorical: any = {
+  const categorical: any = {
       categories: [
-        { values: ["KEN", "UGA"], source: { roles: { AdminPCodeNameID: true } } }
+    { values: ["KEN", "UGA"], source: { roles: { AdminPCodeNameID: true } } }
       ],
       values: [
         { values: [10, 20], source: { roles: { Color: true }, queryName: "m" } }
@@ -117,8 +117,8 @@ describe("ChoroplethOrchestrator geoboundaries fallback", () => {
 
     // Spy on fetchMetadata to simulate no URLs for selected release then URLs for gbOpen
     const mdNoUrls: GeoBoundariesServiceModule.GeoBoundariesMetadata = {
-      boundaryID: "X", boundaryName: "All Countries", boundaryISO: "ALL", boundaryYearRepresented: "2024",
-      boundaryType: "ADM0", boundaryCanonical: "", boundarySource: "", boundaryLicense: "",
+      boundaryID: "X", boundaryName: "Kenya", boundaryISO: "KEN", boundaryYearRepresented: "2024",
+      boundaryType: "ADM1", boundaryCanonical: "", boundarySource: "", boundaryLicense: "",
       licenseDetail: "", licenseSource: "", sourceDataUpdateDate: "", buildDate: "", Continent: "",
       "UNSDG-region": "", "UNSDG-subregion": "", worldBankIncomeGroup: "", admUnitCount: "",
       meanVertices: "", minVertices: "", maxVertices: "", meanPerimeterLengthKM: "", minPerimeterLengthKM: "",
@@ -132,8 +132,8 @@ describe("ChoroplethOrchestrator geoboundaries fallback", () => {
     } as any;
 
     const fetchMdSpy = jest.spyOn(GeoBoundariesServiceModule.GeoBoundariesService, "fetchMetadata");
-    fetchMdSpy.mockResolvedValueOnce({ data: mdNoUrls, response: {} as any });
-    fetchMdSpy.mockResolvedValueOnce({ data: mdWithUrls, response: {} as any });
+  fetchMdSpy.mockResolvedValueOnce({ data: mdNoUrls, response: {} as any });
+  fetchMdSpy.mockResolvedValueOnce({ data: mdWithUrls, response: {} as any });
 
     // Mock network fetch of boundary data to return a minimal valid GeoJSON
     const geojson = {
@@ -163,8 +163,8 @@ describe("ChoroplethOrchestrator geoboundaries fallback", () => {
       layerControl: true,
       boundaryDataSource: "geoboundaries",
       geoBoundariesReleaseType: "gbAuthoritative",
-      geoBoundariesCountry: "ALL",
-      geoBoundariesAdminLevel: "ADM0",
+      geoBoundariesCountry: "KEN",
+      geoBoundariesAdminLevel: "ADM1",
       sourceFieldID: "shapeISO",
       locationPcodeNameId: "shapeISO",
       classificationMethod: "q", classes: 5,

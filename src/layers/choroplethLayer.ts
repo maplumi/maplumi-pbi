@@ -25,6 +25,13 @@ export class ChoroplethLayer extends Layer {
     private simplifiedCache: Map<string, any>;
     private simplificationStrength: number = 50; // 0-100
 
+    // Normalizer for robust joins (case-insensitive, trimmed)
+    private normalize(v: any): string {
+        if (v === null || v === undefined) return "";
+        if (typeof v === "number") return String(v);
+        return String(v).trim().toUpperCase();
+    }
+
     constructor(options: ChoroplethLayerOptions) {
         super({ ...options, zIndex: options.zIndex || 10 });
 
@@ -35,12 +42,16 @@ export class ChoroplethLayer extends Layer {
             this.simplificationStrength = Math.max(0, Math.min(100, options.simplificationStrength));
         }
 
-        // Create a lookup table for measure values
+        // Normalizer for robust joins (case-insensitive, trimmed)
+        // Create a lookup table for measure values using normalized keys
         this.valueLookup = {};
         const pCodes = options.categoryValues as string[];
         const colorValues = options.measureValues as number[];
         pCodes.forEach((pCode, index) => {
-            this.valueLookup[pCode] = colorValues[index];
+            const k = this.normalize(pCode);
+            if (k !== "") {
+                this.valueLookup[k] = colorValues[index];
+            }
         });
 
         // Build the spatial index
@@ -94,28 +105,36 @@ export class ChoroplethLayer extends Layer {
         // Create a group element for choropleth
     const choroplethGroup = this.svg.append('g').attr('id', DomIds.ChoroplethGroup);
 
-        // Create a lookup for data points
+        // Create a lookup for data points using normalized keys
         const dataPointsLookup = this.options.dataPoints?.reduce((acc, dpoint) => {
-            acc[dpoint.pcode] = dpoint;
+            const k = this.normalize(dpoint.pcode);
+            if (k !== "") acc[k] = dpoint;
             return acc;
         }, {} as { [key: string]: any }) || {};
 
     // Simplification currently disabled; use original geojson
     const simplified = this.getSimplifiedGeoJsonForResolution(resolution);
 
+        const greyOut = !!this.options.greyOutUnmatchedBoundaries;
         // Render features
     simplified.features.forEach((feature: GeoJSONFeature) => {
             const pCode = feature.properties[this.options.dataKey];
-            const valueRaw = this.valueLookup[pCode];
-            
-            // Use valueRaw as-is for colorScale (do not force to number if unique value mode)
-            const fillColor = (pCode === undefined || valueRaw === undefined)
-                ? 'transparent'
+            const key = this.normalize(pCode);
+            if (key === "") {
+                return; // Never render features with an empty join key
+            }
+            const dataPoint = dataPointsLookup[key];
+            const valueRaw = this.valueLookup[key];
+
+            // Decide rendering for unmatched
+            if ((dataPoint === undefined || valueRaw === undefined) && !greyOut) {
+                return; // hide unmatched when toggle is off
+            }
+
+            // Color: either data-driven or grey for unmatched
+            const fillColor = (dataPoint === undefined || valueRaw === undefined)
+                ? (this.options.greyOutUnmatchedBoundariesColor || '#BDBDBD')
                 : this.options.colorScale(valueRaw);
-            
-            //console.log('Layer render:', { pCode, value: valueRaw, fillColor, type: typeof valueRaw });
-            
-            const dataPoint = dataPointsLookup[pCode];
 
             const path = choroplethGroup.append('path')
                 .datum(feature)
@@ -125,7 +144,11 @@ export class ChoroplethLayer extends Layer {
                 .attr('stroke', this.options.strokeColor)
                 .attr('stroke-width', this.options.strokeWidth)
                 .attr('fill', fillColor)
-                .attr('fill-opacity', (d: any) => selectionOpacity(this.selectedIds, dataPoint?.selectionId, this.options.fillOpacity));
+                .attr('fill-opacity', (d: any) => {
+                    const base = selectionOpacity(this.selectedIds, dataPoint?.selectionId, this.options.fillOpacity);
+                    const greyOpacity = (this.options.greyOutUnmatchedBoundariesOpacity ?? 0.35);
+                    return (dataPoint === undefined || valueRaw === undefined) ? Math.min(base, greyOpacity) : base;
+                });
 
             // Add tooltip
             if (dataPoint?.tooltip) {
@@ -178,11 +201,37 @@ export class ChoroplethLayer extends Layer {
     }
 
     getFeaturesExtent(): Extent {
+        const features = (this.geojson?.features || []) as GeoJSONFeature[];
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let matched = 0;
+
+        for (const f of features) {
+            const key = this.normalize(f?.properties ? f.properties[this.options.dataKey] : undefined);
+            if (key === "") continue;
+            const hasValue = Object.prototype.hasOwnProperty.call(this.valueLookup, key);
+            if (!hasValue) continue;
+            const b = geoBounds(f);
+            if (!b || !Array.isArray(b) || b.length !== 2) continue;
+            const [lo, hi] = b as [number[], number[]];
+            if (!Array.isArray(lo) || !Array.isArray(hi)) continue;
+            minX = Math.min(minX, lo[0]);
+            minY = Math.min(minY, lo[1]);
+            maxX = Math.max(maxX, hi[0]);
+            maxY = Math.max(maxY, hi[1]);
+            matched++;
+        }
+
+        // If we found matched features, use that extent; otherwise fall back to full collection extent
+        if (matched > 0 && isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+            const minCoords = fromLonLat([minX, minY], 'EPSG:3857');
+            const maxCoords = fromLonLat([maxX, maxY], 'EPSG:3857');
+            return [...minCoords, ...maxCoords] as Extent;
+        }
+
         const bounds = geoBounds(this.geojson);
         const minCoords = fromLonLat(bounds[0], 'EPSG:3857');
         const maxCoords = fromLonLat(bounds[1], 'EPSG:3857');
-        const extent = [...minCoords, ...maxCoords];
-        return extent;
+        return [...minCoords, ...maxCoords] as Extent;
     }
 
     setSelectedIds(selectionIds: powerbi.extensibility.ISelectionId[]) {

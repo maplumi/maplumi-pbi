@@ -6,6 +6,9 @@
  */
 
 import { ChoroplethOptions } from "../types/index";
+// Import static country list so it’s bundled with the visual
+// @ts-ignore
+import geoBoundariesCountries from "../../assets/geoboundaries-countries.json";
 import { VisualConfig } from "../config/VisualConfig";
 
 export interface GeoBoundariesMetadata {
@@ -43,17 +46,13 @@ export interface GeoBoundariesMetadata {
 }
 
 export class GeoBoundariesService {
-    // In-memory caches for country list and metadata to avoid repeated network calls in a session
-    private static countryItemsCache: { value: string; displayName: string }[] | null = null;
-    private static countryItemsCacheTime = 0;
-    private static allCountriesMetadataCache: { [release: string]: { data: GeoBoundariesMetadata[]; ts: number } } = {};
+    private static countriesCache: Record<string, Array<{ value: string; displayName: string }>> = {};
 
     /**
      * Constructs the geoBoundaries API URL based on the options
      */
     public static buildApiUrl(options: ChoroplethOptions): string {
         const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
-        // For ALL we still use the geoBoundaries API (ADM0 enforced by validation)
         return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
     }
 
@@ -180,20 +179,7 @@ export class GeoBoundariesService {
         return candidates;
     }
 
-    /**
-     * Checks if the request is for all countries data
-     */
-    public static isAllCountriesRequest(options: ChoroplethOptions): boolean {
-        return options.geoBoundariesCountry === "ALL";
-    }
-
-    /**
-     * Gets the data URL for all countries case
-     */
-    public static getAllCountriesUrl(): string {
-        // Default to gbOpen ALL/ADM0 API endpoint for convenience
-        return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/gbOpen/ALL/ADM0/`;
-    }
+    // ADM0 paths removed: we no longer support ALL-countries or ADM0 for geoBoundaries
 
     /**
      * Gets the appropriate field name for the boundary data
@@ -230,13 +216,13 @@ export class GeoBoundariesService {
             return { isValid: false, message: "Country selection is required" };
         }
 
-        if (!geoBoundariesAdminLevel) {
-            return { isValid: false, message: "Administrative level is required" };
+        // 'ALL' country path and ADM0 are no longer supported
+        if (geoBoundariesCountry === "ALL") {
+            return { isValid: false, message: "'ALL' country selection is not supported. Please choose a specific country." };
         }
 
-        // Special validation for "All Countries" - only ADM0 is allowed
-        if (geoBoundariesCountry === "ALL" && geoBoundariesAdminLevel !== "ADM0") {
-            return { isValid: false, message: "When 'All Countries' is selected, only ADM0 (country level) administrative level is supported" };
+        if (!geoBoundariesAdminLevel) {
+            return { isValid: false, message: "Administrative level is required" };
         }
 
         // Validate release type
@@ -245,8 +231,8 @@ export class GeoBoundariesService {
             return { isValid: false, message: "Invalid release type" };
         }
 
-        // Validate admin level
-        const validAdminLevels = ["ADM0", "ADM1", "ADM2", "ADM3", "ADM4", "ADM5", "ALL"];
+        // Validate admin level (support up to ADM3)
+    const validAdminLevels = ["ADM1", "ADM2", "ADM3"];
         if (!validAdminLevels.includes(geoBoundariesAdminLevel)) {
             return { isValid: false, message: "Invalid administrative level" };
         }
@@ -267,52 +253,73 @@ export class GeoBoundariesService {
     }
 
     /**
-     * Fetch a full list of ADM0 metadata objects for the given release.
-     * Caches results in-memory for VisualConfig.CACHE.METADATA_EXPIRY_MS.
+     * Query available admin levels (ADM1–ADM3) for a given release and country.
+     * Performs lightweight metadata requests and returns levels that resolve.
      */
-    public static async fetchAllCountriesMetadataByRelease(release: string): Promise<GeoBoundariesMetadata[] | null> {
-        const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS;
-        const cached = this.allCountriesMetadataCache[release];
-        const now = Date.now();
-        if (cached && now - cached.ts < ttl) {
-            return cached.data;
-        }
-        try {
-            const url = `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${release}/ALL/ADM0/`;
-            const resp = await fetch(url);
-            if (!resp.ok) return null;
-            const json = await resp.json();
-            const arr = Array.isArray(json) ? (json as GeoBoundariesMetadata[]) : [json as GeoBoundariesMetadata];
-            // Filter to entries with ISO codes, keep as-is otherwise
-            const cleaned = arr.filter(x => !!x?.boundaryISO);
-            this.allCountriesMetadataCache[release] = { data: cleaned, ts: now };
-            return cleaned;
-        } catch {
-            return null;
-        }
+    public static async getAvailableAdminLevels(release: string, country: string): Promise<string[]> {
+        const levels = ["ADM1", "ADM2", "ADM3"] as const;
+        const probes = levels.map(async (lvl) => {
+            const url = `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${release}/${country}/${lvl}/`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) return null;
+                const body: any = await resp.json();
+                const hasDownload = Array.isArray(body)
+                    ? body.some((it: any) => it?.tjDownloadURL || it?.gjDownloadURL)
+                    : !!(body?.tjDownloadURL || body?.gjDownloadURL);
+                return hasDownload ? lvl : null;
+            } catch {
+                return null;
+            }
+        });
+    const results = await Promise.all(probes);
+    return results.filter((x): x is "ADM1" | "ADM2" | "ADM3" => !!x);
     }
 
     /**
-     * Preload and cache dropdown items for the country list from the API.
-     * Keeps "ALL" as the first option. Falls back silently if fetch fails.
+     * Retrieve list of countries dynamically from geoBoundaries by querying an ALL endpoint
+     * and extracting unique ISO3 codes with display names. Tries ADM1 first, then falls back
+     * to ADM0 metadata if needed (metadata-only; we do not fetch ADM0 boundary data).
      */
-    public static async preloadCountryItems(release: string): Promise<void> {
-        const now = Date.now();
-        const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS;
-        if (this.countryItemsCache && now - this.countryItemsCacheTime < ttl) return;
-        const meta = await this.fetchAllCountriesMetadataByRelease(release);
-        if (!meta) return;
-        const items = meta
-            .map(m => ({ value: (m.boundaryISO || '').toUpperCase(), displayName: m.boundaryName }))
-            .filter(it => it.value && it.displayName)
-            // Sort alphabetically by displayName for nicer UX
-            .sort((a, b) => a.displayName.localeCompare(b.displayName));
-        // Prepend ALL
-        this.countryItemsCache = [{ value: "ALL", displayName: "All Countries" }, ...items];
-        this.countryItemsCacheTime = now;
+    public static getCountriesSync(release: string): Array<{ value: string; displayName: string }> {
+        // Static list does not vary by release, but keep a per-release cache for simplicity
+        const key = release || "gbOpen";
+        if (this.countriesCache[key]?.length) return [...this.countriesCache[key]];
+        // Seed from bundled static JSON synchronously to avoid UI races
+        const items = (geoBoundariesCountries as Array<{ value: string; displayName: string }>);
+        if (Array.isArray(items) && items.length) {
+            const normalized = items
+                .map((it: any) => ({ value: String(it.value).trim(), displayName: String(it.displayName || it.name || it.value).trim() }))
+                .filter((it: any) => it.value);
+            normalized.sort((a: any, b: any) => a.displayName.localeCompare(b.displayName));
+            this.countriesCache[key] = normalized;
+            return [...normalized];
+        }
+        return [];
     }
 
-    public static getCachedCountryItems(): { value: string; displayName: string }[] | null {
-        return this.countryItemsCache;
+    public static async getCountries(release: string): Promise<Array<{ value: string; displayName: string }>> {
+        const key = release || "gbOpen";
+        if (this.countriesCache[key]?.length) return [...this.countriesCache[key]];
+
+        // Use the imported static JSON (bundled at build time)
+        const items = (geoBoundariesCountries as Array<{ value: string; displayName: string }>);
+        if (Array.isArray(items) && items.length) {
+            const normalized = items
+                .map((it: any) => ({ value: String(it.value).trim(), displayName: String(it.displayName || it.name || it.value).trim() }))
+                .filter((it: any) => it.value);
+            normalized.sort((a: any, b: any) => a.displayName.localeCompare(b.displayName));
+            this.countriesCache[key] = normalized;
+            return [...normalized];
+        }
+
+        // Fallback: tiny list if import unexpectedly empty
+        const fallback = [
+            { value: "KEN", displayName: "Kenya" },
+            { value: "UGA", displayName: "Uganda" },
+            { value: "TZA", displayName: "Tanzania" }
+        ];
+        this.countriesCache[key] = fallback;
+        return [...fallback];
     }
 }

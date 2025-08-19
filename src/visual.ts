@@ -51,6 +51,7 @@ import { ChoroplethDataService } from "./services/ChoroplethDataService";
 import { ColorRampManager } from "./services/ColorRampManager";
 import type { Extent } from "ol/extent";
 import { VisualConfig } from "./config/VisualConfig";
+import { GeoBoundariesService } from "./services/GeoBoundariesService";
 import { CacheService } from "./services/CacheService";
 import { MapToolsOrchestrator } from "./orchestration/MapToolsOrchestrator";
 import { View } from "ol";
@@ -173,7 +174,7 @@ export class MaplumiVisual implements IVisual {
             }
         });
 
-        this.cacheService = new CacheService();
+    this.cacheService = new CacheService();
 
         // Instantiate orchestrators after svg and services are ready
         this.circleOrchestrator = new CircleOrchestrator({
@@ -211,6 +212,14 @@ export class MaplumiVisual implements IVisual {
 
         // Get latest options early for lockMapExtent
     this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+
+        // Prefetch GeoBoundaries country lists so the choropleth path has data ready
+        // Ensure any network errors are swallowed to avoid console noise
+        try {
+            GeoBoundariesService.getCountries("gbOpen").catch(() => {});
+            GeoBoundariesService.getCountries("gbHumanitarian").catch(() => {});
+            GeoBoundariesService.getCountries("gbAuthoritative").catch(() => {});
+        } catch { /* ignore */ }
 
         // Apply conditional display logic
         this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
@@ -271,7 +280,13 @@ export class MaplumiVisual implements IVisual {
                 choroplethOptions,
                 this.dataService,
                 this.mapToolsOptions
-            ).then(layer => { this.choroplethLayer = layer; });
+            ).then(layer => {
+                this.choroplethLayer = layer;
+            }).catch((err) => {
+                // Ensure a failure here does not affect other layers
+                console.error('[Maplumi] Choropleth render failed:', err);
+                this.host.displayWarningIcon('Choropleth Error', 'maplumiWarning: Choropleth rendering failed. The circles layer will continue.');
+            });
         } else {
 
             const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
@@ -288,14 +303,21 @@ export class MaplumiVisual implements IVisual {
 
         if (circleOptions.layerControl == true) {
             // Delegate to orchestrator
-            const layer = this.circleOrchestrator.render(
-                dataView.categorical,
-                circleOptions,
-                this.dataService,
-                this.mapToolsOptions,
-                this.choroplethDisplayed
-            );
-            this.circleLayer = layer;
+            try {
+                // Use actual current presence of choropleth layer to decide extent fitting
+                const hasChoroplethNow = !!this.choroplethLayer;
+                const layer = this.circleOrchestrator.render(
+                    dataView.categorical,
+                    circleOptions,
+                    this.dataService,
+                    this.mapToolsOptions,
+                    hasChoroplethNow
+                );
+                this.circleLayer = layer;
+            } catch (err) {
+                console.error('[Maplumi] Circles render failed:', err);
+                this.host.displayWarningIcon('Circles Error', 'maplumiWarning: Circles rendering failed. The choropleth layer will continue.');
+            }
         } else {
 
             const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
@@ -385,124 +407,6 @@ export class MaplumiVisual implements IVisual {
                 this.legendContainer.style.left = '10px';
                 break;
         }
-    }
-
-    private getBasemapOptions(): BasemapOptions {
-        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
-        return {
-            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
-            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-            maptilerApiKey: basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString(),
-            maptilerStyle: basemapSettings.maptilerSettingsGroup.maptilerStyle.value.value.toString()
-        };
-    }
-
-    private getMapToolsOptions(): MapToolsOptions {
-        const maptoolsSettings = this.visualFormattingSettingsModel.mapControlsVisualCardSettings;
-        return {
-
-            lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,
-            showZoomControl: maptoolsSettings.mapToolsSettingsGroup.showZoomControl.value,
-            lockedMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockedMapExtent.value,
-            lockedMapZoom: maptoolsSettings.mapToolsSettingsGroup.lockedMapZoom.value,
-            legendPosition: maptoolsSettings.legendContainerSettingsGroup.legendPosition.value.value.toString(),
-            legendBorderWidth: maptoolsSettings.legendContainerSettingsGroup.legendBorderWidth.value,
-            legendBorderColor: maptoolsSettings.legendContainerSettingsGroup.legendBorderColor.value.value,
-            legendBackgroundColor: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundOpacity.value / 100,
-            legendBorderRadius: maptoolsSettings.legendContainerSettingsGroup.legendBorderRadius.value,
-            legendBottomMargin: maptoolsSettings.legendContainerSettingsGroup.legendBottomMargin.value,
-            legendTopMargin: maptoolsSettings.legendContainerSettingsGroup.legendTopMargin.value,
-            legendLeftMargin: maptoolsSettings.legendContainerSettingsGroup.legendLeftMargin.value,
-            legendRightMargin: maptoolsSettings.legendContainerSettingsGroup.legendRightMargin.value
-        };
-    }
-
-    private getCircleOptions(): CircleOptions {
-        const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
-        return {
-            layerControl: circleSettings.topLevelSlice.value,
-            color1: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1Color.value.value,
-            color2: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2Color.value.value,
-            minRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
-            maxRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMaximumRadius.value,
-            strokeColor: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeColor.value.value,
-            strokeWidth: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeWidth.value,
-            layer1Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1LayerOpacity.value / 100,
-            layer2Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2LayerOpacity.value / 100,
-            showLegend: circleSettings.proportionalCircleLegendSettingsGroup.showLegend.value,
-            legendTitle: circleSettings.proportionalCircleLegendSettingsGroup.legendTitle.value,
-            legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,
-            legendItemStrokeColor: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeColor.value.value,
-            legendItemStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeWidth.value,
-            leaderLineStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineStrokeWidth.value,
-            leaderLineColor: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineColor.value.value,
-            labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value,
-            roundOffLegendValues: circleSettings.proportionalCircleLegendSettingsGroup.roundOffLegendValues.value,
-            hideMinIfBelowThreshold: circleSettings.proportionalCircleLegendSettingsGroup.hideMinIfBelowThreshold.value,
-            minValueThreshold: circleSettings.proportionalCircleLegendSettingsGroup.minValueThreshold.value,
-            minRadiusThreshold: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
-            labelSpacing: circleSettings.proportionalCircleLegendSettingsGroup.labelSpacing.value,
-            yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
-            xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value,
-            chartType: circleSettings.proportalCirclesDisplaySettingsGroup.chartType.value.value.toString(),
-            scalingMethod: 'square-root' // Fixed scaling method for optimal visual perception
-
-        };
-    }
-
-    private getChoroplethOptions(): ChoroplethOptions {
-        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
-        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
-        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
-        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
-
-        return {
-            layerControl: choroplethSettings.topLevelSlice.value,
-
-            // Boundary data source options
-            boundaryDataSource: choroplethLocationSettings.boundaryDataSource.value.value.toString(),
-
-            // GeoBoundaries-specific options
-            geoBoundariesReleaseType: choroplethLocationSettings.geoBoundariesReleaseType.value.value.toString(),
-            geoBoundariesCountry: choroplethLocationSettings.geoBoundariesCountry.value.value.toString(),
-            geoBoundariesAdminLevel: choroplethLocationSettings.geoBoundariesAdminLevel.value.value.toString(),
-
-            // Get boundary field ID from appropriate field based on data source
-            sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
-                ? choroplethLocationSettings.customBoundaryIdField.value
-                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
-
-            locationPcodeNameId: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
-                ? choroplethLocationSettings.customBoundaryIdField.value
-                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
-            topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
-            topojsonObjectName: choroplethLocationSettings.topojsonObjectName.value,
-
-            invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
-            colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
-            colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
-            customColorRamp: choroplethDisplaySettings.customColorRamp.value,
-
-            classes: choroplethClassificationSettings.numClasses.value,
-            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value.toString() as any,
-            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
-            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
-            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
-            showLegend: choroplethLegendSettings.showLegend.value,
-            legendTitle: choroplethLegendSettings.legendTitle.value,
-            legendTitleAlignment: choroplethLegendSettings.legendTitleAlignment.value.value.toString(),
-            legendOrientation: choroplethLegendSettings.legendOrientation.value.value.toString() as any,
-            legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value.toString() as any,
-            legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
-            legendItemMargin: choroplethLegendSettings.legendItemMargin.value,
-        };
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
