@@ -22,6 +22,7 @@ Required
 1) Chart type - nested-circle - donut-chart - pie-chart
 2) Appearance - min and max radius - colors - stroke - opacities
 3) Legend - show legend - title - label spacing and item stroke
+4) Rendering Engine - SVG or Canvas (Canvas improves performance with many points)
 
 Minimal settings
 ```
@@ -56,6 +57,7 @@ flowchart LR
 - Overlap heavy - lower opacity or use nested circles
 - Flat sizes - narrow data range - verify measure
 - One huge circle - expected - outlier compression applies
+ - View not fitting - ensure "Lock map extent" is off; zoom-to-layer works for both engines
 
 ---
 

@@ -16,6 +16,8 @@ Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. 
 - Legends, tooltips, cross-filtering
 - Auto-fit to data (optional)
  - Topology-preserving simplification with a user "Simplification Strength" control
+ - Canvas rendering engine option for faster drawing with crisp output
+ - Zoom-to-layer works for both SVG and Canvas engines
 
 ## Data roles
 Assign in the Visualizations pane. Only fill what you need for the layers you enable.
@@ -44,6 +46,7 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 1) Add the visual to your report (import the .pbiviz or use Developer Mode).
 2) Assign Boundary ID or Latitude/Longitude and your measures.
 3) In Format, toggle layers on/off and choose basemap and color ramp.
+4) Optional: switch Rendering Engine (SVG or Canvas). Canvas boosts performance and respects tooltips/selections via invisible hit overlays.
 
 ## Install
 - From release: download a .pbiviz from GitHub Releases and import into Power BI Desktop (Insert → More visuals → Import a visual from a file).
@@ -51,6 +54,11 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 	- Clone and install: `npm install`
 	- Package: `npm run build` (generates dist/*.pbiviz)
 	- Dev server: `npm start` and connect via Power BI Developer Mode
+
+### Testing
+- Run the full Jest suite: `npm test`
+- Canvas tests run under jsdom with a mocked 2D context; no native canvas dependency required.
+- GeoBoundaries “All Countries” uses a static ADM0 dataset and returns stub metadata in tests (no network call).
 
 ## Documentation & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))

@@ -22,6 +22,7 @@ Required
 2) If GeoBoundaries: Country → Admin level → Release type → Field mapping
     If Custom: URL → Boundary ID field name
 3) Classification: Method + Classes, then pick a Color Ramp (or Custom CSV hex)
+4) Rendering Engine: SVG or Canvas (Canvas is faster for large polygons)
 4) Performance: Set "Simplification Strength" (0–100) for coarser/finer shapes
 
 Minimal settings
@@ -60,6 +61,7 @@ flowchart TB
 - No areas? Check country/admin level and field mapping; for Custom, verify URL and boundary field.
 - No colors? Ensure numeric choropleth value, method/classes OK, and color ramp valid.
 - Selection issues? Avoid duplicate location codes; verify model relationships.
+ - View not fitting? Ensure "Lock map extent" is off; zoom-to-layer works for both engines.
 
 ---
 
