@@ -79,6 +79,7 @@ API keys (Mapbox/MapTiler)
 
 ## Docs & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))
+- Versioning: [docs/versioning.md](docs/versioning.md)
 - Issues: https://github.com/maplumi/maplumi-pbi/issues
 
 ## License
