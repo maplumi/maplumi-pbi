@@ -2,150 +2,82 @@
 
 [![Build and Release](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml) [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b/raw/coverage.json)](https://gist.github.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b)
 
-<!-- Dynamic coverage badge uses shields endpoint with a Gist JSON:
-https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b/raw/coverage.json
-Configured via workflow .github/workflows/coverage-badge.yml and repo secrets COVERAGE_GIST_ID + COVERAGE_GIST_TOKEN. -->
+Maplumi adds two map layers to Power BI—choropleth regions and scaled circles—with legends, tooltips, and modern basemaps.
 
-Maplumi adds two map layers to Power BI: choropleth regions and scaled circles. Use either or both, with smart legends, tooltips, and base maps.
-
-Note on rendering engines
-- SVG (default): great quality, good for small–medium datasets.
-- Canvas: faster CPU rendering with crisp output; recommended for large polygons and many points.
-- WebGL (preview): GPU-accelerated circles; choropleth currently renders via Canvas when WebGL is selected. If WebGL isn’t available in the environment, the visual automatically falls back to Canvas.
+Rendering engines
+- SVG (default): great quality for small–medium datasets.
+- Canvas: faster CPU rendering; good for large polygons/many points.
+- WebGL: GPU-accelerated circles and choropleth. Pie/Donut circles fall back to Canvas. If WebGL isn’t available, the visual auto-falls back to Canvas.
 
 ## Features
-- Choropleth (color by numeric measure)
-- Scaled circles (size by one or two measures)
+- Choropleth (numeric classification with color ramps)
+- Scaled circles (1–2 measures; nested, pie, or donut)
 - Works together or separately
-- Mapbox, MapTiler, or OpenStreetMap basemaps
-- Legends, tooltips, cross-filtering
-- Auto-fit to data (optional)
- - Topology-preserving simplification with a user "Simplification Strength" control
- - Rendering engines: SVG, Canvas, or WebGL (preview for circles)
- - Zoom-to-layer works for SVG, Canvas, and WebGL modes
+- Basemaps: OpenStreetMap, Mapbox, MapTiler (or none)
+- Legends, tooltips, cross-filtering, zoom control
+- Auto-fit to data; topology-preserving simplification (strength control)
 
 ## Data roles
-Assign in the Visualizations pane. Only fill what you need for the layers you enable.
-- Boundary ID: any unique join key that exists in BOTH your Power BI data and the boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID). This is the column used to match your data to polygons. (max 1)
-- Latitude / Longitude: numeric coordinates for circles (max 1 each)
-- Size: measure(s) for circle size (max 2)
-- Color: measure for choropleth classification (max 1)
-- Tooltips: extra measures to show on hover
+Assign only what you need for the layers you enable (Power BI Visualizations pane).
+- Boundary ID: join key present in BOTH your data and boundary properties (e.g., shapeISO, ADM*_PCODE, shapeID). Max 1.
+- Latitude / Longitude: numeric coordinates for circles. Max 1 each.
+- Size: measure(s) for circle size. Max 2.
+- Color: measure for choropleth. Max 1.
+- Tooltips: extra measures to show on hover.
 
 Notes
-- Data reduction: up to ~30,000 category rows are sampled (subject to Power BI limits and environment).
-- If only choropleth is enabled, Latitude/Longitude/Size are not required. If only circles are enabled, Boundary ID isn’t required.
+- Data reduction: up to ~30,000 category rows (subject to Power BI limits).
+- If only choropleth is used, Lat/Long/Size aren’t required. If only circles are used, Boundary ID isn’t required.
 
-### Joining data
+### Boundary joining (quick example)
+1) In Format → Choropleth → Boundary, choose your source (GeoBoundaries or Custom URL).
+2) Pick the matching field:
+	 - GeoBoundaries: shapeISO, shapeName, shapeID, or shapeGroup.
+	 - Custom: enter your property name (e.g., ADM1_PCODE).
+3) Optionally set “TopoJSON Object Name” when your TopoJSON has multiple named objects (e.g., ADM1, boundaries). Leave blank to auto-detect.
 
-- The Boundary ID is a unique join key present in BOTH your Power BI data and the boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID).
-- In the Format pane, set the boundary field to the matching property:
-	- GeoBoundaries: shapeISO, shapeName, shapeID, or shapeGroup
-	- Custom: enter your property name (e.g., ADM1_PCODE)
-
-Minimal example
-
-Power BI data (Location → Value)
-```
-Location   | Value
------------|------
-KE-01      | 12.3
-KE-02      | 9.5
-```
-
-Boundary feature properties (GeoJSON)
-```json
-{
-	"type": "Feature",
-	"properties": {
-		"shapeISO": "KE-01",
-		"shapeName": "Baringo"
-	},
-	"geometry": { "type": "Polygon", "coordinates": [] }
-}
-```
-
-Settings mapping
+Minimal mapping
 - Boundary field: shapeISO
-- Location column: AdminPCodeNameID (values like KE-01)
-- Result: features with matching codes render and receive the numeric Value
+- Data column: AdminPCodeNameID (values like KE-01)
 
-### Custom TopoJSON with multiple objects
-
-If your TopoJSON file contains multiple named objects (e.g., `ADM1`, `polygons`, `lines`), you can direct the visual to use a specific object:
-
-- Format pane → Choropleth → Boundary → TopoJSON Object Name (optional)
-- Enter the exact object name from your TopoJSON `objects` dictionary.
-- Leave blank to auto-detect; the visual prefers polygonal objects when choosing automatically.
-
-Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `polygons`.
-- If only choropleth is enabled, Latitude/Longitude/Size aren’t required. If only circles are enabled, Boundary ID isn’t required.
-
-### Security & boundary fetch behavior
-- HTTPS only: external boundary URLs must use https.
-- Open-redirect guard: custom URLs with redirect parameters are blocked and a warning is shown.
-- Validated P-codes: only validated, non-empty P-codes are used to filter features; non-matching features won’t render.
-- Timeout: boundary fetches use a 25s default timeout to accommodate large files.
- - Client identifier: requests include a harmless query flag (ml_source=maplumi-pbi) to help providers identify traffic from this visual.
- - CORS: user-hosted boundary files must allow cross-origin requests (e.g., Access-Control-Allow-Origin: *).
+GeoBoundaries notes
+- “All Countries” uses a consolidated ADM0 TopoJSON for efficient country outlines.
+- The visual prefers TopoJSON when available and caches large downloads.
 
 ## Quick start
-1) Add the visual to your report (import the .pbiviz or use Developer Mode).
-2) Assign Boundary ID or Latitude/Longitude and your measures.
-3) In Format, toggle layers on/off and choose basemap and color ramp.
-4) Optional: switch Rendering Engine (SVG, Canvas, or WebGL preview). WebGL accelerates circles on the GPU; choropleth uses Canvas when WebGL is selected. If WebGL isn’t available, the visual falls back to Canvas automatically.
+1) Add the visual to your report (import .pbiviz or use Developer Mode).
+2) Bind Boundary ID or Latitude/Longitude and your measures.
+3) In Format, toggle layers and choose basemap, color ramp, and legend.
+4) Optional: switch Rendering Engine (SVG, Canvas, WebGL).
 
-## Install
-- From release: download a .pbiviz from GitHub Releases and import into Power BI Desktop (Insert → More visuals → Import a visual from a file).
+## Install & develop
+- From release: download a .pbiviz from GitHub Releases and import into Power BI Desktop (Insert → More visuals → Import from file).
 - From source:
-	- Clone and install: `npm install`
-	- Package: `npm run build` (generates dist/*.pbiviz)
-	- Dev server: `npm start` and connect via Power BI Developer Mode
+	- Install deps: npm install
+	- Dev server: npm start (Power BI Developer Mode)
+	- Package: npm run build (outputs dist/*.pbiviz)
+	- Tests: npm test (Jest)
 
-### Testing
-- Run the full Jest suite: `npm test`
-- Canvas tests run under jsdom with a mocked 2D context; no native canvas dependency required.
-- GeoBoundaries “All Countries” uses a static ADM0 dataset and returns stub metadata in tests (no network call).
+## WebGL specifics
+- Enable via Format → Map Tools → Rendering Engine → WebGL.
+- Circles and choropleth use GPU paths; pie/donut circles render via Canvas in WebGL mode.
+- Environments without WebGL are automatically downgraded to Canvas.
 
-### WebGL notes (preview)
-- Enable via Format pane → Map Tools → Rendering Engine → WebGL (preview).
-- Some environments (including certain VMs or restricted enterprise setups) may disable WebGL; Maplumi will automatically downgrade to Canvas to avoid blank output.
+## Security & privileges
+- HTTPS only for external boundary URLs; open-redirect parameters are blocked.
+- Validated P-codes only; non-matching features won’t render.
+- Default boundary fetch timeout: 25s; requests append ml_source=maplumi-pbi; CORS required for user-hosted files.
 
-## Required privileges
+Required privileges (capabilities.json)
+- WebAccess to these domains:
+	- https://*.openstreetmap.org, https://*.arcgisonline.com, https://*.arcgis.com, https://*.mapbox.com, https://api.maptiler.com, https://*.humdata.org, https://*.itos.uga.edu, https://*.githubusercontent.com, https://*.googleapis.com, https://*.amazonaws.com, https://*.blob.core.windows.net, https://*.github.io, https://*.cloudfront.net, https://*.r2.dev, https://*.geoboundaries.org, https://www.geoboundaries.org, https://cdn.jsdelivr.net
+- LocalStorage (cache) and ExportContent are also requested.
 
-WebAccess (allowed domains)
+API keys (Mapbox/MapTiler)
+- Restrict tokens to https://app.powerbi.com and https://app.fabric.microsoft.com; add https://localhost:<port> for development.
+- Prefer scoped/read-only tokens; for stronger control, use short-lived tokens/SAS or a proxy that injects credentials.
 
-- https://*.openstreetmap.org
-- https://*.arcgisonline.com
-- https://*.arcgis.com
-- https://*.mapbox.com
-- https://api.maptiler.com
-- https://*.humdata.org
-- https://*.itos.uga.edu
-- https://*.githubusercontent.com
-- https://*.googleapis.com
-- https://*.amazonaws.com
-- https://*.blob.core.windows.net
-- https://*.github.io
-- https://*.cloudfront.net
-- https://*.r2.dev
-- https://*.geoboundaries.org
-- https://www.geoboundaries.org
-- https://cdn.jsdelivr.net
-
-Notes
-- You can host your boundary data on any of the allowed sites above.
-- Basemaps are currently supported from OpenLayers/OSM, Mapbox, and MapTiler only.
-
-### API key/token restrictions (recommended)
-- Configure your provider to restrict keys/tokens to Power BI and Fabric origins:
-	- Allowed referrers/origins: https://app.powerbi.com and https://app.fabric.microsoft.com
-	- Add https://localhost:<port> for development if needed
-- Map providers (Mapbox/MapTiler): use dashboard settings to lock tokens by referrer and scope access (read-only, rate limits).
-- User-hosted boundaries: enable CORS and, where possible, set AllowedOrigins to the domains above instead of wildcard. If not possible, prefer short-lived signed URLs/SAS.
- - Important: Origin/referrer restrictions don’t stop others from copying and reusing any client-exposed key. For stronger control, use short-lived tokens/SAS or a server-side proxy that injects credentials.
-
-## Documentation & support
+## Docs & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))
 - Issues: https://github.com/maplumi/maplumi-pbi/issues
 
