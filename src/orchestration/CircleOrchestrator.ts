@@ -192,12 +192,18 @@ export class CircleOrchestrator extends BaseOrchestrator {
             try { (this.circleLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.circleLayer);
         }
-        this.circleLayer = mapToolsOptions.renderEngine === 'webgl'
-            ? new CircleWebGLLayer(circleLayerOptions)
-            : mapToolsOptions.renderEngine === 'canvas'
+    const engine = mapToolsOptions.renderEngine;
+    const chartType = circleLayerOptions.circleOptions?.chartType;
+        const needCanvasForCharts = chartType === 'pie-chart' || chartType === 'donut-chart';
+        // Fallback to Canvas for pies/donuts in WebGL mode (WebGLVectorLayer doesn't support sector drawing)
+        this.circleLayer = engine === 'webgl'
+            ? (needCanvasForCharts ? new CircleCanvasLayer(circleLayerOptions) : new CircleWebGLLayer(circleLayerOptions))
+            : engine === 'canvas'
                 ? new CircleCanvasLayer(circleLayerOptions)
                 : new CircleLayer(circleLayerOptions);
         this.map.addLayer(this.circleLayer);
+    // Attach hit overlay for WebGL only
+    try { (this.circleLayer as any).attachHitLayer?.(this.map); } catch {}
 
         if (choroplethDisplayed === false && mapToolsOptions.lockMapExtent === false) {
             const anyLayer: any = this.circleLayer as any;

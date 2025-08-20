@@ -150,7 +150,8 @@ export class MaplumiVisual implements IVisual {
             this.svgOverlay.style.left = '0';
             this.svgOverlay.style.width = '100%';
             this.svgOverlay.style.height = '100%';
-            this.svgOverlay.style.pointerEvents = 'none'; // Let the map handle pointer events by default
+            // Let the map handle pan/zoom; hit-layer shapes explicitly enable pointer-events.
+            this.svgOverlay.style.pointerEvents = 'none';
         }
 
         this.svg = d3.select(this.svgOverlay);
@@ -161,7 +162,8 @@ export class MaplumiVisual implements IVisual {
         this.svgContainer.style.left = '0';
         this.svgContainer.style.width = '100%';
         this.svgContainer.style.height = '100%';
-        this.svgContainer.style.pointerEvents = 'none';
+    // Let the map receive pan/zoom events; individual hit shapes enable pointer-events themselves.
+    this.svgContainer.style.pointerEvents = 'none';
     this.svgContainer.style.zIndex = '100';
 
         // Ensure the overlay elements are mounted in the DOM so Canvas/SVG are visible above the map

@@ -40,23 +40,30 @@ export class ChoroplethCanvasLayer extends Layer {
   setActive(active: boolean) { this.isActive = active; this.changed(); }
 
   render(frameState: FrameState) {
+
     if (!this.isActive) return;
     const width = frameState.size[0];
     const height = frameState.size[1];
-  const { canvas, ctx, dpr } = getCanvasAndCtx(this.options.svgContainer, width, height, 'choropleth-canvas');
-  // Ensure choropleth is below circles
+
+    // Place choropleth canvas inside the map viewport so WebGL circles (map layer) can render above it
+    const map: any = (this as any).getMap?.();
+    const container: HTMLElement = map?.getViewport?.() || this.options.svgContainer;
+    const { canvas, ctx, dpr } = getCanvasAndCtx(container, width, height, 'choropleth-canvas');
+
+  // Keep polygons below circles; tests expect zIndex '10' on this canvas
   canvas.style.zIndex = '10';
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.lineCap = 'butt';
-  ctx.lineJoin = 'miter';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
     const project = mercatorProjector(frameState, width, height);
-  // Remove previous hit layer and create a new one
-  this.options.svg.select('#choropleth-hitlayer').remove();
-  const hitLayer = this.options.svg.append('g').attr('id', 'choropleth-hitlayer');
-  hitLayer.style('pointer-events', 'all');
-  const d3Projection = createWebMercatorProjection(frameState, width, height);
-  const d3Path = d3.geoPath().projection(d3Projection as any);
+
+    // Remove previous hit layer and create a new one
+    this.options.svg.select('#choropleth-hitlayer').remove();
+    const hitLayer = this.options.svg.append('g').attr('id', 'choropleth-hitlayer');
+    hitLayer.style('pointer-events', 'all');
+    const d3Projection = createWebMercatorProjection(frameState, width, height);
+    const d3Path = d3.geoPath().projection(d3Projection as any);
 
     // Basic fill of polygons
     for (const feature of this.geojson.features as GeoJSONFeature[]) {
@@ -77,8 +84,8 @@ export class ChoroplethCanvasLayer extends Layer {
         .style('pointer-events', 'all')
         .datum(feature.properties?.selectionId || this.options.dataPoints?.find(d => d.pcode === pCode)?.selectionId);
 
-  const dataPoint = dp;
-  if (dataPoint?.tooltip) {
+      const dataPoint = dp;
+      if (dataPoint?.tooltip) {
         this.options.tooltipServiceWrapper.addTooltip(
           hit as any,
           () => dataPoint.tooltip,
@@ -86,7 +93,7 @@ export class ChoroplethCanvasLayer extends Layer {
           true
         );
       }
-  hit.on('click', (event: MouseEvent) => {
+      hit.on('click', (event: MouseEvent) => {
         if (!dp?.selectionId) return;
         const nativeEvent = event;
         this.options.selectionManager.select(dp.selectionId as any, nativeEvent.ctrlKey || nativeEvent.metaKey)
@@ -101,9 +108,18 @@ export class ChoroplethCanvasLayer extends Layer {
 
   // Clean up DOM canvas element when layer is removed
   dispose() {
-    const el = this.options.svgContainer.querySelector('#choropleth-canvas');
-    if (el && el.parentElement) el.parentElement.removeChild(el);
-  try { this.options.svg.select('#choropleth-hitlayer').remove(); } catch {}
+    // Try removing from map viewport first, then fallback to svgContainer
+    try {
+      const map: any = (this as any).getMap?.();
+      const container: HTMLElement | undefined = map?.getViewport?.();
+      const el1 = container?.querySelector('#choropleth-canvas');
+      if (el1 && el1.parentElement) el1.parentElement.removeChild(el1);
+    } catch { }
+    try {
+      const el2 = this.options.svgContainer.querySelector('#choropleth-canvas');
+      if (el2 && el2.parentElement) el2.parentElement.removeChild(el2);
+    } catch { }
+    try { this.options.svg.select('#choropleth-hitlayer').remove(); } catch { }
   }
 
   // Provide spatial extent in map projection (EPSG:3857)
@@ -125,17 +141,17 @@ export class ChoroplethCanvasLayer extends Layer {
 function bounds(f: GeoJSONFeature) {
   // very basic lon/lat box
   const coords = coordIter(f);
-  let minX= Infinity, minY= Infinity, maxX= -Infinity, maxY= -Infinity;
-  for (const [x,y] of coords) { minX=Math.min(minX,x); minY=Math.min(minY,y); maxX=Math.max(maxX,x); maxY=Math.max(maxY,y); }
-  return [[minX,minY],[maxX,maxY]] as [[number,number],[number,number]];
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of coords) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
+  return [[minX, minY], [maxX, maxY]] as [[number, number], [number, number]];
 }
 
 function* coordIter(f: GeoJSONFeature): Iterable<[number, number]> {
   const g = f.geometry;
   if (g.type === 'Polygon') {
-    for (const ring of g.coordinates as any[]) for (const c of ring) yield c as [number,number];
+    for (const ring of g.coordinates as any[]) for (const c of ring) yield c as [number, number];
   } else if (g.type === 'MultiPolygon') {
-    for (const poly of g.coordinates as any[]) for (const ring of poly) for (const c of ring) yield c as [number,number];
+    for (const poly of g.coordinates as any[]) for (const ring of poly) for (const c of ring) yield c as [number, number];
   }
 }
 

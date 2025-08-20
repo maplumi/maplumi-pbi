@@ -7,6 +7,7 @@ import Map from "ol/Map";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
 import { LegendService } from "../services/LegendService";
 import { ChoroplethLayer } from "../layers/choroplethLayer";
+import { ChoroplethWebGLLayer } from "../layers/webgl/choroplethWebGLLayer";
 import { ChoroplethData, ChoroplethDataSet, ChoroplethLayerOptions, ChoroplethOptions, MapToolsOptions } from "../types";
 import { ITooltipServiceWrapper } from "powerbi-visuals-utils-tooltiputils";
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
@@ -25,7 +26,7 @@ import { ChoroplethCanvasLayer } from "../layers/canvas/choroplethCanvasLayer";
 export class ChoroplethOrchestrator extends BaseOrchestrator {
     private cacheService: CacheService;
 
-    private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer | undefined;
+    private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer | ChoroplethWebGLLayer | undefined;
     private abortController: AbortController | null = null;
     private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
 
@@ -51,12 +52,12 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         });
     }
 
-    public getLayer(): ChoroplethLayer | ChoroplethCanvasLayer | undefined {
-        return this.choroplethLayer;
+    public getLayer(): ChoroplethLayer | ChoroplethCanvasLayer | ChoroplethWebGLLayer | undefined {
+        return this.choroplethLayer as any;
     }
 
     public setSelectedIds(selectionIds: ISelectionId[]) {
-        if (this.choroplethLayer) this.choroplethLayer.setSelectedIds(selectionIds);
+        if (this.choroplethLayer && (this.choroplethLayer as any).setSelectedIds) (this.choroplethLayer as any).setSelectedIds(selectionIds);
     }
 
     public async render(
@@ -64,7 +65,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         choroplethOptions: ChoroplethOptions,
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions
-    ): Promise<ChoroplethLayer | ChoroplethCanvasLayer | undefined> {
+    ): Promise<ChoroplethLayer | ChoroplethCanvasLayer | ChoroplethWebGLLayer | undefined> {
         if (choroplethOptions.layerControl == false) {
             const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
             group.selectAll("*").remove();
@@ -115,7 +116,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             }
         }
 
-        return this.choroplethLayer;
+    return this.choroplethLayer as any;
     }
 
     // parsing moved to src/data/choropleth.ts
@@ -262,11 +263,15 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             try { (this.choroplethLayer as any).dispose?.(); } catch {}
             this.map.removeLayer(this.choroplethLayer);
         }
-        // Phase 1: If engine is 'webgl', fall back to canvas for polygons until WebGL choropleth is implemented.
-        this.choroplethLayer = mapToolsOptions.renderEngine === 'canvas' || mapToolsOptions.renderEngine === 'webgl'
-            ? new ChoroplethCanvasLayer(layerOptions)
-            : new ChoroplethLayer(layerOptions);
-        this.map.addLayer(this.choroplethLayer);
+        // Use WebGL vector layer for choropleth when engine is 'webgl' and geojson is valid
+        const hasValidGeoJSON = !!(layerOptions as any)?.geojson && !!(layerOptions as any)?.geojson?.type;
+        this.choroplethLayer = mapToolsOptions.renderEngine === 'webgl'
+            ? (hasValidGeoJSON ? new ChoroplethWebGLLayer(layerOptions) : new ChoroplethCanvasLayer(layerOptions))
+            : mapToolsOptions.renderEngine === 'canvas'
+                ? new ChoroplethCanvasLayer(layerOptions)
+                : new ChoroplethLayer(layerOptions);
+    this.map.addLayer(this.choroplethLayer);
+    try { (this.choroplethLayer as any).attachHitLayer?.(this.map); } catch {}
         if (mapToolsOptions.lockMapExtent === false) {
             const anyLayer: any = this.choroplethLayer as any;
             const extent = anyLayer?.getFeaturesExtent?.();
