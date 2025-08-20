@@ -13,7 +13,7 @@ flowchart LR
 ```
 
 Required
-- Location: AdminPCodeNameID (text) matching your boundary field
+- Location: AdminPCodeNameID (text). This is any unique ID used to join your Power BI data to the boundary properties (e.g., ISO codes, ADM*_PCODE, shapeID). The same column must exist in both datasets.
 - Value: Choropleth Value (number)
 - Optional: Tooltips
 
@@ -47,6 +47,11 @@ flowchart TB
    bfield --> done
 ```
 
+Notes
+- HTTPS only for custom URLs; redirect-style URLs are blocked for safety.
+- Only validated, non-empty P-codes are used to filter features.
+- Large boundary files are allowed extra time (25s timeout) to download.
+
 ---
 
 ## Classify & color (essentials)
@@ -59,6 +64,7 @@ flowchart TB
 
 ## Quick fixes
 - No areas? Check country/admin level and field mapping; for Custom, verify URL and boundary field.
+- URL blocked? Remove redirect parameters and ensure it’s a direct HTTPS link.
 - No colors? Ensure numeric choropleth value, method/classes OK, and color ramp valid.
 - Selection issues? Avoid duplicate location codes; verify model relationships.
  - View not fitting? Ensure "Lock map extent" is off; zoom-to-layer works for SVG, Canvas, and WebGL modes.
@@ -129,6 +135,40 @@ https://api.example.com/boundaries/admin1
 ---
 
 ## Data Format Examples
+
+## Joining data
+
+- The Location field (AdminPCodeNameID) is any unique join key present in BOTH your Power BI data and the boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID).
+- In the Format pane, set the boundary field to the matching property:
+  - GeoBoundaries: shapeISO, shapeName, shapeID, or shapeGroup
+  - Custom: enter your property name (e.g., ADM1_PCODE)
+
+Minimal example
+
+Power BI data (Location → Value)
+```
+Location   | Value
+-----------|------
+KE-01      | 12.3
+KE-02      | 9.5
+```
+
+Boundary feature properties (GeoJSON)
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "shapeISO": "KE-01",
+    "shapeName": "Baringo"
+  },
+  "geometry": { "type": "Polygon", "coordinates": [] }
+}
+```
+
+Settings mapping
+- Boundary field: shapeISO
+- Location column: AdminPCodeNameID (values like KE-01)
+- Result: features with matching codes render and receive the numeric Value
 
 ### Power BI Data
 ```

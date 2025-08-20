@@ -168,10 +168,16 @@ describe("GeoBoundariesService", () => {
       expect(data!.boundaryISO).toBe("ALL");
     });
 
-    it("returns data and response on successful fetch", async () => {
+    it("returns data and response on successful fetch with required URLs", async () => {
       const fake: Partial<Response> = {
         ok: true,
-        json: async () => ({ boundaryName: "Kenya", boundaryType: "ADM1", boundaryYearRepresented: "2022", admUnitCount: "47" }) as any,
+        json: async () => ({
+          boundaryName: "Kenya",
+          boundaryType: "ADM1",
+          boundaryYearRepresented: "2022",
+          admUnitCount: "47",
+          gjDownloadURL: "https://example.com/file.geo.json"
+        }) as any,
       };
       // @ts-ignore
       global.fetch = jest.fn().mockResolvedValue(fake);
@@ -181,6 +187,38 @@ describe("GeoBoundariesService", () => {
       expect(response).toBeDefined();
       expect(data).toBeDefined();
       expect(data!.boundaryName).toBe("Kenya");
+      expect((data as any).gjDownloadURL).toBeTruthy();
+    });
+
+    it("selects first valid entry from array payload", async () => {
+      const fake: Partial<Response> = {
+        ok: true,
+        json: async () => ([
+          { boundaryName: "Kenya", boundaryType: "ADM1" },
+          { boundaryName: "Kenya", boundaryType: "ADM1", tjDownloadURL: "https://example.com/file.topo.json" }
+        ]) as any,
+      };
+      // @ts-ignore
+      global.fetch = jest.fn().mockResolvedValue(fake);
+      const { data, response } = await GeoBoundariesService.fetchMetadata(baseOptions);
+      expect(response).toBeDefined();
+      expect(data).toBeDefined();
+      expect((data as any).tjDownloadURL).toBe("https://example.com/file.topo.json");
+    });
+
+    it("returns null data when payload lacks download URLs", async () => {
+      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const fake: Partial<Response> = {
+        ok: true,
+        json: async () => ({ boundaryName: "Kenya", boundaryType: "ADM1" }) as any,
+      };
+      // @ts-ignore
+      global.fetch = jest.fn().mockResolvedValue(fake);
+      const { data, response } = await GeoBoundariesService.fetchMetadata(baseOptions);
+      expect(response).toBeDefined();
+      expect(data).toBeNull();
+      expect(errSpy).toHaveBeenCalled();
+      errSpy.mockRestore();
     });
 
     it("handles non-ok responses gracefully", async () => {

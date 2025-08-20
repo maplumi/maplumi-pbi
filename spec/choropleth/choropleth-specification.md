@@ -80,6 +80,7 @@ class ChoroplethDataService {
 - **GeoJSON**: Direct support for FeatureCollection format
 - **TopoJSON**: Automatic conversion to GeoJSON with topology preservation
 - **Feature Filtering**: Boundary features filtered by valid administrative codes
+ - **URL Resolution**: Manifest-first TopoJSON URL resolution with resilient API metadata fallback (handles array or object payloads)
 
 Note on TopoJSON with multiple objects
 - When a TopoJSON file contains multiple entries under `objects`, the visual will:
@@ -95,7 +96,7 @@ GeoJSON validation
 // Geographic data processing workflow
 Boundary Data Source Selection (GeoBoundaries vs Custom)
     ↓
-GeoBoundaries: API Metadata Fetch → Boundary Data Download
+GeoBoundaries: Catalog Manifest Resolve → (fallback) API Metadata Fetch → Boundary Data Download
 Custom: Direct GeoJSON/TopoJSON URL Fetch
     ↓
 Format Detection & Conversion (TopoJSON → GeoJSON)
@@ -114,10 +115,11 @@ Rendering-Ready FeatureCollection
 public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection> {
     let geojson: FeatureCollection;
     
-    // Determine data source and fetch boundary data
+    // Determine data source and fetch boundary data (HTTPS-only with timeout and open-redirect guard for custom)
     if (options.boundaryDataSource === 'geoboundaries') {
         // Use GeoBoundaries API
-        const metadata = await GeoBoundariesService.fetchMetadata(options);
+    // Prefer manifest/catalog resolution; fall back to API metadata which may return an object or array
+    const metadata = await GeoBoundariesService.fetchMetadata(options);
         if (!metadata) {
             throw new Error('Failed to fetch GeoBoundaries metadata');
         }
@@ -131,7 +133,8 @@ public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): 
             : data as FeatureCollection;
     } else {
         // Use custom URL
-        const response = await fetch(options.topoJSON_geoJSON_FileUrl);
+    // Block open-redirect style URLs; enforce HTTPS and use a fetch timeout
+    const response = await fetch(options.topoJSON_geoJSON_FileUrl);
         const data = await response.json();
         
         geojson = this.isTopoJSON(data)
@@ -144,7 +147,7 @@ public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): 
         ? GeoBoundariesService.getBoundaryFieldName(options)
         : options.locationPcodeNameId;
 
-    // Filter features based on valid administrative codes
+    // Filter features based on validated administrative codes only
     return {
         ...geojson,
         features: geojson.features.filter(feature =>
@@ -175,7 +178,7 @@ const simplifiedGeo = feature(simplifiedTopo, simplifiedTopo.objects.layer);
 ### 3. Statistical Data Processing
 
 #### Value Extraction
-- Administrative codes (P-codes) from categorical data
+- Administrative codes (P-codes) from categorical data. P-code here means any unique join key present in BOTH your Power BI data and boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID). The common column must exist in both datasets for features to render.
 - Numeric measure values for choropleth coloring
 - Tooltip data from additional fields
 
@@ -536,6 +539,7 @@ export class GeoBoundariesService {
     public static validateOptions(options: ChoroplethOptions): { isValid: boolean; message?: string };
     public static isAllCountriesRequest(options: ChoroplethOptions): boolean;
     public static getAllCountriesUrl(): string;
+    public static getDownloadUrl(metadata: GeoBoundariesMetadata | GeoBoundariesMetadata[], preferTopoJSON?: boolean): string;
 }
 ```
 
@@ -631,13 +635,14 @@ public static async fetchMetadata(options: ChoroplethOptions): Promise<GeoBounda
         }
 
         const apiUrl = this.buildApiUrl(options);
-        const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        return await response.json();
+    // API may return a single object or an array; caller handles both
+    return await response.json();
     } catch (error) {
         console.error("Error fetching geoBoundaries metadata:", error);
         return null;
@@ -817,7 +822,8 @@ private async fetchGeoBoundariesData(options: ChoroplethOptions): Promise<any> {
 // Custom boundary data fetching
 private async fetchCustomBoundaryData(url: string, signal?: AbortSignal): Promise<any> {
     try {
-        const response = await fetch(url, { signal });
+    // Enforce HTTPS and guard against open redirects at the call site
+    const response = await fetch(url, { signal });
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }

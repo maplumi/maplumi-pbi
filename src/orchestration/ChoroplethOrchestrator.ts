@@ -103,6 +103,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             colorScale,
             pcodeKey,
             dataPoints,
+            validPCodes,
             dataService,
             mapToolsOptions
         );
@@ -157,6 +158,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         colorScale: any,
         pcodeKey: string,
         dataPoints: any[],
+        validPCodes: string[],
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions
     ): Promise<void> {
@@ -217,6 +219,14 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
             // Cache by resource URL (not by location field) so different URLs don't collide
             cacheKey = `custom_${encodeURIComponent(serviceUrl || '')}`;
+            // Open redirect guard for custom URLs
+            if (requestHelpers.hasOpenRedirect(serviceUrl)) {
+                this.host.displayWarningIcon(
+                    "Unsafe URL detected",
+                    "maplumiWarning: The provided boundary URL contains an open redirect parameter and was blocked."
+                );
+                return;
+            }
         }
 
         if (this.abortController) this.abortController.abort();
@@ -242,12 +252,13 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
             if (!data || !choroplethOptions.layerControl) return;
 
-            let processedGeoData;
+        let processedGeoData;
             try {
                 processedGeoData = dataService.processGeoData(
                     data,
                     pcodeKey,
-                    AdminPCodeNameIDCategory.values,
+            // Use validated, non-empty PCodes only
+            validPCodes,
                     choroplethOptions.topojsonObjectName
                 );
             } catch (e: any) {

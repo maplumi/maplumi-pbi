@@ -26,7 +26,7 @@ Note on rendering engines
 
 ## Data roles
 Assign in the Visualizations pane. Only fill what you need for the layers you enable.
-- Boundary ID: join to GeoJSON/TopoJSON property for choropleth (max 1)
+- Boundary ID: any unique join key that exists in BOTH your Power BI data and the boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID). This is the column used to match your data to polygons. (max 1)
 - Latitude / Longitude: numeric coordinates for circles (max 1 each)
 - Size: measure(s) for circle size (max 2)
 - Color: measure for choropleth classification (max 1)
@@ -35,6 +35,40 @@ Assign in the Visualizations pane. Only fill what you need for the layers you en
 Notes
 - Data reduction: up to ~30,000 category rows are sampled (subject to Power BI limits and environment).
 - If only choropleth is enabled, Latitude/Longitude/Size are not required. If only circles are enabled, Boundary ID isn’t required.
+
+### Joining data
+
+- The Boundary ID is a unique join key present in BOTH your Power BI data and the boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID).
+- In the Format pane, set the boundary field to the matching property:
+	- GeoBoundaries: shapeISO, shapeName, shapeID, or shapeGroup
+	- Custom: enter your property name (e.g., ADM1_PCODE)
+
+Minimal example
+
+Power BI data (Location → Value)
+```
+Location   | Value
+-----------|------
+KE-01      | 12.3
+KE-02      | 9.5
+```
+
+Boundary feature properties (GeoJSON)
+```json
+{
+	"type": "Feature",
+	"properties": {
+		"shapeISO": "KE-01",
+		"shapeName": "Baringo"
+	},
+	"geometry": { "type": "Polygon", "coordinates": [] }
+}
+```
+
+Settings mapping
+- Boundary field: shapeISO
+- Location column: AdminPCodeNameID (values like KE-01)
+- Result: features with matching codes render and receive the numeric Value
 
 ### Custom TopoJSON with multiple objects
 
@@ -46,6 +80,12 @@ If your TopoJSON file contains multiple named objects (e.g., `ADM1`, `polygons`,
 
 Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `polygons`.
 - If only choropleth is enabled, Latitude/Longitude/Size aren’t required. If only circles are enabled, Boundary ID isn’t required.
+
+### Security & boundary fetch behavior
+- HTTPS only: external boundary URLs must use https.
+- Open-redirect guard: custom URLs with redirect parameters are blocked and a warning is shown.
+- Validated P-codes: only validated, non-empty P-codes are used to filter features; non-matching features won’t render.
+- Timeout: boundary fetches use a 25s default timeout to accommodate large files.
 
 ## Quick start
 1) Add the visual to your report (import the .pbiviz or use Developer Mode).

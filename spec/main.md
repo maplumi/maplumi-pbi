@@ -8,6 +8,7 @@ This is a short, diagram-first overview of the visual. Use it to orient quickly;
 - Basemaps: OSM, Mapbox, MapTiler, or none.
 - Legends: Auto-generated; configurable position and style.
 - Rendering: SVG (default), Canvas for higher performance, or WebGL (preview for circles); all support zoom-to-extent with runtime WebGL fallback.
+ - Networking: HTTPS-only boundary fetches with open-redirect guard and generous 25s timeout for large files.
 
 Links:
 - Choropleth quick reference → ./choropleth/quick-reference.md
@@ -97,6 +98,7 @@ sequenceDiagram
 - No choropleth? Check AdminPCodeNameID matches boundary source field.
 - No legend? Ensure layer is ON and its "Show legend" is enabled.
 - GeoBoundaries fetch issues? Try a different release type or country/admin level.
+ - Custom URL blocked? Remove redirect parameters and ensure the URL is direct and HTTPS.
 
 ---
 
@@ -285,13 +287,14 @@ const tileUrl = `https://api.maptiler.com/maps/${style}/tiles.json?key=${maptile
 ```
 
 ### Network Resilience
-- **Timeout Handling**: Enforced fetch timeouts for boundary downloads
+- **Timeout Handling**: Enforced fetch timeouts for boundary downloads (25s default)
 - **Validation**: HTTPS-only enforcement and JSON schema checks
 - **Coalescing**: Concurrent callers share the same in-flight request
 - **Error Recovery**: Clear user messages and graceful fallbacks
 
 ### Security Considerations
 - **HTTPS Only**: All external requests use HTTPS for secure data transmission
+- **Open-redirect Guard**: Custom boundary URLs with redirect params are blocked to avoid abuse
 - **Domain Whitelisting**: Access limited to specified domain patterns
 - **No Sensitive Data**: No authentication data transmitted to unauthorized endpoints
 - **Sandboxed Storage**: LocalStorage access is sandboxed to the visual's domain context

@@ -83,7 +83,21 @@ export class GeoBoundariesService {
                 return { data: null, response };
             }
 
-            const metadata: GeoBoundariesMetadata = await response.json();
+            const payload: any = await response.json();
+            // Some endpoints may return an array; pick the first valid entry
+            const selectEntry = (val: any): GeoBoundariesMetadata | null => {
+                if (!val) return null;
+                const candidate = Array.isArray(val) ? val.find((e: any) => e && (e.gjDownloadURL || e.tjDownloadURL)) : val;
+                if (candidate && (candidate.gjDownloadURL || candidate.tjDownloadURL)) {
+                    return candidate as GeoBoundariesMetadata;
+                }
+                return null;
+            };
+            const metadata = selectEntry(payload);
+            if (!metadata) {
+                console.error("GeoBoundaries metadata missing download URLs");
+                return { data: null, response };
+            }
             return { data: metadata, response };
         } catch (error) {
             console.error("Error fetching geoBoundaries metadata:", error);
