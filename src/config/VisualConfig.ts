@@ -58,7 +58,9 @@ export const VisualConfig = {
     },
     GEOBOUNDARIES: {
         BASE_URL: "https://www.geoboundaries.org/api/current",
-        ALL_COUNTRIES_URL: "https://geodata-bi.datauga.com/geoBoundariesCGAZ_ADM0.json",
+    // Manifest of available countries and admin levels for the lightweight catalog
+    MANIFEST_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-08/data/index.json",
+        ALL_COUNTRIES_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-08/data/ALL/geoBoundariesCGAZ_ADM0.topojson",
         COUNTRIES: [
             { value: "ALL", displayName: "All Countries" },
             { value: "AFG", displayName: "Afghanistan" },

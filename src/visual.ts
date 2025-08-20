@@ -63,6 +63,7 @@ import { ColorRampHelper } from "./services/ColorRampHelper";
 import { DataRoleService } from "./services/DataRoleService";
 import { DomIds, LegendPositions, VisualObjectNames, VisualObjectProps } from "./constants/strings";
 import { isWebGLAvailable } from "./utils/render";
+import { GeoBoundariesCatalogService } from "./services/GeoBoundariesCatalogService";
 export class MaplumiVisual implements IVisual {
 
     private host: IVisualHost;
@@ -195,6 +196,8 @@ export class MaplumiVisual implements IVisual {
         });
 
         this.cacheService = new CacheService();
+    // Prefetch GeoBoundaries catalog in background; UI uses sync cache-backed lists
+    try { GeoBoundariesCatalogService.getCatalog().catch(() => {}); } catch {}
 
         // Instantiate orchestrators after svg and services are ready
         this.circleOrchestrator = new CircleOrchestrator({

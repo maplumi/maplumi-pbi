@@ -29,6 +29,7 @@
 import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
+import { GeoBoundariesCatalogService } from "./services/GeoBoundariesCatalogService";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
@@ -518,10 +519,11 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         name: "geoBoundariesCountry",
         displayName: "Country/Region",
         value: {
-            value: "KEN",
-            displayName: "Kenya"
+            value: "ALL",
+            displayName: "All Countries"
         },
-        items: VisualConfig.GEOBOUNDARIES.COUNTRIES
+    // Start with last-known catalog or fallback list; will be refreshed in applyConditionalDisplayRules
+    items: GeoBoundariesCatalogService.getCountryItemsSync()
     });
 
     // GeoBoundaries Release Type Selection (comes after country selection)
@@ -619,31 +621,35 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         // Show/hide geoBoundaries-specific fields
         const isGeoBoundaries = selectedSource === "geoboundaries";
         this.geoBoundariesCountry.visible = isGeoBoundaries;
+        // Update country items from catalog (sync, backed by last fetch with fallback)
+        if (isGeoBoundaries) {
+            const newCountryItems = GeoBoundariesCatalogService.getCountryItemsSync();
+            this.geoBoundariesCountry.items = newCountryItems;
+            // Ensure current value exists; otherwise, pick "All Countries" if present, else first item
+            const countryValues = newCountryItems.map(i => i.value);
+            if (!countryValues.includes(String(this.geoBoundariesCountry.value?.value))) {
+                const all = newCountryItems.find(i => i.value === "ALL");
+                this.geoBoundariesCountry.value = all ?? { ...newCountryItems[0] };
+            }
+        }
         this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
         // Handle "All Countries" special case
-        const isAllCountries = isGeoBoundaries && this.geoBoundariesCountry.value?.value === "ALL";
+        const selectedIso3 = this.geoBoundariesCountry.value?.value?.toString();
+        const isAllCountries = isGeoBoundaries && selectedIso3 === "ALL";
         
-    // Release Type is applicable for all GeoBoundaries requests, including "All Countries"
-    this.geoBoundariesReleaseType.visible = isGeoBoundaries;
+    // Hide Release Type and Admin Level when "All Countries" is selected
+    this.geoBoundariesReleaseType.visible = isGeoBoundaries && !isAllCountries;
+    this.geoBoundariesAdminLevel.visible = isGeoBoundaries && !isAllCountries;
 
-        if (isAllCountries) {
-            // Restrict admin level options to ADM0 only when "All Countries" is selected
-            this.geoBoundariesAdminLevel.items = [
-                { value: "ADM0", displayName: "ADM0 (Country Borders)" }
-            ];
-            // Force ADM0 selection if not already selected
-            if (this.geoBoundariesAdminLevel.value?.value !== "ADM0") {
-                this.geoBoundariesAdminLevel.value = { value: "ADM0", displayName: "ADM0 (Country Borders)" };
+    // Update admin level items based on selected country using catalog
+    if (isGeoBoundaries && !isAllCountries) {
+            const newLevelItems = GeoBoundariesCatalogService.getAdminLevelItemsSync(selectedIso3);
+            this.geoBoundariesAdminLevel.items = newLevelItems;
+            const levelValues = newLevelItems.map(i => i.value);
+            if (!levelValues.includes(String(this.geoBoundariesAdminLevel.value?.value))) {
+                this.geoBoundariesAdminLevel.value = { ...newLevelItems[0] };
             }
-        } else if (isGeoBoundaries) {
-            // Restore full admin level options for specific countries
-            this.geoBoundariesAdminLevel.items = [
-                { value: "ADM0", displayName: "ADM0 (Country Borders)" },
-                { value: "ADM1", displayName: "ADM1 (States/Provinces)" },
-                { value: "ADM2", displayName: "ADM2 (Counties/Districts)" },
-                { value: "ADM3", displayName: "ADM3 (Municipalities)" }
-            ];
         }
 
         // Dynamically update boundaryIdField items based on selected boundaryDataSource

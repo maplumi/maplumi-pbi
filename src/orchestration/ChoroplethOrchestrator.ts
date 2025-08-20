@@ -16,6 +16,7 @@ import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import * as requestHelpers from "../utils/requestHelpers";
 import { VisualConfig } from "../config/VisualConfig";
 import { GeoBoundariesService } from "../services/GeoBoundariesService";
+import { GeoBoundariesCatalogService } from "../services/GeoBoundariesCatalogService";
 import { CacheService } from "../services/CacheService";
 import { BaseOrchestrator } from "./BaseOrchestrator";
 import { ChoroplethLayerOptionsBuilder } from "../services/LayerOptionBuilders";
@@ -177,16 +178,36 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_ALL_ADM0`;
                     console.log("Loading All Countries ADM0 boundaries (consolidated dataset)");
                 } else {
-                    const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
-                    if (!metadata || !metadata.data) {
-                        this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to fetch boundary metadata from GeoBoundaries API. Please check your settings.");
-                        return;
+                    // Prefer manifest-based direct TopoJSON path from the catalog
+                    const resolvedUrl = GeoBoundariesCatalogService.resolveTopoJsonUrlSync(
+                        choroplethOptions.geoBoundariesReleaseType,
+                        choroplethOptions.geoBoundariesCountry,
+                        choroplethOptions.geoBoundariesAdminLevel
+                    ) || await GeoBoundariesCatalogService.resolveTopoJsonUrl(
+                        choroplethOptions.geoBoundariesReleaseType,
+                        choroplethOptions.geoBoundariesCountry,
+                        choroplethOptions.geoBoundariesAdminLevel
+                    );
+
+                    if (resolvedUrl) {
+                        serviceUrl = resolvedUrl;
+                        const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
+                        pcodeKey = boundaryFieldName;
+                        cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
+                        console.log(`Loading ${choroplethOptions.geoBoundariesCountry} ${choroplethOptions.geoBoundariesAdminLevel} (${choroplethOptions.geoBoundariesReleaseType}) via manifest`);
+                    } else {
+                        // Safe fallback to the legacy API metadata approach if manifest resolution fails
+                        const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
+                        if (!metadata || !metadata.data) {
+                            this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Failed to resolve boundary URL from manifest or fetch metadata from API. Please check your settings.");
+                            return;
+                        }
+                        serviceUrl = GeoBoundariesService.getDownloadUrl(metadata.data, true);
+                        const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
+                        pcodeKey = boundaryFieldName;
+                        cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
+                        console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata.data)} (API fallback)`);
                     }
-                    serviceUrl = GeoBoundariesService.getDownloadUrl(metadata.data, true);
-                    const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
-                    pcodeKey = boundaryFieldName;
-                    cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                    console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata.data)}`);
                 }
             } catch (error) {
                 this.host.displayWarningIcon("GeoBoundaries API Error", "maplumiWarning: Error connecting to GeoBoundaries API. Please check your network connection.");
