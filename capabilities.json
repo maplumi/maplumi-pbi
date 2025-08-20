@@ -633,7 +633,6 @@
         "https://*.github.io",
         "https://*.cloudfront.net",
         "https://*.r2.dev",
-        "https://*.datauga.com",
         "https://*.geoboundaries.org",
         "https://www.geoboundaries.org",
         "https://cdn.jsdelivr.net"

@@ -109,6 +109,32 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 - Enable via Format pane → Map Tools → Rendering Engine → WebGL (preview).
 - Some environments (including certain VMs or restricted enterprise setups) may disable WebGL; Maplumi will automatically downgrade to Canvas to avoid blank output.
 
+## Required privileges
+
+WebAccess (allowed domains)
+
+- https://*.openstreetmap.org
+- https://*.arcgisonline.com
+- https://*.arcgis.com
+- https://*.mapbox.com
+- https://api.maptiler.com
+- https://*.humdata.org
+- https://*.itos.uga.edu
+- https://*.githubusercontent.com
+- https://*.googleapis.com
+- https://*.amazonaws.com
+- https://*.blob.core.windows.net
+- https://*.github.io
+- https://*.cloudfront.net
+- https://*.r2.dev
+- https://*.geoboundaries.org
+- https://www.geoboundaries.org
+- https://cdn.jsdelivr.net
+
+Notes
+- You can host your boundary data on any of the allowed sites above.
+- Basemaps are currently supported from OpenLayers/OSM, Mapbox, and MapTiler only.
+
 ## Documentation & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))
 - Issues: https://github.com/maplumi/maplumi-pbi/issues
