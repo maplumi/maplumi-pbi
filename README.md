@@ -86,6 +86,8 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 - Open-redirect guard: custom URLs with redirect parameters are blocked and a warning is shown.
 - Validated P-codes: only validated, non-empty P-codes are used to filter features; non-matching features won’t render.
 - Timeout: boundary fetches use a 25s default timeout to accommodate large files.
+ - Client identifier: requests include a harmless query flag (ml_source=maplumi-pbi) to help providers identify traffic from this visual.
+ - CORS: user-hosted boundary files must allow cross-origin requests (e.g., Access-Control-Allow-Origin: *).
 
 ## Quick start
 1) Add the visual to your report (import the .pbiviz or use Developer Mode).
@@ -134,6 +136,14 @@ WebAccess (allowed domains)
 Notes
 - You can host your boundary data on any of the allowed sites above.
 - Basemaps are currently supported from OpenLayers/OSM, Mapbox, and MapTiler only.
+
+### API key/token restrictions (recommended)
+- Configure your provider to restrict keys/tokens to Power BI and Fabric origins:
+	- Allowed referrers/origins: https://app.powerbi.com and https://app.fabric.microsoft.com
+	- Add https://localhost:<port> for development if needed
+- Map providers (Mapbox/MapTiler): use dashboard settings to lock tokens by referrer and scope access (read-only, rate limits).
+- User-hosted boundaries: enable CORS and, where possible, set AllowedOrigins to the domains above instead of wildcard. If not possible, prefer short-lived signed URLs/SAS.
+ - Important: Origin/referrer restrictions don’t stop others from copying and reusing any client-exposed key. For stronger control, use short-lived tokens/SAS or a server-side proxy that injects credentials.
 
 ## Documentation & support
 - Specs and guides: `spec/` (start with [spec/main.md](spec/main.md))

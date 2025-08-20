@@ -162,7 +162,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         dataService: ChoroplethDataService,
         mapToolsOptions: MapToolsOptions
     ): Promise<void> {
-        let serviceUrl: string;
+    let serviceUrl: string;
         let cacheKey: string;
 
         if (choroplethOptions.boundaryDataSource === "geoboundaries") {
@@ -218,7 +218,8 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         } else {
             serviceUrl = choroplethOptions.topoJSON_geoJSON_FileUrl as any;
             // Cache by resource URL (not by location field) so different URLs don't collide
-            cacheKey = `custom_${encodeURIComponent(serviceUrl || '')}`;
+            // Normalize cache key by stripping helper query params we add (e.g., ml_source)
+            cacheKey = `custom_${encodeURIComponent(requestHelpers.stripQueryParams(serviceUrl || ''))}`;
             // Open redirect guard for custom URLs
             if (requestHelpers.hasOpenRedirect(serviceUrl)) {
                 this.host.displayWarningIcon(
@@ -234,11 +235,13 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
         try {
             const data = await this.cacheService.getOrFetch(cacheKey, async () => {
-                if (!requestHelpers.isValidURL(serviceUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
-                if (!requestHelpers.enforceHttps(serviceUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
+                // Append a client identifier to outbound request URL
+                const fetchUrl = requestHelpers.appendClientIdQuery(serviceUrl);
+                if (!requestHelpers.isValidURL(fetchUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
+                if (!requestHelpers.enforceHttps(fetchUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
                 let response: Response;
                 try {
-                    response = await requestHelpers.fetchWithTimeout(serviceUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+                    response = await requestHelpers.fetchWithTimeout(fetchUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
                 } catch (e) {
                     this.messages.geoTopoFetchNetworkError(); return null;
                 }

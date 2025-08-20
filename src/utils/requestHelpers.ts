@@ -101,6 +101,30 @@ export async function fetchWithTimeout(url: string, timeout: number): Promise<Re
     }
 }
 
+// Append a stable client identifier query parameter to outbound requests (safe for CORS/simple requests)
+export function appendClientIdQuery(url: string, paramName: string = "ml_source", value: string = "maplumi-pbi"): string {
+    try {
+        const u = new URL(url);
+        if (!u.searchParams.has(paramName)) {
+            u.searchParams.append(paramName, value);
+        }
+        return u.toString();
+    } catch {
+        return url;
+    }
+}
+
+// Produce a normalized URL string with selected query params removed (useful for cache keys)
+export function stripQueryParams(url: string, keys: string[] = ["ml_source"]): string {
+    try {
+        const u = new URL(url);
+        keys.forEach(k => u.searchParams.delete(k));
+        return u.toString();
+    } catch {
+        return url;
+    }
+}
+
 // Initialize IndexedDB
 export function openDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
