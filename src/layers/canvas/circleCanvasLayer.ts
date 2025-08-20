@@ -241,11 +241,21 @@ function drawArc(
   lineWidth: number
 ) {
   ctx.beginPath();
-  // outer arc
-  ctx.arc(x, y, outerRadius, startAngle, endAngle, false);
-  // inner arc (reverse to create donut hole)
-  if (innerRadius > 0) {
-    ctx.arc(x, y, innerRadius, endAngle, startAngle, true);
+  // Match d3-arc orientation: angles measured clockwise from 12 o'clock
+  const a0 = startAngle - Math.PI / 2;
+  const a1 = endAngle - Math.PI / 2;
+  // For a pie slice (innerRadius = 0), draw from center -> outer start -> outer arc -> back to center
+  if (innerRadius <= 0) {
+    const sx = x + outerRadius * Math.cos(a0);
+    const sy = y + outerRadius * Math.sin(a0);
+    ctx.moveTo(x, y);
+    ctx.lineTo(sx, sy);
+    ctx.arc(x, y, outerRadius, a0, a1, false);
+    ctx.lineTo(x, y);
+  } else {
+    // Donut slice: outer arc then inner arc in reverse to create the ring segment
+    ctx.arc(x, y, outerRadius, a0, a1, false);
+    ctx.arc(x, y, innerRadius, a1, a0, true);
   }
   ctx.closePath();
   ctx.fillStyle = fillStyle;
