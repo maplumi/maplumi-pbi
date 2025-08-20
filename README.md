@@ -107,7 +107,6 @@ Tip: Many publishers name polygon layers like `ADM0`, `ADM1`, `boundaries`, or `
 
 ### WebGL notes (preview)
 - Enable via Format pane → Map Tools → Rendering Engine → WebGL (preview).
-- Circles render with WebGL; choropleth polygons currently render with Canvas in WebGL mode.
 - Some environments (including certain VMs or restricted enterprise setups) may disable WebGL; Maplumi will automatically downgrade to Canvas to avoid blank output.
 
 ## Documentation & support
