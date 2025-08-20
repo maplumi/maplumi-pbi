@@ -23,14 +23,14 @@ Diagram-first summary of scaled circles: proportional sizes, adaptive outliers, 
 
 ```mermaid
 graph TD
-    A[Raw Data] --> B[Validate & Filter]
-    B --> C[Statistics]
-    C --> D[Outlier detection]
-    D --> E[Adaptive scaling]
-    E --> F[Radius]
-    F --> G[Map]
-    F --> H[Legend]
-    G --> I[Output]
+    A["Raw data"] --> B["Validate and filter"]
+    B --> C["Statistics"]
+    C --> D["Outlier detection"]
+    D --> E["Adaptive scaling"]
+    E --> F["Radius calculation"]
+    F --> G["Map rendering"]
+    F --> H["Legend generation"]
+    G --> I["Visual output"]
     H --> I
 ```
 

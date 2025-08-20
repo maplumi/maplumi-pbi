@@ -19,28 +19,28 @@ Docs
 
 ```mermaid
 graph TD
-  host[Power BI Host] --> visual[MaplumiVisual]
-  visual --> mapSvc[MapService (OpenLayers)]
-  visual --> legends[LegendService]
-  visual --> circles[Circle Orchestrator]
-  visual --> choro[Choropleth Orchestrator]
-  choro --> dataSvc[ChoroplethDataService]
-  choro --> geoSvc[GeoBoundariesService]
-  choro --> cache[CacheService]
-  dataSvc --> ramps[ColorRampManager]
-  circles --> circleLayer[CircleLayer]
-  choro --> choroLayer[ChoroplethLayer]
+  host["Power BI Host"] --> visual["MaplumiVisual"]
+  visual --> mapSvc["MapService<br/>OpenLayers"]
+  visual --> legends["LegendService"]
+  visual --> circles["Circle Orchestrator"]
+  visual --> choro["Choropleth Orchestrator"]
+  choro --> dataSvc["ChoroplethDataService"]
+  choro --> geoSvc["GeoBoundariesService"]
+  choro --> cache["CacheService"]
+  dataSvc --> ramps["ColorRampManager"]
+  circles --> circleLayer["CircleLayer"]
+  choro --> choroLayer["ChoroplethLayer"]
 ```
 
 ## What renders when
 
 ```mermaid
 flowchart LR
-  A[Format pane toggles] -->|Circles ON| B[Render Circles]
-  A -->|Choropleth ON| C[Render Choropleth]
-  B --> D[Legend (if enabled)]
+  A["Format pane toggles"] -->|Circles ON| B["Render circles"]
+  A -->|Choropleth ON| C["Render choropleth"]
+  B --> D["Legend (if enabled)"]
   C --> D
-  A -->|Both OFF| E[Nothing]
+  A -->|Both OFF| E["Nothing"]
 ```
 
 ## Minimal setup

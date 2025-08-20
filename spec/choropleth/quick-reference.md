@@ -6,9 +6,9 @@ Short guide to get choropleth maps running fast. See the full spec for details: 
 
 ```mermaid
 flowchart LR
-  A["AdminPCodeNameID (Location)"] --> B[Choropleth Layer]
-  C["Choropleth Value (Number)"] --> B
-   B --> D[Areas render]
+  A["AdminPCodeNameID (Location)"] --> B["Choropleth layer"]
+  C["Choropleth value (number)"] --> B
+  B --> D["Areas render"]
   D --> E["Legend (if enabled)"]
 ```
 
@@ -38,12 +38,12 @@ Display: Color Ramp: Blues, Opacity: 70%
 
 ```mermaid
 flowchart TB
-   start((Start)) --> src{Boundary Source}
-   src -->|GeoBoundaries| gb[Pick Country → ADM level → Release]
-   gb --> field[Choose field: shapeISO/name/id/group]
-   src -->|Custom| url[Enter GeoJSON/TopoJSON URL]
-   url --> bfield[Set boundary ID field]
-   field --> done((Done))
+  start((Start)) --> src{"Boundary source"}
+  src -->|GeoBoundaries| gb["Pick Country → ADM level → Release"]
+  gb --> field["Choose field: shapeISO, shapeName, shapeID, shapeGroup"]
+  src -->|Custom| url["Enter GeoJSON or TopoJSON URL"]
+  url --> bfield["Set boundary ID field"]
+  field --> done((Done))
    bfield --> done
 ```
 
@@ -80,9 +80,9 @@ Notes
 
 ```mermaid
 flowchart LR
-  Z[Zoom level] -->|coarse| T[High LOD simplify]
-  Z -->|fine| U[Low LOD simplify]
-  S["Simplification Strength (0–100)"] -->|higher| T
+  Z["Zoom level"] -->|coarse| T["High LOD simplify"]
+  Z -->|fine| U["Low LOD simplify"]
+  S["Simplification strength 0–100"] -->|higher| T
   S -->|lower| U
 ```
 

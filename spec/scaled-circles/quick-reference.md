@@ -8,9 +8,9 @@ Short guide to get scaled circles running fast. See the full spec for details: .
 flowchart LR
 	X["Longitude"] --> L["Circles layer"]
 	Y["Latitude"] --> L
-	S["Size - number"] --> L
+	S["Size (number)"] --> L
 	L --> R["Circles render"]
-	R --> G["Legend - if enabled"]
+	R --> G["Legend (if enabled)"]
 ```
 
 Required
@@ -44,7 +44,7 @@ Legend: on  Title: Circles
 
 ```mermaid
 flowchart LR
-	A["Data values"] --> B["Percentiles 5 to 95"]
+	A["Data values"] --> B["Percentiles 5–95"]
 	B --> C["Square-root scale"]
 	C --> D["Circle radius"]
 	D --> E["Legend sizes align"]

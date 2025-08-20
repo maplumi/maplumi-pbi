@@ -23,15 +23,15 @@ The choropleth visualization component of the Maplumi Power BI visual provides s
 
 ```mermaid
 graph TD
-    V[visual.ts] --> DS[ChoroplethDataService]
-    V --> L[ChoroplethLayer]
-    V --> CM[ColorRampManager]
-    DS --> GJ[Geo/TopoJSON processing]
-    DS --> CL[Classification]
-    L --> OL[OpenLayers]
-    L --> D3[D3 SVG]
-    L --> RB[RBush]
-    CM --> CR[Color ramp]
+    V["visual.ts"] --> DS["ChoroplethDataService"]
+    V --> L["ChoroplethLayer"]
+    V --> CM["ColorRampManager"]
+    DS --> GJ["Geo or TopoJSON processing"]
+    DS --> CL["Classification"]
+    L --> OL["OpenLayers"]
+    L --> D3["D3 SVG"]
+    L --> RB["RBush"]
+    CM --> CR["Color ramp"]
 ```
 
 ### Core Classes
