@@ -1,4 +1,4 @@
-# Scaled Circles — Quick Reference
+# Scaled Circles — Quick Reference (Concise)
 
 Short guide to get scaled circles running fast. See the full spec for details: ./scaled-circles-specification.md
 
@@ -18,11 +18,11 @@ Required
 - Size - numeric measure
 - Optional - Size Secondary for nested or donut, Tooltips
 
-## Configure in 3 steps
-1) Chart type - nested-circle - donut-chart - pie-chart
-2) Appearance - min and max radius - colors - stroke - opacities
-3) Legend - show legend - title - label spacing and item stroke
-4) Rendering Engine - SVG, Canvas, or WebGL (preview). WebGL accelerates circle rendering; auto-falls back to Canvas if WebGL is unavailable.
+## Configure in 4 steps
+1) Chart type — nested-circles | donut-chart | pie-chart
+2) Appearance — min/max radius, colors, stroke, opacities
+3) Legend — show, title, spacing, item stroke
+4) Rendering engine — SVG, Canvas, or WebGL (preview). Falls back to Canvas if WebGL is unavailable.
 
 Minimal settings
 ```
@@ -57,7 +57,7 @@ flowchart LR
 - Overlap heavy - lower opacity or use nested circles
 - Flat sizes - narrow data range - verify measure
 - One huge circle - expected - outlier compression applies
- - View not fitting - ensure "Lock map extent" is off; zoom-to-layer works for SVG, Canvas, and WebGL modes
+- View not fitting - ensure "Lock map extent" is off; zoom-to-layer works for all engines
 
 ---
 

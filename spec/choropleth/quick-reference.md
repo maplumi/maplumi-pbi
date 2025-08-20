@@ -1,4 +1,4 @@
-# Choropleth — Quick Reference
+# Choropleth — Quick Reference (Concise)
 
 Short guide to get choropleth maps running fast. See the full spec for details: ./choropleth-specification.md
 
@@ -17,13 +17,13 @@ Required
 - Value: Choropleth Value (number)
 - Optional: Tooltips
 
-## Configure in 3 steps
+## Configure in 4 steps
 1) Boundary Source: GeoBoundaries or Custom
 2) If GeoBoundaries: Country → Admin level → Release type → Field mapping
     If Custom: URL → Boundary ID field name
-3) Classification: Method + Classes, then pick a Color Ramp (or Custom CSV hex)
-4) Rendering Engine: SVG, Canvas, or WebGL (preview). In WebGL mode, choropleth currently renders via Canvas while circles use WebGL when available.
-4) Performance: Set "Simplification Strength" (0–100) for coarser/finer shapes
+3) Classification: Method + classes, then pick a color ramp (or custom CSV hex)
+4) Rendering engine: SVG, Canvas, or WebGL (preview). In WebGL mode, choropleth renders via Canvas while circles use WebGL when available.
+5) Performance: set “Simplification Strength” (0–100) for coarser/finer shapes
 
 Minimal settings
 ```
@@ -48,9 +48,9 @@ flowchart TB
 ```
 
 Notes
-- HTTPS only for custom URLs; redirect-style URLs are blocked for safety.
-- Only validated, non-empty P-codes are used to filter features.
-- Large boundary files are allowed extra time (25s timeout) to download.
+- HTTPS only for custom URLs; redirect-style URLs are blocked.
+- Only validated, non-empty P-codes filter features.
+- Large boundary files get a 25s timeout window.
 
 ---
 
@@ -67,7 +67,7 @@ Notes
 - URL blocked? Remove redirect parameters and ensure it’s a direct HTTPS link.
 - No colors? Ensure numeric choropleth value, method/classes OK, and color ramp valid.
 - Selection issues? Avoid duplicate location codes; verify model relationships.
- - View not fitting? Ensure "Lock map extent" is off; zoom-to-layer works for SVG, Canvas, and WebGL modes.
+- View not fitting? Ensure "Lock map extent" is off; zoom-to-layer works for all engines.
 
 ---
 

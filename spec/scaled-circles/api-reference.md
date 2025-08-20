@@ -1,6 +1,6 @@
-# Technical API Reference - Scaled Circles
+# Scaled Circles API Reference (Concise)
 
-## Core Functions Reference
+## Core functions
 
 ### `calculateCircleScale(combinedCircleSizeValues, circleOptions)`
 
@@ -20,12 +20,12 @@ Calculates the scaling parameters for circle rendering with adaptive outlier han
 }
 ```
 
-**Algorithm Details:**
-1. Filters invalid values (NaN, infinite, null)
-2. Calculates 5th and 95th percentiles for robust scaling
-3. Detects outliers using gap ratio analysis
-4. Applies adaptive scaling strategy when outliers exceed 20% threshold
-5. Computes scaling factor for square-root transformation
+Algorithm
+- Filter invalid values (NaN, ±∞, null)
+- Compute 5th/95th percentiles (robust range)
+- Detect outliers via gap ratio
+- Compress >95th percentile while keeping them larger
+- Square-root scaling for perceptual area
 
 ---
 
@@ -45,10 +45,10 @@ Converts a data value to a circle radius using the scaling algorithm.
 **Returns:**
 - `number` - Calculated circle radius in pixels
 
-**Edge Cases:**
-- Values beyond `maxValue` trigger compressed outlier scaling
-- Values below `minValue` are clamped to minimum
-- Invalid values return minimum radius
+Edge cases
+- >maxValue: compressed outlier scaling
+- <minValue: clamped to minimum
+- Invalid: returns minimum radius
 
 ---
 
@@ -65,21 +65,19 @@ Generates proportional circle legend with exact visual hierarchy.
 - `selectedScalingMethod: string` - Scaling method
 - `circleOptions: CircleOptions` - Circle configuration
 
-**Legend Generation Process:**
-1. Calculate maximum map circle radius
-2. Define proportional radii (100%, 50%, 25% diameters)
-3. Find data values that produce target radii
-4. Map to closest actual data values
-5. Generate final radii using scaling function
-6. Create legend with proportional circles
+Legend process
+1) Find max map radius
+2) Use 100/50/25% diameters
+3) Map back to data values, snap to closest actual
+4) Render with same scaling as map
 
 ---
 
-## Data Structures
+## Data structures
 
 ### `CircleOptions` Interface
 
-Complete configuration object for circle rendering:
+Configuration for circle rendering:
 
 ```typescript
 interface CircleOptions {
@@ -161,7 +159,7 @@ interface CircleLayerOptions extends LayerOptions {
 
 ---
 
-## Statistical Functions
+## Statistical helpers
 
 ### Percentile Calculation
 
@@ -173,7 +171,7 @@ const percentile5 = sortedValues[Math.floor(n * 0.05)];
 const percentile95 = sortedValues[Math.floor(n * 0.95)];
 ```
 
-### Outlier Detection
+### Outlier detection
 
 ```typescript
 // Gap ratio calculation
@@ -185,7 +183,7 @@ const outlierGapRatio = percentileRange > 0 ? outlierGap / percentileRange : 0;
 const hasSignificantOutliers = outlierGapRatio > 0.2 && percentileRange > 0.001;
 ```
 
-### Adaptive Scaling Logic
+### Adaptive scaling logic
 
 ```typescript
 if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
@@ -203,7 +201,7 @@ if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
 
 ---
 
-## Rendering Pipeline
+## Rendering pipeline
 
 ### Circle Rendering Process
 
@@ -236,7 +234,7 @@ if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
        .attr('opacity', opacity);
    ```
 
-### Legend Rendering Process
+### Legend rendering
 
 1. **Proportional Size Calculation**
    ```typescript
@@ -260,7 +258,7 @@ if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
 
 ---
 
-## Performance Characteristics
+## Performance characteristics
 
 ### Computational Complexity
 
@@ -272,13 +270,13 @@ if (outlierGapRatio > 0.2 && percentileRange > 0.001) {
 | Circle rendering | O(n) | Linear with number of data points |
 | Legend generation | O(log n) | Binary search for closest values |
 
-### Memory Usage
+### Memory usage
 
 - **Data Storage**: ~24 bytes per data point (coordinates + value + metadata)
 - **Scaling Cache**: ~8 bytes per unique value
 - **Rendering Buffer**: Proportional to viewport size and circle count
 
-### Optimization Recommendations
+### Optimization recommendations
 
 1. **Large Datasets (>5,000 points)**:
    - Consider data sampling or clustering

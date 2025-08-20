@@ -1,4 +1,4 @@
-# Choropleth Visualization Specification
+# Choropleth Visualization Specification (Concise)
 
 ## Overview
 
@@ -6,14 +6,14 @@ The choropleth visualization component of the Maplumi Power BI visual provides s
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Data Processing Pipeline](#data-processing-pipeline)
-3. [Classification Algorithms](#classification-algorithms)
-4. [Color Management](#color-management)
-5. [Rendering Engine](#rendering-engine)
-6. [Configuration System](#configuration-system)
-7. [Performance Optimization](#performance-optimization)
-8. [Integration Points](#integration-points)
+1. Architecture overview
+2. Data pipeline
+3. Classification
+4. Color management
+5. Rendering
+6. Configuration
+7. Performance
+8. Integration
 
 ---
 
@@ -23,24 +23,15 @@ The choropleth visualization component of the Maplumi Power BI visual provides s
 
 ```mermaid
 graph TD
-    A[Visual.ts] --> B[ChoroplethDataService]
-    A --> C[ChoroplethLayer]
-    A --> D[ColorRampManager]
-    
-    B --> E["GeoJSON Processing"]
-    B --> F["Statistical Classification"]
-    B --> G["Tooltip Generation"]
-    
-    C --> H["OpenLayers Integration"]
-    C --> I["D3.js Rendering"]
-    C --> J["Spatial Indexing"]
-    
-    D --> K["Color Ramp Selection"]
-    D --> L["Custom Color Validation"]
-    
-    E --> M["Geographic Boundaries"]
-    F --> N["Value-to-Color Mapping"]
-    I --> O["Interactive SVG Elements"]
+    V[visual.ts] --> DS[ChoroplethDataService]
+    V --> L[ChoroplethLayer]
+    V --> CM[ColorRampManager]
+    DS --> GJ[Geo/TopoJSON processing]
+    DS --> CL[Classification]
+    L --> OL[OpenLayers]
+    L --> D3[D3 SVG]
+    L --> RB[RBush]
+    CM --> CR[Color ramp]
 ```
 
 ### Core Classes
@@ -83,10 +74,9 @@ class ChoroplethDataService {
  - **URL Resolution**: Manifest-first TopoJSON URL resolution with resilient API metadata fallback (handles array or object payloads)
 
 Note on TopoJSON with multiple objects
-- When a TopoJSON file contains multiple entries under `objects`, the visual will:
-    1) Use the object name provided in the Format pane (Boundary → TopoJSON Object Name), if specified.
-    2) Otherwise auto-select the object with the most polygonal geometries (Polygon/MultiPolygon).
-    3) If no polygonal object is found, it falls back to the first object.
+- If `topojsonObjectName` is set, use that.
+- Else pick the object with the most polygonal geometries.
+- Else use the first object.
 
 GeoJSON validation
 - After conversion, the visual requires a valid GeoJSON FeatureCollection with a `features` array. If validation fails, a user-facing warning is shown suggesting to verify the URL, object name, and file format.
@@ -112,48 +102,14 @@ Rendering-Ready FeatureCollection
 
 #### Processing Implementation
 ```typescript
-public async processGeoData(options: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection> {
-    let geojson: FeatureCollection;
-    
-    // Determine data source and fetch boundary data (HTTPS-only with timeout and open-redirect guard for custom)
-    if (options.boundaryDataSource === 'geoboundaries') {
-        // Use GeoBoundaries API
-    // Prefer manifest/catalog resolution; fall back to API metadata which may return an object or array
-    const metadata = await GeoBoundariesService.fetchMetadata(options);
-        if (!metadata) {
-            throw new Error('Failed to fetch GeoBoundaries metadata');
-        }
-        
-        const boundaryDataUrl = GeoBoundariesService.getDownloadUrl(metadata);
-        const response = await fetch(boundaryDataUrl);
-        const data = await response.json();
-        
-        geojson = this.isTopoJSON(data) 
-            ? this.convertTopoJSONToGeoJSON(data)
-            : data as FeatureCollection;
-    } else {
-        // Use custom URL
-    // Block open-redirect style URLs; enforce HTTPS and use a fetch timeout
-    const response = await fetch(options.topoJSON_geoJSON_FileUrl);
-        const data = await response.json();
-        
-        geojson = this.isTopoJSON(data)
-            ? this.convertTopoJSONToGeoJSON(data)
-            : data as FeatureCollection;
-    }
-
-    // Get the appropriate field key for filtering
-    const pcodeKey = options.boundaryDataSource === 'geoboundaries' 
-        ? GeoBoundariesService.getBoundaryFieldName(options)
-        : options.locationPcodeNameId;
-
-    // Filter features based on validated administrative codes only
-    return {
-        ...geojson,
-        features: geojson.features.filter(feature =>
-            validPCodes.includes(feature.properties[pcodeKey])
-        )
-    };
+// Simplified boundary fetch + filter
+async function toRenderableGeoJSON(opts: ChoroplethOptions, validPCodes: string[]): Promise<FeatureCollection> {
+    const data = await fetchBoundary(opts); // HTTPS-only, timeout, redirect guard
+    const geojson = isTopoJSON(data) ? toGeoJSON(data, opts.topojsonObjectName) : data;
+    const key = opts.boundaryDataSource === 'geoboundaries'
+        ? GeoBoundariesService.getBoundaryFieldName(opts)
+        : opts.locationPcodeNameId!;
+    return { ...geojson, features: geojson.features.filter(f => validPCodes.includes(f.properties[key])) };
 }
 ```
 
@@ -175,7 +131,7 @@ const simplifiedTopo = simplify(this.topoPresimplified, threshold);
 const simplifiedGeo = feature(simplifiedTopo, simplifiedTopo.objects.layer);
 ```
 
-### 3. Statistical Data Processing
+### 3. Statistical data
 
 #### Value Extraction
 - Administrative codes (P-codes) from categorical data. P-code here means any unique join key present in BOTH your Power BI data and boundary feature properties (e.g., ISO codes, ADM*_PCODE, shapeID). The common column must exist in both datasets for features to render.
@@ -200,7 +156,7 @@ pCodes.forEach((pCode, index) => {
 
 ## Classification Algorithms
 
-### 1. Equal Interval Classification
+### 1. Equal interval
 
 #### Algorithm
 Divides the data range into equal-sized intervals.
@@ -224,7 +180,7 @@ public classifyEqualInterval(values: number[], classes: number): number[] {
 - **Comparison**: Facilitating comparison across multiple maps with same classification
 - **Simplicity**: Easy to understand and explain
 
-### 2. Quantile Classification
+### 2. Quantile
 
 #### Algorithm
 Divides data into classes with equal numbers of observations.
@@ -249,7 +205,7 @@ public classifyQuantile(values: number[], classes: number): number[] {
 - **Relative Ranking**: Emphasizes relative position within the dataset
 - **Balanced Visualization**: Ensures each class has similar representation
 
-### 3. Natural Breaks (Jenks)
+### 3. Natural breaks (Jenks)
 
 #### Algorithm
 Uses Jenks natural breaks optimization to minimize within-class variance.
@@ -278,7 +234,7 @@ public classifyNaturalBreaks(values: number[], classes: number): number[] {
 
 ## Color Management
 
-### Built-in Color Ramps
+### Built-in color ramps
 
 #### ColorBrewer-Inspired Palettes
 ```typescript
@@ -348,7 +304,7 @@ public createColorScale(values: any[], colorRamp: string[], method: string): Fun
 
 ## Rendering Engine
 
-### D3.js Integration with OpenLayers
+### D3 + OpenLayers
 
 #### Projection Synchronization
 ```typescript
@@ -380,7 +336,7 @@ simplifiedFeatures.features.forEach((feature: GeoJSONFeature) => {
 });
 ```
 
-### Interactive Features
+### Interactivity
 
 #### Selection Management
 ```typescript
@@ -429,7 +385,7 @@ if (choroplethGroupNode && circles1GroupNode && circles2GroupNode) {
 
 ## Configuration System
 
-### Setting Groups Structure
+### Setting groups
 
 #### 1. Location Boundary Settings
 ```typescript

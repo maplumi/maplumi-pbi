@@ -1,4 +1,4 @@
-# Scaled & Nested Circles Visualization Specification
+# Scaled & Nested Circles Visualization Specification (Concise)
 
 ## Overview
 
@@ -6,14 +6,14 @@ Diagram-first summary of scaled circles: proportional sizes, adaptive outliers, 
 
 ## Table of Contents
 
-1. [Core Architecture](#core-architecture)
-2. [Data Scaling Algorithms](#data-scaling-algorithms)
-3. [Visual Components](#visual-components)
-4. [Legend System](#legend-system)
-5. [Outlier Handling](#outlier-handling)
-6. [Configuration Options](#configuration-options)
-7. [Technical Implementation](#technical-implementation)
-8. [Best Practices](#best-practices)
+1. Core architecture
+2. Data scaling algorithms
+3. Visual components
+4. Legend system
+5. Outlier handling
+6. Options
+7. Implementation
+8. Best practices
 
 ---
 
@@ -23,14 +23,14 @@ Diagram-first summary of scaled circles: proportional sizes, adaptive outliers, 
 
 ```mermaid
 graph TD
-    A["Raw Data Input"] --> B["Data Validation & Filtering"]
-    B --> C[Statistical Analysis]
-    C --> D["Outlier Detection"]
-    D --> E["Adaptive Scaling Strategy"]
-    E --> F["Circle Radius Calculation"]
-    F --> G["Map Rendering"]
-    F --> H["Legend Generation"]
-    G --> I["Visual Output"]
+    A[Raw Data] --> B[Validate & Filter]
+    B --> C[Statistics]
+    C --> D[Outlier detection]
+    D --> E[Adaptive scaling]
+    E --> F[Radius]
+    F --> G[Map]
+    F --> H[Legend]
+    G --> I[Output]
     H --> I
 ```
 
@@ -45,7 +45,7 @@ graph TD
 
 ## Data Scaling Algorithms
 
-### Primary Scaling Method: Square-Root Scaling
+### Primary scaling: square-root
 
 Areas scale linearly with data; radii scale with square root.
 
@@ -60,9 +60,7 @@ radius = √(minRadius² + (value - minValue) × scaleFactor)
 // - scaleFactor: Calculated scaling coefficient
 ```
 
-#### Why Square-Root Scaling?
-
-1) Perceptual accuracy  2) Linear area relation  3) Visual clarity  4) Cartographic standard
+Why: perceptual area, linear area relation, visual clarity, standard cartography.
 
 ### Scaling Factor Calculation
 
