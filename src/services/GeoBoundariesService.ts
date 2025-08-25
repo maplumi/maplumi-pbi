@@ -7,6 +7,7 @@
 
 import { ChoroplethOptions } from "../types/index";
 import { VisualConfig } from "../config/VisualConfig";
+import * as requestHelpers from "../utils/requestHelpers";
 
 export interface GeoBoundariesMetadata {
     boundaryID: string;
@@ -76,7 +77,13 @@ export class GeoBoundariesService {
         }
         try {
             const apiUrl = this.buildApiUrl(options);
-            const response = await fetch(apiUrl);
+            let response: Response;
+            try {
+                response = await requestHelpers.fetchWithTimeout(apiUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+            } catch (err) {
+                console.error("GeoBoundaries API fetch timeout or network error:", err);
+                return { data: null, response: null };
+            }
 
             if (!response.ok) {
                 console.error(`GeoBoundaries API error: ${response.status} ${response.statusText}`);

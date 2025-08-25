@@ -514,7 +514,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         ]
     });
 
-    // Country/Region Selection for GeoBoundaries
+    // Country/Region Selection for GeoBoundaries - from VisualConfig static list (alphabetical)
     geoBoundariesCountry: DropDown = new DropDown({
         name: "geoBoundariesCountry",
         displayName: "Country/Region",
@@ -522,8 +522,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             value: "ALL",
             displayName: "All Countries"
         },
-    // Start with last-known catalog or fallback list; will be refreshed in applyConditionalDisplayRules
-    items: GeoBoundariesCatalogService.getCountryItemsSync()
+        // Use the static canonical list from VisualConfig; catalog will refresh dynamically in the background
+        items: VisualConfig.GEOBOUNDARIES.COUNTRIES
     });
 
     // GeoBoundaries Release Type Selection (comes after country selection)
@@ -600,12 +600,13 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         description: "If your TopoJSON has multiple objects, specify the object name to use. Leave blank to auto-detect the polygon layer."
     });
 
+
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
         this.boundaryDataSource,
-        this.geoBoundariesCountry,
+    this.geoBoundariesCountry,
         this.geoBoundariesReleaseType,
         this.geoBoundariesAdminLevel,
         this.topoJSON_geoJSON_FileUrl, 
@@ -631,6 +632,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
                 const all = newCountryItems.find(i => i.value === "ALL");
                 this.geoBoundariesCountry.value = all ?? { ...newCountryItems[0] };
             }
+            // Populate catalog-derived fields for the currently-selected country (non-blocking)
+            void this.populateReleaseAndAdminFromCatalog(String(this.geoBoundariesCountry.value?.value));
         }
         this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
@@ -650,6 +653,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             if (!levelValues.includes(String(this.geoBoundariesAdminLevel.value?.value))) {
                 this.geoBoundariesAdminLevel.value = { ...newLevelItems[0] };
             }
+            // Update catalog-derived fields when admin levels are shown
+            void this.populateReleaseAndAdminFromCatalog(String(selectedIso3));
         }
 
         // Dynamically update boundaryIdField items based on selected boundaryDataSource
@@ -671,6 +676,126 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     this.topojsonObjectName.visible = isCustomSource;
         this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
         this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
+    }
+
+    // Populate release types and admin levels from the manifest for the selected country (non-blocking)
+    private async populateReleaseAndAdminFromCatalog(selectedIso3?: string) {
+        if (!selectedIso3 || selectedIso3 === 'ALL') return;
+        try {
+            const catalog: any = await GeoBoundariesCatalogService.getCatalog();
+            if (!catalog) return;
+
+            // Extract entries array robustly
+            const entries = (catalog as any).entries || (catalog as any).index || (catalog as any).files || (catalog as any).data || [];
+            const countryEntries = entries.filter((e: any) => (e.iso3 || '').toUpperCase() === String(selectedIso3).toUpperCase());
+            if (!countryEntries || countryEntries.length === 0) {
+                // No manifest entries for this country: leave defaults
+                return;
+            }
+
+            const releases = Array.from(new Set(countryEntries.map((e: any) => (e.release || '').toLowerCase()))).filter(Boolean);
+            const levelsRaw = Array.from(new Set(countryEntries.map((e: any) => (e.level || '').toString()))).filter(Boolean);
+
+            // Map manifest release keys to UI-friendly items
+            const releaseItems = releases.map((r: string) => {
+                switch (r.toLowerCase()) {
+                    case 'gbopen': return { value: 'gbOpen', displayName: 'gbOpen (CC-BY 4.0)' };
+                    case 'gbhumanitarian': return { value: 'gbHumanitarian', displayName: 'gbHumanitarian (UN OCHA)' };
+                    case 'gbauthoritative': return { value: 'gbAuthoritative', displayName: 'gbAuthoritative (UN SALB)' };
+                    default: return { value: r, displayName: r };
+                }
+            });
+
+            // Map manifest levels like 'admin1' to 'ADM1'
+            const levelItems = levelsRaw.map((lvl: string) => {
+                const m = lvl.toLowerCase().replace(/^admin/, '');
+                const upper = `ADM${m.toUpperCase()}`;
+                const label = (() => {
+                    switch (upper) {
+                        case 'ADM0': return 'ADM0 (Country Borders)';
+                        case 'ADM1': return 'ADM1 (States/Provinces)';
+                        case 'ADM2': return 'ADM2 (Counties/Districts)';
+                        case 'ADM3': return 'ADM3 (Municipalities)';
+                        default: return upper;
+                    }
+                })();
+                return { value: upper, displayName: label };
+            });
+
+            if (releaseItems.length > 0) {
+                this.geoBoundariesReleaseType.items = releaseItems;
+                // reset value if current not present
+                const cur = String(this.geoBoundariesReleaseType.value?.value);
+                if (!releaseItems.some((it: any) => String(it.value) === cur)) this.geoBoundariesReleaseType.value = { ...releaseItems[0] };
+            }
+
+            if (levelItems.length > 0) {
+                this.geoBoundariesAdminLevel.items = levelItems;
+                const curL = String(this.geoBoundariesAdminLevel.value?.value);
+                if (!levelItems.some((it: any) => String(it.value) === curL)) this.geoBoundariesAdminLevel.value = { ...levelItems[0] };
+            }
+
+            // Also attempt to populate available boundary ID fields by fetching one sample file (non-blocking)
+            void this.populateBoundaryIdFieldsFromData(String(this.geoBoundariesReleaseType.value?.value), String(selectedIso3), String(this.geoBoundariesAdminLevel.value?.value));
+
+        } catch (e) {
+            // ignore errors silently in the formatting pane
+            console.warn('Error populating catalog-derived fields', e);
+        }
+    }
+
+    // Fetch a boundary dataset (manifest-resolved) and extract property names to populate boundaryIdField
+    private async populateBoundaryIdFieldsFromData(release?: string, iso3?: string, adminLevel?: string) {
+        if (!release || !iso3 || !adminLevel) return;
+        try {
+            // Resolve a data URL from the manifest (sync first, then async)
+            let url = GeoBoundariesCatalogService.resolveTopoJsonUrlSync(release, iso3, adminLevel);
+            if (!url) url = await GeoBoundariesCatalogService.resolveTopoJsonUrl(release, iso3, adminLevel) as any;
+            if (!url) return;
+
+            // Use requestHelpers for timeout
+            const req = await import('./utils/requestHelpers');
+            const topojsonClient = await import('topojson-client');
+            const resp = await req.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+            if (!resp.ok) return;
+            const json = await resp.json();
+
+            let features: any[] = [];
+            if (json && json.type === 'Topology' && json.objects) {
+                const objectNames = Object.keys(json.objects);
+                const first = objectNames.length > 0 ? objectNames[0] : null;
+                if (first) {
+                    const fc = topojsonClient.feature(json, json.objects[first]);
+                    features = fc?.features || [];
+                }
+            } else if (json && json.type === 'FeatureCollection' && Array.isArray(json.features)) {
+                features = json.features;
+            }
+
+            if (!features.length) return;
+
+            const propKeys = Object.keys(features[0].properties || {});
+            if (!propKeys.length) return;
+
+            // Map known visual-config source field options first, then append any other keys
+            const known = VisualConfig.GEOBOUNDARIES.SOURCE_FIELD_OPTIONS.geoboundaries.map((s: any) => s.value);
+            const items: any[] = [];
+            for (const k of known) {
+                if (propKeys.includes(k)) items.push({ value: k, displayName: `${k}` });
+            }
+            for (const k of propKeys) {
+                if (!items.some(i => i.value === k)) items.push({ value: k, displayName: k });
+            }
+
+            if (items.length > 0) {
+                this.boundaryIdField.items = items;
+                const cur = String(this.boundaryIdField.value?.value);
+                if (!items.some((it: any) => String(it.value) === cur)) this.boundaryIdField.value = { ...items[0] };
+            }
+
+        } catch (e) {
+            console.warn('Error fetching boundary data to populate ID fields', e);
+        }
     }
 }
 

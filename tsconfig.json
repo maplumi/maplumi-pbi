@@ -2,7 +2,8 @@
   "compilerOptions": {
     "target": "es2022",
     "module": "esnext",
-  "moduleResolution": "node",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
     "lib": ["es2022", "dom"],
     "sourceMap": true,
     "outDir": "./.tmp/build/",

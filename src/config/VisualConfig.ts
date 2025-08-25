@@ -1,4 +1,6 @@
 
+import countries from './countries.json';
+
 export const VisualConfig = {
     NETWORK: {
         FETCH_TIMEOUT_MS: 25000
@@ -63,9 +65,7 @@ export const VisualConfig = {
         ALL_COUNTRIES_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-11/data/ALL/geoBoundariesCGAZ_ADM0.topojson",
         // Minimal fallback list used only if manifest fetch has not populated catalog yet.
         // The dynamic manifest will replace this with the full country list.
-        COUNTRIES: [
-            { value: "ALL", displayName: "All Countries" }
-        ],
+    COUNTRIES: countries,
         // Source field options for different boundary data sources
         SOURCE_FIELD_OPTIONS: {
             geoboundaries: [

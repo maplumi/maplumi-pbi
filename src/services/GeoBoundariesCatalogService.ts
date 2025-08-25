@@ -1,5 +1,6 @@
 import { VisualConfig } from "../config/VisualConfig";
 import { CacheService } from "./CacheService";
+import * as requestHelpers from "../utils/requestHelpers";
 
 export interface GeoBoundariesCatalogCountry {
     iso3: string;        // e.g., KEN
@@ -41,7 +42,7 @@ export class GeoBoundariesCatalogService {
             this.cacheKey,
             async () => {
                 try {
-                    const response = await fetch(url, { cache: "no-cache" });
+                    const response = await requestHelpers.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
                     if (!response.ok) {
                         return null;
                     }
