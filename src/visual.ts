@@ -225,157 +225,161 @@ export class MaplumiVisual implements IVisual {
 
     public update(options: VisualUpdateOptions) {
         this.events.renderingStarted(options);
-        const dataView = options.dataViews[0];
+        try {
+            const dataView = options.dataViews[0];
+            this.map.setView(this.view); // default view
 
-        this.map.setView(this.view); // default view
+            // Update formatting settings
+            this.visualFormattingSettingsModel = this.formattingSettingsService
+                .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel, options.dataViews[0]);
 
-        // Update formatting settings
-        this.visualFormattingSettingsModel = this.formattingSettingsService
-            .populateFormattingSettingsModel(MaplumiVisualFormattingSettingsModel, options.dataViews[0]);
+            // Get latest options early for lockMapExtent + engine fallback
+            this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+            if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
+                this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
+            }
 
-        // Get latest options early for lockMapExtent
-    this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
-    // Gracefully fallback to canvas if WebGL is selected but unavailable
-    if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
-        this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
-        // Keep the format pane value unchanged; this is a runtime fallback only
-    }
+            // Apply conditional display logic
+            this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
+            this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
+            this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethLocationBoundarySettingsGroup.applyConditionalDisplayRules();
+            this.visualFormattingSettingsModel.mapControlsVisualCardSettings.mapToolsSettingsGroup.applyConditionalDisplayRules();
+            this.visualFormattingSettingsModel.mapControlsVisualCardSettings.legendContainerSettingsGroup.applyConditionalDisplayRules();
 
-        // Apply conditional display logic
-        this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
-        this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
-        this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethLocationBoundarySettingsGroup.applyConditionalDisplayRules();
-        this.visualFormattingSettingsModel.mapControlsVisualCardSettings.mapToolsSettingsGroup.applyConditionalDisplayRules();
-        this.visualFormattingSettingsModel.mapControlsVisualCardSettings.legendContainerSettingsGroup.applyConditionalDisplayRules();
-
-        // Clean up previous layers and SVG elements
-        this.svg.selectAll('*').remove();
-        this.svgOverlay.style.display = 'none';
-
-        // Get latest options
-    const basemapOptions = OptionsService.getBasemapOptions(this.visualFormattingSettingsModel);
-    const circleOptions = OptionsService.getCircleOptions(this.visualFormattingSettingsModel);
-    const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
-    this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
-    if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
-        this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
-    }
-
-    // Auto-toggle removed: use user-driven settings directly
-    // No computation or persistence of auto state
-    circleOptions.layerControl = circleOptions.layerControl;
-    choroplethOptions.layerControl = choroplethOptions.layerControl;
-
-
-        // Dynamically toggle zoom control
-        this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
-
-        // Update legend container styles
-        this.updateLegendContainer();
-
-        // Create color ramp service and data service
-    const selectedColorRamp = ColorRampHelper.selectColorRamp(
-            choroplethOptions.colorRamp,
-            choroplethOptions.customColorRamp,
-            this.messages
-        );
-
-        // Initialize color ramp and data service
-        this.colorRampManager = new ColorRampManager(selectedColorRamp);
-        this.dataService = new ChoroplethDataService(this.colorRampManager, this.host);
-
-        // If no data, clear everything and return
-        if (!dataView || !dataView.categorical) {
+            // Clean up previous overlay graphics (never touch base map layer stack here)
             this.svg.selectAll('*').remove();
-            this.legendContainer.style.display = "none";
-            this.events.renderingFinished(options);
-            return;
-        }
+            this.svgOverlay.style.display = 'none';
 
-    this.choroplethDisplayed = choroplethOptions.layerControl;
-        this.mapService.updateBasemap(basemapOptions);
-
-        // Render layers based on settings
-        if (choroplethOptions.layerControl == true) {
-            // Delegate to orchestrator
-            this.choroplethOrchestrator.render(
-                dataView.categorical,
-                choroplethOptions,
-                this.dataService,
-                this.mapToolsOptions
-            ).then(layer => { this.choroplethLayer = layer as any; });
-        } else {
-
-            const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
-
-            group.selectAll("*").remove();  // Clear children
-
-            // Remove any canvas and hit overlay for canvas engine
-            try { this.svg.select('#choropleth-hitlayer').remove(); } catch {}
-            try {
-                const el = this.svgContainer.querySelector('#choropleth-canvas');
-                if (el && el.parentElement) el.parentElement.removeChild(el);
-            } catch {}
-
-            if (this.choroplethLayer) {
-                try { (this.choroplethLayer as any).dispose?.(); } catch {}
-                this.map.removeLayer(this.choroplethLayer);
-                this.choroplethLayer = undefined; // Reset choropleth layer
+            // Build option objects
+            const basemapOptions = OptionsService.getBasemapOptions(this.visualFormattingSettingsModel);
+            const circleOptions = OptionsService.getCircleOptions(this.visualFormattingSettingsModel);
+            const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
+            this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
+            if (this.mapToolsOptions.renderEngine === 'webgl' && !isWebGLAvailable()) {
+                this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
             }
 
-            this.legendService.hideLegend("choropleth");
-        }
+            // User-driven layer toggles (no auto state)
+            circleOptions.layerControl = circleOptions.layerControl;
+            choroplethOptions.layerControl = choroplethOptions.layerControl;
 
-        if (circleOptions.layerControl == true) {
-            // Delegate to orchestrator
-            const layer = this.circleOrchestrator.render(
-                dataView.categorical,
-                circleOptions,
-                this.dataService,
-                this.mapToolsOptions,
-                this.choroplethDisplayed
+            // Always update basemap first so it's visible even if layers fail
+            try {
+                this.mapService.updateBasemap(basemapOptions);
+            } catch (e) {
+                console.error('[Maplumi] Basemap update error', e);
+                this.host.displayWarningIcon('Basemap error', 'maplumiWarning: Failed to update basemap. Previous basemap retained.');
+            }
+
+            // Zoom control + legend styling
+            this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
+            this.updateLegendContainer();
+
+            // Color ramp + data service (safe)
+            let selectedColorRamp;
+            try {
+                selectedColorRamp = ColorRampHelper.selectColorRamp(
+                    choroplethOptions.colorRamp,
+                    choroplethOptions.customColorRamp,
+                    this.messages
+                );
+                this.colorRampManager = new ColorRampManager(selectedColorRamp);
+                this.dataService = new ChoroplethDataService(this.colorRampManager, this.host);
+            } catch (e) {
+                console.error('[Maplumi] Color ramp init error', e);
+                this.host.displayWarningIcon('Color ramp error', 'maplumiWarning: Failed to initialize color ramp. Layers may not render.');
+            }
+
+            // No data -> clear overlays, keep basemap visible
+            if (!dataView || !dataView.categorical) {
+                this.svg.selectAll('*').remove();
+                this.legendContainer.style.display = 'none';
+                return; // finally will fire
+            }
+
+            this.choroplethDisplayed = choroplethOptions.layerControl;
+
+            // Choropleth layer (async) with guarded errors
+            if (choroplethOptions.layerControl === true) {
+                this.choroplethOrchestrator
+                    .render(
+                        dataView.categorical,
+                        choroplethOptions,
+                        this.dataService,
+                        this.mapToolsOptions
+                    )
+                    .then(layer => { this.choroplethLayer = layer as any; })
+                    .catch(err => {
+                        console.error('[Maplumi] Choropleth render error', err);
+                        this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
+                    });
+            } else {
+                const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
+                group.selectAll('*').remove();
+                try { this.svg.select('#choropleth-hitlayer').remove(); } catch {}
+                try {
+                    const el = this.svgContainer.querySelector('#choropleth-canvas');
+                    if (el && el.parentElement) el.parentElement.removeChild(el);
+                } catch {}
+                if (this.choroplethLayer) {
+                    try { (this.choroplethLayer as any).dispose?.(); } catch {}
+                    this.map.removeLayer(this.choroplethLayer);
+                    this.choroplethLayer = undefined;
+                }
+                this.legendService.hideLegend('choropleth');
+            }
+
+            // Circle layer (sync) with guarded errors
+            if (circleOptions.layerControl === true) {
+                try {
+                    const layer = this.circleOrchestrator.render(
+                        dataView.categorical,
+                        circleOptions,
+                        this.dataService,
+                        this.mapToolsOptions,
+                        this.choroplethDisplayed
+                    );
+                    this.circleLayer = layer as any;
+                } catch (err) {
+                    console.error('[Maplumi] Circle render error', err);
+                    this.host.displayWarningIcon('Circle render error', 'maplumiWarning: Failed to render circle layer.');
+                }
+            } else {
+                const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
+                const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
+                group1.selectAll('*').remove();
+                group2.selectAll('*').remove();
+                try { this.svg.select('#circles-hitlayer').remove(); } catch {}
+                try {
+                    const el = this.svgContainer.querySelector('#circles-canvas');
+                    if (el && el.parentElement) el.parentElement.removeChild(el);
+                } catch {}
+                if (this.circleLayer) {
+                    try { (this.circleLayer as any).dispose?.(); } catch {}
+                    this.map.removeLayer(this.circleLayer);
+                    this.circleLayer = undefined;
+                }
+                this.legendService.hideLegend('circle');
+            }
+
+            // Legend container overall visibility (based on settings, not render success)
+            const parentLegendVisible =
+                (choroplethOptions.layerControl === true && choroplethOptions.showLegend === true) ||
+                (circleOptions.layerControl === true && circleOptions.showLegend === true);
+            this.legendContainer.style.display = parentLegendVisible ? 'block' : 'none';
+
+            // Resize and attach map tools
+            try { this.map.updateSize(); } catch {}
+            this.mapToolsOrchestrator.attach(this.mapToolsOptions, (extentStr, zoom) =>
+                this.persistCurrentExtentAsLocked(extentStr, zoom)
             );
-            this.circleLayer = layer as any;
-        } else {
-
-            const group1 = this.svg.select(`#${DomIds.CirclesGroup1}`);
-            const group2 = this.svg.select(`#${DomIds.CirclesGroup2}`);
-
-            // Always clean up children
-            group1.selectAll("*").remove();
-            group2.selectAll("*").remove();
-
-            // Remove any canvas and hit overlay for canvas engine
-            try { this.svg.select('#circles-hitlayer').remove(); } catch {}
-            try {
-                const el = this.svgContainer.querySelector('#circles-canvas');
-                if (el && el.parentElement) el.parentElement.removeChild(el);
-            } catch {}
-
-            if (this.circleLayer) {
-                try { (this.circleLayer as any).dispose?.(); } catch {}
-                this.map.removeLayer(this.circleLayer);
-                this.circleLayer = undefined; // Reset circle layer
-            }
-
-            this.legendService.hideLegend("circle");
+            this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
+        } catch (e) {
+            console.error('[Maplumi] Unhandled update error', e);
+            this.host.displayWarningIcon('Rendering error', 'maplumiWarning: An unexpected error occurred while rendering. Basemap may still be visible.');
+        } finally {
+            this.events.renderingFinished(options);
         }
-
-        // Update legend container visibility based on layers' legend settings
-        const parentLegendVisible =
-            (choroplethOptions.layerControl === true && choroplethOptions.showLegend === true) ||
-            (circleOptions.layerControl === true && circleOptions.showLegend === true);
-        this.legendContainer.style.display = parentLegendVisible ? "block" : "none";
-
-        this.map.updateSize();
-
-        // Handle map extent locking via orchestrator
-        this.mapToolsOrchestrator.attach(this.mapToolsOptions, (extentStr, zoom) =>
-            this.persistCurrentExtentAsLocked(extentStr, zoom)
-        );
-
-        this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
-        this.events.renderingFinished(options);
     }
 
 
@@ -433,124 +437,6 @@ export class MaplumiVisual implements IVisual {
                 this.legendContainer.style.left = '10px';
                 break;
         }
-    }
-
-    private getBasemapOptions(): BasemapOptions {
-        const basemapSettings = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
-        return {
-            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
-            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-            maptilerApiKey: basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString(),
-            maptilerStyle: basemapSettings.maptilerSettingsGroup.maptilerStyle.value.value.toString()
-        };
-    }
-
-    private getMapToolsOptions(): MapToolsOptions {
-        const maptoolsSettings = this.visualFormattingSettingsModel.mapControlsVisualCardSettings;
-        return {
-
-            lockMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockMapExtent.value,
-            showZoomControl: maptoolsSettings.mapToolsSettingsGroup.showZoomControl.value,
-            lockedMapExtent: maptoolsSettings.mapToolsSettingsGroup.lockedMapExtent.value,
-            lockedMapZoom: maptoolsSettings.mapToolsSettingsGroup.lockedMapZoom.value,
-            legendPosition: maptoolsSettings.legendContainerSettingsGroup.legendPosition.value.value.toString(),
-            legendBorderWidth: maptoolsSettings.legendContainerSettingsGroup.legendBorderWidth.value,
-            legendBorderColor: maptoolsSettings.legendContainerSettingsGroup.legendBorderColor.value.value,
-            legendBackgroundColor: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundColor.value.value,
-            legendBackgroundOpacity: maptoolsSettings.legendContainerSettingsGroup.legendBackgroundOpacity.value / 100,
-            legendBorderRadius: maptoolsSettings.legendContainerSettingsGroup.legendBorderRadius.value,
-            legendBottomMargin: maptoolsSettings.legendContainerSettingsGroup.legendBottomMargin.value,
-            legendTopMargin: maptoolsSettings.legendContainerSettingsGroup.legendTopMargin.value,
-            legendLeftMargin: maptoolsSettings.legendContainerSettingsGroup.legendLeftMargin.value,
-            legendRightMargin: maptoolsSettings.legendContainerSettingsGroup.legendRightMargin.value
-        };
-    }
-
-    private getCircleOptions(): CircleOptions {
-        const circleSettings = this.visualFormattingSettingsModel.ProportionalCirclesVisualCardSettings;
-        return {
-            layerControl: circleSettings.topLevelSlice.value,
-            color1: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1Color.value.value,
-            color2: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2Color.value.value,
-            minRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
-            maxRadius: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMaximumRadius.value,
-            strokeColor: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeColor.value.value,
-            strokeWidth: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesStrokeWidth.value,
-            layer1Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles1LayerOpacity.value / 100,
-            layer2Opacity: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCircles2LayerOpacity.value / 100,
-            showLegend: circleSettings.proportionalCircleLegendSettingsGroup.showLegend.value,
-            legendTitle: circleSettings.proportionalCircleLegendSettingsGroup.legendTitle.value,
-            legendTitleColor: circleSettings.proportionalCircleLegendSettingsGroup.legendTitleColor.value.value,
-            legendItemStrokeColor: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeColor.value.value,
-            legendItemStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.legendItemStrokeWidth.value,
-            leaderLineStrokeWidth: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineStrokeWidth.value,
-            leaderLineColor: circleSettings.proportionalCircleLegendSettingsGroup.leaderLineColor.value.value,
-            labelTextColor: circleSettings.proportionalCircleLegendSettingsGroup.labelTextColor.value.value,
-            roundOffLegendValues: circleSettings.proportionalCircleLegendSettingsGroup.roundOffLegendValues.value,
-            hideMinIfBelowThreshold: circleSettings.proportionalCircleLegendSettingsGroup.hideMinIfBelowThreshold.value,
-            minValueThreshold: circleSettings.proportionalCircleLegendSettingsGroup.minValueThreshold.value,
-            minRadiusThreshold: circleSettings.proportalCirclesDisplaySettingsGroup.proportionalCirclesMinimumRadius.value,
-            labelSpacing: circleSettings.proportionalCircleLegendSettingsGroup.labelSpacing.value,
-            yPadding: circleSettings.proportionalCircleLegendSettingsGroup.yPadding.value,
-            xPadding: circleSettings.proportionalCircleLegendSettingsGroup.xPadding.value,
-            chartType: circleSettings.proportalCirclesDisplaySettingsGroup.chartType.value.value.toString(),
-            scalingMethod: 'square-root' // Fixed scaling method for optimal visual perception
-
-        };
-    }
-
-    private getChoroplethOptions(): ChoroplethOptions {
-        const choroplethSettings = this.visualFormattingSettingsModel.ChoroplethVisualCardSettings;
-        const choroplethDisplaySettings = choroplethSettings.choroplethDisplaySettingsGroup;
-        const choroplethLocationSettings = choroplethSettings.choroplethLocationBoundarySettingsGroup;
-        const choroplethClassificationSettings = choroplethSettings.choroplethClassificationSettingsGroup;
-        const choroplethLegendSettings = choroplethSettings.choroplethLegendSettingsGroup;
-
-        return {
-            layerControl: choroplethSettings.topLevelSlice.value,
-
-            // Boundary data source options
-            boundaryDataSource: choroplethLocationSettings.boundaryDataSource.value.value.toString(),
-
-            // GeoBoundaries-specific options
-            geoBoundariesReleaseType: choroplethLocationSettings.geoBoundariesReleaseType.value.value.toString(),
-            geoBoundariesCountry: choroplethLocationSettings.geoBoundariesCountry.value.value.toString(),
-            geoBoundariesAdminLevel: choroplethLocationSettings.geoBoundariesAdminLevel.value.value.toString(),
-
-            // Get boundary field ID from appropriate field based on data source
-            sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
-                ? choroplethLocationSettings.customBoundaryIdField.value
-                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
-
-            locationPcodeNameId: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
-                ? choroplethLocationSettings.customBoundaryIdField.value
-                : choroplethLocationSettings.boundaryIdField.value.value.toString(),
-            topoJSON_geoJSON_FileUrl: choroplethLocationSettings.topoJSON_geoJSON_FileUrl.value,
-            topojsonObjectName: choroplethLocationSettings.topojsonObjectName.value,
-
-            invertColorRamp: choroplethDisplaySettings.invertColorRamp.value,
-            colorMode: choroplethDisplaySettings.colorMode.value.value.toString(),
-            colorRamp: choroplethDisplaySettings.colorRamp.value.value.toString(),
-            customColorRamp: choroplethDisplaySettings.customColorRamp.value,
-
-            classes: choroplethClassificationSettings.numClasses.value,
-            classificationMethod: choroplethClassificationSettings.classificationMethod.value.value as any,
-            strokeColor: choroplethDisplaySettings.strokeColor.value.value,
-            strokeWidth: choroplethDisplaySettings.strokeWidth.value,
-            layerOpacity: choroplethDisplaySettings.layerOpacity.value / 100,
-            showLegend: choroplethLegendSettings.showLegend.value,
-            legendTitle: choroplethLegendSettings.legendTitle.value,
-            legendTitleAlignment: choroplethLegendSettings.legendTitleAlignment.value.value.toString(),
-            legendOrientation: choroplethLegendSettings.legendOrientation.value.value as any,
-            legendLabelPosition: choroplethLegendSettings.legendLabelPosition.value.value as any,
-            legendTitleColor: choroplethLegendSettings.legendTitleColor.value.value,
-            legendLabelsColor: choroplethLegendSettings.legendLabelsColor.value.value,
-            legendItemMargin: choroplethLegendSettings.legendItemMargin.value,
-        };
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {

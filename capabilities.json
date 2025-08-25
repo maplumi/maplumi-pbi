@@ -601,7 +601,7 @@
       }
     }
   },
-  "suppressDefaultTitle": false,
+  "suppressDefaultTitle": true,
   "tooltips": {
     "supportedTypes": {
       "default": true,

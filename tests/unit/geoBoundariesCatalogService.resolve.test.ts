@@ -12,7 +12,7 @@ const sampleCatalog = {
   ]
 } as any;
 
-const manifestBase = 'https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-08/data/';
+const manifestBase = 'https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-11/data/';
 
 describe('GeoBoundariesCatalogService.resolveTopoJsonUrlSync', () => {
   beforeAll(() => {

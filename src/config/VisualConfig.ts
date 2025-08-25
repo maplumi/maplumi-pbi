@@ -1,17 +1,17 @@
 
 export const VisualConfig = {
     NETWORK: {
-    FETCH_TIMEOUT_MS: 25000
+        FETCH_TIMEOUT_MS: 25000
     },
     CACHE: {
-    EXPIRY_MS: 3600000, // 1 hour default for large resources
-    METADATA_EXPIRY_MS: 1800000, // 30 minutes for metadata
+        EXPIRY_MS: 3600000, // 1 hour default for large resources
+        METADATA_EXPIRY_MS: 1800000, // 30 minutes for metadata
         MAX_ENTRIES: 100
     },
     MAP: {
         DEFAULT_CENTER: [0, 0],
         DEFAULT_ZOOM: 2,
-    POSTRENDER_DEBOUNCE_MS: 300,
+        POSTRENDER_DEBOUNCE_MS: 300,
         FIT_OPTIONS: {
             padding: [20, 10, 20, 10],// top, right, bottom, left
             duration: 0 // No animation
@@ -23,7 +23,7 @@ export const VisualConfig = {
         DEFAULT_FILL: '#ffffff',
         DEFAULT_BACKGROUND: '#f3f3f3'
     },
-    COLORRAMPS:{
+    COLORRAMPS: {
         BLUE: ["#e1eef9", "#c7e1f5", "#64beeb", "#009edb", "#0074b7", "#00529c", "#002e6e"],
         RED: ["#fcdee0", "#f9c0c7", "#f3859b", "#ed1846", "#a71f36", "#780b20", "#520000"],
         GREEN: ["#e5f1d4", "#d1e39b", "#72bf44", "#338c46", "#006e4f", "#004d35", "#003425"],
@@ -40,7 +40,7 @@ export const VisualConfig = {
         SDGGREEN: ["#eef9ea", "#bbe6aa", "#89d36b", "#56c02b", "#3c861e", "#224d11"],
         SDGDARKGREEN: ["#ecf2ec", "#b2cbb4", "#79a57c", "#3f7e44", "#2c5830", "#19321b"],
         SDGNAVYBLUE: ["#e8edf0", "#a3b6c3", "#5e7f97", "#19486a", "#12324a", "#0a1d2a"]
-        
+
     },
     LEGEND: {
         DEFAULT_POSITION: 'bottom-left',
@@ -58,115 +58,13 @@ export const VisualConfig = {
     },
     GEOBOUNDARIES: {
         BASE_URL: "https://www.geoboundaries.org/api/current",
-    // Manifest of available countries and admin levels for the lightweight catalog
-    MANIFEST_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-08/data/index.json",
-        ALL_COUNTRIES_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-08/data/ALL/geoBoundariesCGAZ_ADM0.topojson",
+        // Manifest of available countries and admin levels for the lightweight catalog
+        MANIFEST_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-11/data/index.json",
+        ALL_COUNTRIES_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-11/data/ALL/geoBoundariesCGAZ_ADM0.topojson",
+        // Minimal fallback list used only if manifest fetch has not populated catalog yet.
+        // The dynamic manifest will replace this with the full country list.
         COUNTRIES: [
-            { value: "ALL", displayName: "All Countries" },
-            { value: "AFG", displayName: "Afghanistan" },
-            { value: "ARG", displayName: "Argentina" },
-            { value: "ARM", displayName: "Armenia" },
-            { value: "AUS", displayName: "Australia" },
-            { value: "AUT", displayName: "Austria" },
-            { value: "AZE", displayName: "Azerbaijan" },
-            { value: "BGD", displayName: "Bangladesh" },
-            { value: "BLR", displayName: "Belarus" },
-            { value: "BEL", displayName: "Belgium" },
-            { value: "BFA", displayName: "Burkina Faso" },
-            { value: "BTN", displayName: "Bhutan" },
-            { value: "BRA", displayName: "Brazil" },
-            { value: "BRN", displayName: "Brunei" },
-            { value: "BGR", displayName: "Bulgaria" },
-            { value: "KHM", displayName: "Cambodia" },
-            { value: "CMR", displayName: "Cameroon" },
-            { value: "CAN", displayName: "Canada" },
-            { value: "CAF", displayName: "Central African Republic" },
-            { value: "TCD", displayName: "Chad" },
-            { value: "CHL", displayName: "Chile" },
-            { value: "CHN", displayName: "China" },
-            { value: "COL", displayName: "Colombia" },
-            { value: "HRV", displayName: "Croatia" },
-            { value: "CYP", displayName: "Cyprus" },
-            { value: "CZE", displayName: "Czech Republic" },
-            { value: "COD", displayName: "Democratic Republic of Congo" },
-            { value: "DNK", displayName: "Denmark" },
-            { value: "EGY", displayName: "Egypt" },
-            { value: "EST", displayName: "Estonia" },
-            { value: "ETH", displayName: "Ethiopia" },
-            { value: "FIN", displayName: "Finland" },
-            { value: "FRA", displayName: "France" },
-            { value: "GAB", displayName: "Gabon" },
-            { value: "GEO", displayName: "Georgia" },
-            { value: "DEU", displayName: "Germany" },
-            { value: "GHA", displayName: "Ghana" },
-            { value: "GRC", displayName: "Greece" },
-            { value: "HUN", displayName: "Hungary" },
-            { value: "IND", displayName: "India" },
-            { value: "IDN", displayName: "Indonesia" },
-            { value: "IRN", displayName: "Iran" },
-            { value: "IRQ", displayName: "Iraq" },
-            { value: "IRL", displayName: "Ireland" },
-            { value: "ISR", displayName: "Israel" },
-            { value: "ITA", displayName: "Italy" },
-            { value: "JPN", displayName: "Japan" },
-            { value: "JOR", displayName: "Jordan" },
-            { value: "KAZ", displayName: "Kazakhstan" },
-            { value: "KEN", displayName: "Kenya" },
-            { value: "KGZ", displayName: "Kyrgyzstan" },
-            { value: "LAO", displayName: "Laos" },
-            { value: "LVA", displayName: "Latvia" },
-            { value: "LBN", displayName: "Lebanon" },
-            { value: "LTU", displayName: "Lithuania" },
-            { value: "LUX", displayName: "Luxembourg" },
-            { value: "MYS", displayName: "Malaysia" },
-            { value: "MDV", displayName: "Maldives" },
-            { value: "MLI", displayName: "Mali" },
-            { value: "MLT", displayName: "Malta" },
-            { value: "MEX", displayName: "Mexico" },
-            { value: "MDA", displayName: "Moldova" },
-            { value: "MNG", displayName: "Mongolia" },
-            { value: "MAR", displayName: "Morocco" },
-            { value: "MMR", displayName: "Myanmar" },
-            { value: "NPL", displayName: "Nepal" },
-            { value: "NLD", displayName: "Netherlands" },
-            { value: "NZL", displayName: "New Zealand" },
-            { value: "NER", displayName: "Niger" },
-            { value: "NGA", displayName: "Nigeria" },
-            { value: "NOR", displayName: "Norway" },
-            { value: "PAK", displayName: "Pakistan" },
-            { value: "PER", displayName: "Peru" },
-            { value: "PHL", displayName: "Philippines" },
-            { value: "POL", displayName: "Poland" },
-            { value: "PRT", displayName: "Portugal" },
-            { value: "COG", displayName: "Republic of Congo" },
-            { value: "ROU", displayName: "Romania" },
-            { value: "RUS", displayName: "Russia" },
-            { value: "RWA", displayName: "Rwanda" },
-            { value: "SAU", displayName: "Saudi Arabia" },
-            { value: "SEN", displayName: "Senegal" },
-            { value: "SGP", displayName: "Singapore" },
-            { value: "SVK", displayName: "Slovakia" },
-            { value: "SVN", displayName: "Slovenia" },
-            { value: "ZAF", displayName: "South Africa" },
-            { value: "KOR", displayName: "South Korea" },
-            { value: "ESP", displayName: "Spain" },
-            { value: "LKA", displayName: "Sri Lanka" },
-            { value: "SWE", displayName: "Sweden" },
-            { value: "CHE", displayName: "Switzerland" },
-            { value: "SYR", displayName: "Syria" },
-            { value: "TJK", displayName: "Tajikistan" },
-            { value: "TZA", displayName: "Tanzania" },
-            { value: "THA", displayName: "Thailand" },
-            { value: "TKM", displayName: "Turkmenistan" },
-            { value: "TUR", displayName: "Turkey" },
-            { value: "UGA", displayName: "Uganda" },
-            { value: "UKR", displayName: "Ukraine" },
-            { value: "ARE", displayName: "United Arab Emirates" },
-            { value: "GBR", displayName: "United Kingdom" },
-            { value: "USA", displayName: "United States" },
-            { value: "UZB", displayName: "Uzbekistan" },
-            { value: "VEN", displayName: "Venezuela" },
-            { value: "VNM", displayName: "Vietnam" }
+            { value: "ALL", displayName: "All Countries" }
         ],
         // Source field options for different boundary data sources
         SOURCE_FIELD_OPTIONS: {
@@ -174,7 +72,7 @@ export const VisualConfig = {
                 { value: "shapeISO", displayName: "shapeISO (ISO Code)" },
                 { value: "shapeName", displayName: "shapeName (Name)" },
                 { value: "shapeID", displayName: "shapeID (Unique ID)" },
-                { value: "shapeGroup", displayName: "shapeGroup (Country)" }           
+                { value: "shapeGroup", displayName: "shapeGroup (Country)" }
             ],
             custom: [
                 { value: "custom", displayName: "Custom" }
