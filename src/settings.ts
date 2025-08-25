@@ -541,6 +541,21 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         ]
     });
 
+    // GeoBoundaries Source Tag selection (dataset tag like v2025-11)
+    geoBoundariesSourceTag: DropDown = new DropDown({
+        name: "geoBoundariesSourceTag",
+        displayName: "Source Tag",
+        value: {
+            value: "v2025-11",
+            displayName: "v2025-11"
+        },
+        items: [
+            { value: "v2025-11", displayName: "v2025-11" },
+            { value: "v2025-10", displayName: "v2025-10" },
+            { value: "v2025-09", displayName: "v2025-09" }
+        ]
+    });
+
     // Administrative Level Selection for GeoBoundaries
     geoBoundariesAdminLevel: DropDown = new DropDown({
         name: "geoBoundariesAdminLevel",
@@ -607,7 +622,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     slices: formattingSettings.Slice[] = [
         this.boundaryDataSource,
     this.geoBoundariesCountry,
-        this.geoBoundariesReleaseType,
+    this.geoBoundariesSourceTag,
+    this.geoBoundariesReleaseType,
         this.geoBoundariesAdminLevel,
         this.topoJSON_geoJSON_FileUrl, 
     this.topojsonObjectName,
@@ -634,6 +650,27 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
             // Populate catalog-derived fields for the currently-selected country (non-blocking)
             void this.populateReleaseAndAdminFromCatalog(String(this.geoBoundariesCountry.value?.value));
+            // Populate available tags and set default to latest (non-blocking)
+            void (async () => {
+                try {
+                    const tags = await GeoBoundariesCatalogService.getTags();
+                    if (!tags || !tags.length) return;
+                    // Only allow supported tags (limit to known three)
+                    const allowed = ['v2025-11', 'v2025-10', 'v2025-09'];
+                    const filtered = tags.filter(t => allowed.includes(String(t)));
+                    if (!filtered.length) return;
+                    // Build items sorted with latest first
+                    const items = Array.from(new Set(filtered)).sort().reverse().map(t => ({ value: t, displayName: t }));
+                    this.geoBoundariesSourceTag.items = items;
+                    // Default to the first (latest)
+                    const cur = String(this.geoBoundariesSourceTag.value?.value);
+                    if (!items.some(i => String(i.value) === cur)) {
+                        this.geoBoundariesSourceTag.value = { ...items[0] };
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })();
         }
         this.geoBoundariesAdminLevel.visible = isGeoBoundaries;
 
@@ -682,7 +719,11 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     private async populateReleaseAndAdminFromCatalog(selectedIso3?: string) {
         if (!selectedIso3 || selectedIso3 === 'ALL') return;
         try {
-            const catalog: any = await GeoBoundariesCatalogService.getCatalog();
+            // Before fetching catalog, attempt to set the manifest base based on selected tag
+            const tag = String(this.geoBoundariesSourceTag.value?.value || 'v2025-11');
+            // Update VisualConfig manifest URL dynamically when tag is selected
+            // Note: VisualConfig is a const; we will compute manifest access using the tag where needed in services.
+            const catalog: any = await GeoBoundariesCatalogService.getCatalog(tag);
             if (!catalog) return;
 
             // Extract entries array robustly
@@ -736,7 +777,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
 
             // Also attempt to populate available boundary ID fields by fetching one sample file (non-blocking)
-            void this.populateBoundaryIdFieldsFromData(String(this.geoBoundariesReleaseType.value?.value), String(selectedIso3), String(this.geoBoundariesAdminLevel.value?.value));
+            void this.populateBoundaryIdFieldsFromData(String(this.geoBoundariesReleaseType.value?.value), String(selectedIso3), String(this.geoBoundariesAdminLevel.value?.value), tag);
 
         } catch (e) {
             // ignore errors silently in the formatting pane
@@ -745,12 +786,12 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     }
 
     // Fetch a boundary dataset (manifest-resolved) and extract property names to populate boundaryIdField
-    private async populateBoundaryIdFieldsFromData(release?: string, iso3?: string, adminLevel?: string) {
+    private async populateBoundaryIdFieldsFromData(release?: string, iso3?: string, adminLevel?: string, tag?: string) {
         if (!release || !iso3 || !adminLevel) return;
         try {
             // Resolve a data URL from the manifest (sync first, then async)
             let url = GeoBoundariesCatalogService.resolveTopoJsonUrlSync(release, iso3, adminLevel);
-            if (!url) url = await GeoBoundariesCatalogService.resolveTopoJsonUrl(release, iso3, adminLevel) as any;
+            if (!url) url = await GeoBoundariesCatalogService.resolveTopoJsonUrl(release, iso3, adminLevel, tag) as any;
             if (!url) return;
 
             // Use requestHelpers for timeout

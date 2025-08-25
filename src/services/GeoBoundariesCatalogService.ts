@@ -34,8 +34,17 @@ export class GeoBoundariesCatalogService {
     private static lastCatalog: GeoBoundariesCatalogIndex | null = null;
 
     /** Fetches and caches the catalog JSON. Returns null on failure. */
-    public static async getCatalog(): Promise<GeoBoundariesCatalogIndex | null> {
-        const url = VisualConfig.GEOBOUNDARIES.MANIFEST_URL;
+    public static async getCatalog(tag?: string): Promise<GeoBoundariesCatalogIndex | null> {
+        // If a tag is provided, replace the @<tag> segment in MANIFEST_URL if present, otherwise append
+        let url = VisualConfig.GEOBOUNDARIES.MANIFEST_URL;
+        if (tag) {
+            // Replace occurrences of @vYYYY-MM in the URL
+            url = url.replace(/@v\d{4}-\d{2}/, `@${tag}`);
+            // If replacement didn't occur and URL contains '@', attempt to append after @
+            if (!/@v\d{4}-\d{2}/.test(url) && url.includes('@') && !url.includes(`@${tag}`)) {
+                url = url.replace(/@[^/]+/, `@${tag}`);
+            }
+        }
         const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS || 30 * 60 * 1000;
 
         const result = await this.cache.getOrFetch(
@@ -75,6 +84,27 @@ export class GeoBoundariesCatalogService {
                 .map(c => ({ value: c.iso3, displayName: c.name }))
         );
         return items;
+    }
+
+    /** Fetch available dataset tags (e.g. v2025-09) from TAGS_URL. Cached similarly to manifest. */
+    public static async getTags(): Promise<string[]> {
+        const key = 'geoboundaries:catalog:tags';
+        const ttl = VisualConfig.CACHE.METADATA_EXPIRY_MS || 30 * 60 * 1000;
+        const result = await this.cache.getOrFetch(key, async () => {
+            try {
+                const response = await requestHelpers.fetchWithTimeout(VisualConfig.GEOBOUNDARIES.TAGS_URL, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+                if (!response.ok) return null as any;
+                const data = await response.json();
+                return { data, response } as any;
+            } catch {
+                return null as any;
+            }
+        }, { ttlMs: ttl, respectCacheHeaders: true });
+
+        if (!result) return [];
+        const data = (result as any).data;
+        if (!Array.isArray(data)) return [];
+        return data.map(String);
     }
 
     /** Synchronous country list using last known catalog (or fallback). */
@@ -192,18 +222,46 @@ export class GeoBoundariesCatalogService {
         return `admin${m}`.toLowerCase();
     }
 
-    /** Compute the CDN base for data files from the manifest URL. Ends with a trailing slash. */
-    private static getCdnDataBase(): string {
-        const manifestUrl = VisualConfig.GEOBOUNDARIES.MANIFEST_URL;
+    /** Compute the CDN base for data files from the manifest URL or a tag. Ends with a trailing slash. */
+    private static getCdnDataBase(tag?: string): string {
+        let manifestUrl = VisualConfig.GEOBOUNDARIES.MANIFEST_URL;
+        if (tag) {
+            manifestUrl = manifestUrl.replace(/@v\d{4}-\d{2}/, `@${tag}`);
+            if (!/@v\d{4}-\d{2}/.test(manifestUrl) && manifestUrl.includes('@') && !manifestUrl.includes(`@${tag}`)) {
+                manifestUrl = manifestUrl.replace(/@[^/]+/, `@${tag}`);
+            }
+        }
         // Strip trailing 'index.json' and ensure trailing slash
         return manifestUrl.replace(/index\.json$/i, '');
     }
 
     /** Resolve a TopoJSON URL from the manifest for the given release, iso3 and admin level. */
-    public static async resolveTopoJsonUrl(release: string, iso3: string, adminLevel: string): Promise<string | null> {
-        const idx = await this.getCatalog();
+    public static async resolveTopoJsonUrl(release: string, iso3: string, adminLevel: string, tag?: string): Promise<string | null> {
+        const idx = await this.getCatalog(tag);
         if (!idx) return null;
-        return this.resolveTopoJsonUrlSync(release, iso3, adminLevel);
+        // Use the synchronous resolver which reads from lastCatalog, but ensure lastCatalog is updated from idx
+        this.lastCatalog = idx as GeoBoundariesCatalogIndex;
+        // Compute URL using synced resolver but with the correct CDN base for the tag
+        const url = this.resolveTopoJsonUrlSync(release, iso3, adminLevel);
+        if (!url) return null;
+        // If tag was provided, ensure base uses that tag
+        if (tag) {
+            const base = this.getCdnDataBase(tag);
+            // Recompute path from hit entry: find the hit again
+            const rel = this.normalizeRelease(release);
+            const lvl = this.normalizeLevel(adminLevel);
+            const iso = (iso3 || '').toUpperCase();
+            const entries = this.extractEntriesArray(idx as any);
+            const hit = entries.find(e => (e.release || '').toLowerCase() === rel
+                && (e.iso3 || '').toUpperCase() === iso
+                && (e.level || '').toLowerCase() === lvl);
+            if (!hit) return null;
+            const path = hit.relPath || hit.path || hit.file || '';
+            if (!path) return null;
+            if (/^https?:\/\//i.test(path)) return path;
+            return `${base}${path}`;
+        }
+        return url;
     }
 
     /** Sync variant using last known catalog snapshot. */
