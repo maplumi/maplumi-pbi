@@ -83,6 +83,7 @@ export class OptionsService {
             boundaryDataSource: choroplethLocationSettings.boundaryDataSource.value.value.toString(),
             geoBoundariesReleaseType: choroplethLocationSettings.geoBoundariesReleaseType.value.value.toString(),
             geoBoundariesCountry: choroplethLocationSettings.geoBoundariesCountry.value.value.toString(),
+            geoBoundariesSourceTag: choroplethLocationSettings.geoBoundariesSourceTag.value.value.toString(),
             geoBoundariesAdminLevel: choroplethLocationSettings.geoBoundariesAdminLevel.value.value.toString(),
             sourceFieldID: choroplethLocationSettings.boundaryDataSource.value.value === "custom"
                 ? choroplethLocationSettings.customBoundaryIdField.value

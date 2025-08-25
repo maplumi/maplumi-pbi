@@ -482,7 +482,7 @@ private getChoroplethOptions(): ChoroplethOptions {
 
 ### Overview
 
-The Maplumi Power BI visual now includes built-in integration with the [GeoBoundaries](https://www.geoboundaries.org/) API, providing access to high-quality administrative boundary data for 91+ countries without requiring external data preparation.
+The Maplumi Power BI visual now includes built-in integration with the GeoBoundaries dataset hosted on our CDN at `https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite`, providing access to high-quality administrative boundary data without requiring external data preparation.
 
 ### GeoBoundaries Service Architecture
 

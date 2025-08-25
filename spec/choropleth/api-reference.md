@@ -96,7 +96,7 @@ interface ChoroplethDataPoint {
 
 GeoBoundaries base
 ```typescript
-const API = 'https://www.geoboundaries.org/api/current';
+const API = 'https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite';
 const url = `${API}/${releaseType}/${country}/${adminLevel}/`;
 ```
 

@@ -80,7 +80,6 @@ export class CircleOrchestrator extends BaseOrchestrator {
         group2.selectAll("*").remove();
 
     this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
-    this.svgOverlay.style.display = "block";
 
         const parsed = parseCircleCategorical(categorical);
         if (!parsed.hasLon || !parsed.hasLat) {
@@ -201,7 +200,7 @@ export class CircleOrchestrator extends BaseOrchestrator {
             : engine === 'canvas'
                 ? new CircleCanvasLayer(circleLayerOptions)
                 : new CircleLayer(circleLayerOptions);
-        this.map.addLayer(this.circleLayer);
+    this.map.addLayer(this.circleLayer);
     // Attach hit overlay for WebGL only
     try { (this.circleLayer as any).attachHitLayer?.(this.map); } catch {}
 

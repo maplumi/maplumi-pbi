@@ -30,6 +30,8 @@ import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
 import { dataViewObjectsParser } from "powerbi-visuals-utils-dataviewutils";
 import { VisualConfig } from "./config/VisualConfig";
 import { GeoBoundariesCatalogService } from "./services/GeoBoundariesCatalogService";
+import * as requestHelpers from "./utils/requestHelpers";
+import * as topojsonClient from "topojson-client";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions, LegendPositions, BasemapNames, TitleAlignments } from "./constants/strings";
 
 import FormattingSettingsModel = formattingSettings.Model;
@@ -575,26 +577,34 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     // Store all possible field options for each data source
     private sourceFieldOptions = VisualConfig.GEOBOUNDARIES.SOURCE_FIELD_OPTIONS;
 
+    // Track whether the user has manually selected a boundary ID so we don't overwrite it
+    private boundaryIdUserSelected: boolean = false;
+    private lastBoundaryIdValue: string | null = null;
+
     // Combined Boundary ID Field - dropdown for GeoBoundaries, text input for custom
     boundaryIdField: DropDown = new DropDown({
         name: "boundaryIdField",
         displayName: "Boundary ID Field",
+        // Use a static known list for now (no conditional display). This prevents the
+        // list from disappearing when users select an item.
         value: {
-            value: "shapeISO",  // Default to first GeoBoundaries option
-            displayName: "shapeISO (ISO Code)"
+            value: "shapeName",
+            displayName: "shapeName"
         },
+        // Cast to any to satisfy the formatting API typings for dynamic items
         items: [
-            { value: "shapeISO", displayName: "shapeISO (ISO Code)" },
-            { value: "shapeName", displayName: "shapeName (Name)" },
-            { value: "shapeID", displayName: "shapeID (Unique ID)" },
-            { value: "shapeGroup", displayName: "shapeGroup (Country)" }
-        ]
+            { value: "shapeName", displayName: "shapeName" },
+            { value: "shapeID", displayName: "shapeID" },
+            { value: "shapeGroup", displayName: "shapeGroup" },
+            { value: "hdx_pcode", displayName: "hdx_pcode" },
+            { value: "hdx_name", displayName: "hdx_name" }
+        ] as any
     });
 
     // Text input for custom boundary ID field (only shown for custom sources)
     customBoundaryIdField: formattingSettings.TextInput = new TextInput({
         name: "customBoundaryIdField",
-        displayName: "Boundary ID Field",
+    displayName: "Boundary ID Field (custom)",
         value: "",
         placeholder: "Enter field name"
     });
@@ -634,6 +644,28 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
     public applyConditionalDisplayRules(): void {
 
         const selectedSource = this.boundaryDataSource.value?.value;
+        // Debug: log when conditional rules run to diagnose visibility glitches in host
+        try {
+            console.debug('[settings] applyConditionalDisplayRules selectedSource=', selectedSource,
+                'boundaryIdField.value=', this.boundaryIdField.value?.value,
+                'customBoundaryIdField.value=', this.customBoundaryIdField.value);
+        } catch (e) {
+            // ignore logging errors in hosts that restrict console
+        }
+
+        // Detect if the user has changed the boundaryIdField value since last run and mark it
+        try {
+            const currentBoundary = String(this.boundaryIdField.value?.value || '');
+            if (currentBoundary && currentBoundary !== this.lastBoundaryIdValue) {
+                this.boundaryIdUserSelected = true;
+                this.lastBoundaryIdValue = currentBoundary;
+            } else if (!currentBoundary) {
+                this.boundaryIdUserSelected = false;
+                this.lastBoundaryIdValue = null;
+            }
+        } catch (e) {
+            // ignore
+        }
 
         // Show/hide geoBoundaries-specific fields
         const isGeoBoundaries = selectedSource === "geoboundaries";
@@ -650,6 +682,18 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
             // Populate catalog-derived fields for the currently-selected country (non-blocking)
             void this.populateReleaseAndAdminFromCatalog(String(this.geoBoundariesCountry.value?.value));
+            // Also explicitly attempt to populate boundary ID fields from the current selection
+            // This will hit the manifest/catalog to resolve a sample TopoJSON and extract property names
+            try {
+                const release = String(this.geoBoundariesReleaseType.value?.value || 'gbOpen');
+                const iso3 = String(this.geoBoundariesCountry.value?.value || '');
+                const admin = String(this.geoBoundariesAdminLevel.value?.value || 'ADM0');
+                const tag = String(this.geoBoundariesSourceTag.value?.value || 'v2025-11');
+                // Fire and forget; UI will update when items are available
+                void this.populateBoundaryIdFieldsFromData(release, iso3, admin, tag);
+            } catch (e) {
+                // ignore
+            }
             // Populate available tags and set default to latest (non-blocking)
             void (async () => {
                 try {
@@ -694,25 +738,74 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             void this.populateReleaseAndAdminFromCatalog(String(selectedIso3));
         }
 
-        // Dynamically update boundaryIdField items based on selected boundaryDataSource
-        if (selectedSource && this.sourceFieldOptions[selectedSource]) {
-            this.boundaryIdField.items = this.sourceFieldOptions[selectedSource];
-
-            // If current value is not in the new items, reset to first
-            const validValues = this.sourceFieldOptions[selectedSource].map(opt => opt.value);
-            if (!validValues.includes(String(this.boundaryIdField.value.value))) {
-                this.boundaryIdField.value = { ...this.boundaryIdField.items[0] };
-            }
-        }
+    // Do NOT seed boundaryIdField from static constants; it must only reflect loaded dataset properties.
+    // populateBoundaryIdFieldsFromData will set items when an example TopoJSON/GeoJSON is loaded.
 
         // Handle visibility based on data source
         const isCustomSource = selectedSource === "custom";
-        
-        // Show/hide fields based on data source
-        this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
+
+        // Show/hide fields based on data source: make explicit checks so only one Boundary ID control is visible
+    this.topoJSON_geoJSON_FileUrl.visible = isCustomSource;
     this.topojsonObjectName.visible = isCustomSource;
-        this.boundaryIdField.visible = isGeoBoundaries;           // Dropdown for GeoBoundaries
-        this.customBoundaryIdField.visible = isCustomSource;      // Text input for custom sources
+
+        // Enforce exclusive visibility: dropdown for GeoBoundaries, text input for Custom
+        const showGeoDropdown = selectedSource === "geoboundaries";
+        const showCustomInput = selectedSource === "custom";
+        this.boundaryIdField.visible = showGeoDropdown;
+        this.customBoundaryIdField.visible = showCustomInput;
+
+        // Rebuild the slices array explicitly so the formatting pane only contains the controls
+        // relevant to the selected source. This avoids host render-order edge cases where
+        // a control may appear transiently despite its .visible flag.
+        const baseSlices: formattingSettings.Slice[] = [
+            this.boundaryDataSource,
+            this.geoBoundariesCountry,
+            this.geoBoundariesSourceTag,
+            this.geoBoundariesReleaseType,
+            this.geoBoundariesAdminLevel,
+            this.topoJSON_geoJSON_FileUrl,
+            this.topojsonObjectName
+        ];
+
+        const newSlices: formattingSettings.Slice[] = [];
+        // Always include the data source selector first
+        newSlices.push(this.boundaryDataSource);
+
+        if (isGeoBoundaries) {
+            newSlices.push(this.geoBoundariesCountry);
+            newSlices.push(this.geoBoundariesSourceTag);
+            if (this.geoBoundariesReleaseType.visible) newSlices.push(this.geoBoundariesReleaseType);
+            if (this.geoBoundariesAdminLevel.visible) newSlices.push(this.geoBoundariesAdminLevel);
+            // boundaryIdField only for geoboundaries
+            if (showGeoDropdown) newSlices.push(this.boundaryIdField);
+        }
+
+        if (isCustomSource) {
+            newSlices.push(this.topoJSON_geoJSON_FileUrl);
+            newSlices.push(this.topojsonObjectName);
+            newSlices.push(this.customBoundaryIdField);
+        }
+
+        // Replace the group's slices in-place
+        try {
+            this.slices = newSlices;
+        } catch (e) {
+            // Some hosts may lock slice arrays; fall back to toggling visibility only
+            console.debug('[settings] failed to replace slices, falling back to visibility toggles', e);
+        }
+
+        // Debug: emit visibility state and current slices
+        try {
+            console.debug('[settings] visibility showGeoDropdown=', showGeoDropdown, 'showCustomInput=', showCustomInput,
+                'slices=', this.slices.map(s => (s as any).name || (s as any).displayName));
+        } catch (e) {
+            // ignore
+        }
+
+        // Clear any stale custom value when switching back to GeoBoundaries
+        if (!isCustomSource) {
+            this.customBoundaryIdField.value = "";
+        }
     }
 
     // Populate release types and admin levels from the manifest for the selected country (non-blocking)
@@ -795,9 +888,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             if (!url) return;
 
             // Use requestHelpers for timeout
-            const req = await import('./utils/requestHelpers');
-            const topojsonClient = await import('topojson-client');
-            const resp = await req.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
+            const resp = await requestHelpers.fetchWithTimeout(url, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
             if (!resp.ok) return;
             const json = await resp.json();
 
@@ -806,7 +897,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
                 const objectNames = Object.keys(json.objects);
                 const first = objectNames.length > 0 ? objectNames[0] : null;
                 if (first) {
-                    const fc = topojsonClient.feature(json, json.objects[first]);
+                    const fc: any = topojsonClient.feature(json as any, json.objects[first]);
                     features = fc?.features || [];
                 }
             } else if (json && json.type === 'FeatureCollection' && Array.isArray(json.features)) {
@@ -818,20 +909,47 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             const propKeys = Object.keys(features[0].properties || {});
             if (!propKeys.length) return;
 
-            // Map known visual-config source field options first, then append any other keys
-            const known = VisualConfig.GEOBOUNDARIES.SOURCE_FIELD_OPTIONS.geoboundaries.map((s: any) => s.value);
-            const items: any[] = [];
-            for (const k of known) {
-                if (propKeys.includes(k)) items.push({ value: k, displayName: `${k}` });
+            // Use a static ordered list of expected GeoBoundaries properties (maximum set).
+            // Exclude shapeISO and shapeType from the selectable list as requested.
+            // HDX fields are only shown for gbHumanitarian release type.
+            const releaseNorm = String(release || '').toLowerCase();
+            const includeHdx = releaseNorm === 'gbhumanitarian' || releaseNorm === 'gbhumanitarian';
+
+            const staticOrdered: string[] = [
+                'shapeName',
+                // 'shapeISO' intentionally excluded
+                'shapeID',
+                'shapeGroup'
+            ];
+
+            // Conditionally include HDX fields only for humanitarian release
+            if (includeHdx) {
+                staticOrdered.push('hdx_pcode');               
+                staticOrdered.push('hdx_name');
             }
+
+            const items: any[] = [];
+            // Add static ordered items first (display names are friendly)
+            for (const k of staticOrdered) {
+                items.push({ value: k, displayName: `${k}` });
+            }
+
+            // Append any other keys from the dataset that are not in the static list,
+            // but always exclude 'shapeISO' and 'shapeType'.
             for (const k of propKeys) {
+                if (k === 'shapeISO' || k === 'shapeType') continue;
                 if (!items.some(i => i.value === k)) items.push({ value: k, displayName: k });
             }
 
             if (items.length > 0) {
-                this.boundaryIdField.items = items;
-                const cur = String(this.boundaryIdField.value?.value);
-                if (!items.some((it: any) => String(it.value) === cur)) this.boundaryIdField.value = { ...items[0] };
+                // Debug-only: report the resolved URL and items we discovered. Do NOT overwrite
+                // the static items/value because that was requested to keep dropdown stable.
+                try {
+                    console.debug('[settings] populateBoundaryIdFieldsFromData (no-op) url=', url, 'itemsCount=', items.length, 'sample=', items.slice(0,5));
+                } catch (e) {
+                    // ignore
+                }
+                // Intentionally do not change this.boundaryIdField.items or value here.
             }
 
         } catch (e) {

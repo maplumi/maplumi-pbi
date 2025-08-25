@@ -59,7 +59,7 @@ export const VisualConfig = {
         }
     },
     GEOBOUNDARIES: {
-        BASE_URL: "https://www.geoboundaries.org/api/current",
+        BASE_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite",
         // Manifest of available countries and admin levels for the lightweight catalog
     MANIFEST_URL: "https://cdn.jsdelivr.net/gh/maplumi/geoboundaries-lite@v2025-11/data/index.json",
     // URL returning a JSON array of available dataset tags (e.g. ["v2025-09","v2025-10","v2025-11"]).

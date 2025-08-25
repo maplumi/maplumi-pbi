@@ -223,6 +223,35 @@ export class MaplumiVisual implements IVisual {
         });
     }
 
+    // Centralized overlay visibility: show overlay only when at least one layer provides visible content
+    private updateOverlayVisibility(): void {
+        try {
+            // If either layer exists and has visible content, show the overlay
+            const choroplethHasFeatures = !!this.choroplethLayer && typeof (this.choroplethLayer as any).getFeaturesExtent === 'function' && (this.choroplethLayer as any).getFeaturesExtent?.();
+            const circleHasFeatures = !!this.circleLayer && typeof (this.circleLayer as any).getFeaturesExtent === 'function' && (this.circleLayer as any).getFeaturesExtent?.();
+            // Also consider canvas fallbacks: check for canvas elements in svgContainer
+            const hasChoroplethCanvas = !!this.svgContainer.querySelector('#choropleth-canvas');
+            const hasCirclesCanvas = !!this.svgContainer.querySelector('#circles-canvas');
+
+            const shouldShow = !!choroplethHasFeatures || !!circleHasFeatures || hasChoroplethCanvas || hasCirclesCanvas;
+            this.svgOverlay.style.display = shouldShow ? 'block' : 'none';
+        } catch (e) {
+            try { this.svgOverlay.style.display = 'none'; } catch {}
+        }
+        // Optional debug dump when enabled
+        try {
+            if ((globalThis as any).__MAPLUMI_DEBUG__ === true) {
+                console.log('[Maplumi][debug] updateOverlayVisibility', {
+                    choroplethLayer: !!this.choroplethLayer,
+                    circleLayer: !!this.circleLayer,
+                    choroplethCanvas: !!this.svgContainer.querySelector('#choropleth-canvas'),
+                    circlesCanvas: !!this.svgContainer.querySelector('#circles-canvas'),
+                    svgOverlayDisplay: this.svgOverlay?.style?.display
+                });
+            }
+        } catch {}
+    }
+
     public update(options: VisualUpdateOptions) {
         this.events.renderingStarted(options);
         try {
@@ -301,18 +330,30 @@ export class MaplumiVisual implements IVisual {
 
             // Choropleth layer (async) with guarded errors
             if (choroplethOptions.layerControl === true) {
-                this.choroplethOrchestrator
-                    .render(
+                try {
+                    const res = this.choroplethOrchestrator.render(
                         dataView.categorical,
                         choroplethOptions,
                         this.dataService,
                         this.mapToolsOptions
-                    )
-                    .then(layer => { this.choroplethLayer = layer as any; })
-                    .catch(err => {
-                        console.error('[Maplumi] Choropleth render error', err);
-                        this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
-                    });
+                    );
+                    // If render returned a promise, attach handlers to isolate failures
+                    if (res && typeof (res as any).then === 'function') {
+                        (res as unknown as Promise<any>)
+                            .then(layer => { this.choroplethLayer = layer as any; this.updateOverlayVisibility(); })
+                            .catch(err => {
+                                console.error('[Maplumi] Choropleth render error', err);
+                                this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
+                            });
+                    } else {
+                        // Non-promise return (defensive): assign directly
+                        this.choroplethLayer = res as any;
+                        this.updateOverlayVisibility();
+                    }
+                } catch (err) {
+                    console.error('[Maplumi] Choropleth render synchronous error', err);
+                    this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
+                }
             } else {
                 const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
                 group.selectAll('*').remove();
@@ -326,20 +367,31 @@ export class MaplumiVisual implements IVisual {
                     this.map.removeLayer(this.choroplethLayer);
                     this.choroplethLayer = undefined;
                 }
+                this.updateOverlayVisibility();
                 this.legendService.hideLegend('choropleth');
             }
 
             // Circle layer (sync) with guarded errors
             if (circleOptions.layerControl === true) {
                 try {
-                    const layer = this.circleOrchestrator.render(
+                    const res = this.circleOrchestrator.render(
                         dataView.categorical,
                         circleOptions,
                         this.dataService,
                         this.mapToolsOptions,
                         this.choroplethDisplayed
                     );
-                    this.circleLayer = layer as any;
+                    if (res && typeof (res as any).then === 'function') {
+                        (res as unknown as Promise<any>)
+                            .then(layer => { this.circleLayer = layer as any; this.updateOverlayVisibility(); })
+                            .catch(err => {
+                                console.error('[Maplumi] Circle render error', err);
+                                this.host.displayWarningIcon('Circle render error', 'maplumiWarning: Failed to render circle layer.');
+                            });
+                    } else {
+                        this.circleLayer = res as any;
+                        this.updateOverlayVisibility();
+                    }
                 } catch (err) {
                     console.error('[Maplumi] Circle render error', err);
                     this.host.displayWarningIcon('Circle render error', 'maplumiWarning: Failed to render circle layer.');
@@ -359,6 +411,7 @@ export class MaplumiVisual implements IVisual {
                     this.map.removeLayer(this.circleLayer);
                     this.circleLayer = undefined;
                 }
+                this.updateOverlayVisibility();
                 this.legendService.hideLegend('circle');
             }
 

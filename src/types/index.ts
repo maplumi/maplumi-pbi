@@ -209,6 +209,7 @@ export interface ChoroplethOptions {
     geoBoundariesReleaseType: string;
     geoBoundariesCountry: string;
     geoBoundariesAdminLevel: string;
+    geoBoundariesSourceTag?: string;
     sourceFieldID: string;
 
     locationPcodeNameId: string,

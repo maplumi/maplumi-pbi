@@ -48,14 +48,31 @@ export class GeoBoundariesService {
      * Constructs the geoBoundaries API URL based on the options
      */
     public static buildApiUrl(options: ChoroplethOptions): string {
-        const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel } = options;
+        const { geoBoundariesReleaseType, geoBoundariesCountry, geoBoundariesAdminLevel, geoBoundariesSourceTag } = options as any;
 
         // Special case: when "ALL" countries is selected, use the static consolidated ADM0 dataset
         if (geoBoundariesCountry === "ALL") {
             return VisualConfig.GEOBOUNDARIES.ALL_COUNTRIES_URL;
         }
 
-        return `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
+        let url = `${VisualConfig.GEOBOUNDARIES.BASE_URL}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
+        // If a tag is supplied, some upstream APIs allow scoping by tag via an @segment — try to append if present in BASE_URL patterns
+        if (geoBoundariesSourceTag) {
+            // If BASE_URL contains an @<tag> segment, replace it, otherwise attempt to append the tag query param as a fallback
+            if (VisualConfig.GEOBOUNDARIES.BASE_URL.includes('@')) {
+                url = `${VisualConfig.GEOBOUNDARIES.BASE_URL.replace(/@[^/]+/, `@${geoBoundariesSourceTag}`)}/${geoBoundariesReleaseType}/${geoBoundariesCountry}/${geoBoundariesAdminLevel}/`;
+            } else {
+                // Fallback: append query param 'tag' where supported by some endpoints
+                try {
+                    const u = new URL(url);
+                    u.searchParams.set('tag', geoBoundariesSourceTag);
+                    url = u.toString();
+                } catch {
+                    // ignore
+                }
+            }
+        }
+        return url;
     }
 
     /**

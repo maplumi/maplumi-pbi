@@ -109,9 +109,32 @@ export class MapService {
 
         // Update basemap layer
         const newLayer = this.getBasemap(options);
-        if (newLayer) {
-            newLayer.getSource()?.setAttributions(newAttribution);
-            this.map.getLayers().setAt(0, newLayer);
+        try {
+            if (newLayer) {
+                newLayer.getSource()?.setAttributions(newAttribution);
+                const layers = this.map.getLayers();
+                const len = layers.getLength?.() ?? (layers.getArray ? layers.getArray().length : 0);
+                if (len === 0) {
+                    // Insert when there are no existing layers
+                    try { (layers as any).insertAt(0, newLayer); } catch { /* no-op */ }
+                } else {
+                    // Replace existing base layer at index 0
+                    try { layers.setAt(0, newLayer); } catch { /* no-op */ }
+                }
+                // Debug: surface basemap type and source status when debug enabled
+                try {
+                    if ((globalThis as any).__MAPLUMI_DEBUG__ === true) {
+                        console.log('[Maplumi][debug] Basemap updated', {
+                            selectedBasemap: options.selectedBasemap,
+                            newLayerType: newLayer.constructor?.name,
+                            hasSource: !!newLayer.getSource?.(),
+                        });
+                    }
+                } catch {}
+            }
+        } catch (e) {
+            // Defensive: don't throw from basemap update
+            console.warn('[Maplumi] Failed to update basemap layer safely', e);
         }
     }
 

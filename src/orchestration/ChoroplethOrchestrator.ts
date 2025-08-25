@@ -78,9 +78,8 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             return undefined;
         }
 
-        const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
-        group.selectAll("*").remove();
-    this.svgOverlay.style.display = 'block';
+    const group = this.svg.select(`#${DomIds.ChoroplethGroup}`);
+    group.selectAll("*").remove();
 
     const validation = validateChoroplethInput(categorical);
     if (!validation.ok) { this.messages.missingMeasures(); return undefined; }
