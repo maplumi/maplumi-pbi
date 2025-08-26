@@ -277,12 +277,30 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     preferFirstLayer,
                     honorPreferredName
                 );
-                processedGeoData = procResult.geojson;
-                // If the data service chose a different pcode key with more matches, adopt it and log
-                if (procResult.usedPcodeKey && procResult.usedPcodeKey !== pcodeKey) {
-                    console.log('[choropleth] data service selected alternate pcodeKey=', procResult.usedPcodeKey, 'original=', pcodeKey);
-                    pcodeKey = procResult.usedPcodeKey;
+                // Decide whether to adopt the auto-detected key based on confidence thresholds
+                const bestKey = procResult.usedPcodeKey;
+                const bestCount = procResult.bestCount || 0;
+                const originalCount = procResult.originalCount || 0;
+                const minMatches = VisualConfig.AUTO_DETECT?.PCODE_MIN_MATCHES ?? 3;
+                const minMargin = VisualConfig.AUTO_DETECT?.PCODE_MIN_MARGIN ?? 2;
+
+                let chosenGeojson = procResult.filteredByOriginal;
+                let chosenKey = pcodeKey;
+
+                if (bestKey && bestKey !== pcodeKey) {
+                    // Only adopt if bestCount meets absolute threshold AND beats the original by margin
+                    if (bestCount >= minMatches && (bestCount >= originalCount + minMargin)) {
+                        chosenGeojson = procResult.filteredByBest;
+                        chosenKey = bestKey;
+                        console.log('[choropleth] auto-swapping pcodeKey', { original: pcodeKey, chosen: bestKey, bestCount, originalCount });
+                        try { this.messages.autoSelectedBoundaryField(pcodeKey, bestKey, bestCount); } catch (e) {}
+                    } else {
+                        console.log('[choropleth] NOT swapping pcodeKey - thresholds not met', { original: pcodeKey, bestKey, bestCount, originalCount, minMatches, minMargin });
+                    }
                 }
+
+                processedGeoData = chosenGeojson;
+                pcodeKey = chosenKey;
             } catch (e: any) {
                 console.error('[choropleth] processGeoData threw', e);
                 try { this.host.displayWarningIcon(

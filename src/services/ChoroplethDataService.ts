@@ -39,7 +39,14 @@ export class ChoroplethDataService {
         topojsonObjectName?: string,
         preferFirstLayer: boolean = true,
         honorPreferredName: boolean = false
-    ): { geojson: FeatureCollection; usedPcodeKey: string } {
+    ): {
+        originalGeojson: FeatureCollection;
+        filteredByBest: FeatureCollection;
+        filteredByOriginal: FeatureCollection;
+        usedPcodeKey: string;
+        bestCount: number;
+        originalCount: number;
+    } {
 
         // Handle topojson if needed (pass flags through to selector)
         let geojson: FeatureCollection = this.isTopoJSON(data)
@@ -59,9 +66,10 @@ export class ChoroplethDataService {
             }
         } catch (e) {}
 
-        // If the provided pcodeKey yields no matches, try a set of likely candidate keys and pick the one
-        // that provides the most matches against validPCodes. This helps prevent a blank map when the
-        // dataset uses a different property name (e.g., hdx_pcode vs shapeISO).
+        // Normalize validPCodes to strings trimmed for robust matching
+        const normalizedValid = new Set(validPCodes.map(v => String(v).trim()));
+
+        // Candidate keys to test (deduplicated while preserving order)
         const candidateKeys = Array.from(new Set<string>([
             pcodeKey,
             'hdx_pcode',
@@ -72,39 +80,58 @@ export class ChoroplethDataService {
             'shapeName'
         ]));
 
-        const matchCounts = candidateKeys.map(key => {
-            try {
-                return geojson.features.reduce((acc, feature) => {
-                    const val = feature.properties ? feature.properties[key] : undefined;
-                    return acc + (val !== undefined && validPCodes.includes(val) ? 1 : 0);
-                }, 0);
-            } catch (e) { return 0; }
-        });
+        const matchCounts: number[] = candidateKeys.map(key => 0);
+
+        // Compute match counts using normalized string comparison
+        for (let i = 0; i < candidateKeys.length; i++) {
+            const key = candidateKeys[i];
+            let cnt = 0;
+            for (const feature of geojson.features) {
+                try {
+                    const raw = feature.properties ? feature.properties[key] : undefined;
+                    if (raw === undefined || raw === null) continue;
+                    const sval = String(raw).trim();
+                    if (normalizedValid.has(sval)) cnt++;
+                } catch (e) {
+                    // ignore per-feature errors
+                }
+            }
+            matchCounts[i] = cnt;
+        }
 
         const bestIndex = matchCounts.reduce((best, cnt, idx) => cnt > matchCounts[best] ? idx : best, 0);
         const bestKey = candidateKeys[bestIndex] || pcodeKey;
         const bestCount = matchCounts[bestIndex] || 0;
+        const originalIndex = candidateKeys.indexOf(pcodeKey);
+        const originalCount = originalIndex >= 0 ? matchCounts[originalIndex] || 0 : 0;
 
-        try { console.log('[choroplethData] candidateKeyMatchCounts=', candidateKeys.map((k, i) => ({ k, count: matchCounts[i] })), 'selected=', bestKey, 'count=', bestCount); } catch (e) {}
+        try { console.log('[choroplethData] candidateKeyMatchCounts=', candidateKeys.map((k, i) => ({ k, count: matchCounts[i] })), 'best=', bestKey, 'bestCount=', bestCount, 'originalCount=', originalCount); } catch (e) {}
 
-        // Filter using the chosen key
-        const filtered = geojson.features.filter(feature => {
-            const val = feature.properties ? feature.properties[bestKey] : undefined;
-            // log mismatches for debugging
-            if (val === undefined) {
-                try { console.log('[choroplethData] missing pcodeKey on feature, props=', Object.keys(feature.properties || {}).slice(0,20), 'propsSample=', feature.properties); } catch(e){}
-            }
-            return validPCodes.includes(val);
-        });
+        // Build filtered FeatureCollections for both the best key and the original key
+        const filteredByKey = (key: string) => {
+            const features = geojson.features.filter(feature => {
+                try {
+                    const raw = feature.properties ? feature.properties[key] : undefined;
+                    if (raw === undefined || raw === null) return false;
+                    const sval = String(raw).trim();
+                    return normalizedValid.has(sval);
+                } catch (e) { return false; }
+            });
+            return { ...geojson, features } as FeatureCollection;
+        };
 
-        try { console.log('[choroplethData] filteredFeatures=', filtered.length); } catch(e){}
+        const filteredByBest = filteredByKey(bestKey);
+        const filteredByOriginal = filteredByKey(pcodeKey);
+
+        try { console.log('[choroplethData] filteredByBestCount=', filteredByBest.features.length, 'filteredByOriginalCount=', filteredByOriginal.features.length); } catch(e){}
 
         return {
-            geojson: {
-                ...geojson,
-                features: filtered
-            },
-            usedPcodeKey: bestKey
+            originalGeojson: geojson,
+            filteredByBest,
+            filteredByOriginal,
+            usedPcodeKey: bestKey,
+            bestCount,
+            originalCount
         };
     }
 

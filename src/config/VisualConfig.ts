@@ -81,6 +81,11 @@ export const VisualConfig = {
             ]
         }
     },
+    AUTO_DETECT: {
+        // Minimum number of matches required to auto-swap pcodeKey OR the best must beat the original by this margin
+        PCODE_MIN_MATCHES: 3,
+        PCODE_MIN_MARGIN: 2
+    },
     MAP_BASE_URL: {
         MAPBOX: "https://api.mapbox.com/styles/v1",
         MAPTILER: "https://api.maptiler.com/maps",

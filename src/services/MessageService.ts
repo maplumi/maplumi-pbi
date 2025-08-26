@@ -68,4 +68,10 @@ export class MessageService {
     choroplethFetchError() {
         this.warn("Error fetching data", "maplumiWarning: An error occurred while fetching the choropleth data. Please check the URL and your network connection.");
     }
+
+    // Inform user that the boundary ID field was auto-selected due to better matches
+    autoSelectedBoundaryField(original: string, chosen: string, matches: number) {
+        if (original === chosen) return; // don't show redundant message
+        this.warn("Auto-selected Boundary ID", `maplumiInfo: Auto-selected boundary ID '${chosen}' (matched ${matches} features) instead of '${original}'. You can override this in the formatting pane.`);
+    }
 }
