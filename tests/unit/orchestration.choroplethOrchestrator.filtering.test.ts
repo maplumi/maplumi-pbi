@@ -83,7 +83,14 @@ describe('ChoroplethOrchestrator filtering', () => {
   const ds = new ChoroplethDataService({
       getColorRamp: () => ['#000'], generateColorRamp: () => ['#000'], invertRamp: () => {}
     } as any, mockHost);
-  const pgMock = jest.fn().mockImplementation((data: any, key: string, valid: string[]) => ({ type: 'FeatureCollection', features: [] }));
+  const pgMock = jest.fn().mockImplementation((data: any, key: string, valid: string[]) => ({
+    originalGeojson: { type: 'FeatureCollection', features: [] },
+    filteredByBest: { type: 'FeatureCollection', features: [] },
+    filteredByOriginal: { type: 'FeatureCollection', features: [] },
+    usedPcodeKey: null,
+    bestCount: 0,
+    originalCount: 0
+  }));
   // Override instance method to capture args
   (ds as any).processGeoData = pgMock;
 

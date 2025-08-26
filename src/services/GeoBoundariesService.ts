@@ -163,11 +163,15 @@ export class GeoBoundariesService {
 
         // If the user supplied an explicit field name (from the UI), prefer it directly.
         // This allows choices like 'hdx_pcode' or 'hdx_name' to be used when present in the dataset.
+        const allowed = (VisualConfig.GEOBOUNDARIES?.SOURCE_FIELD_OPTIONS?.geoboundaries || []).map((o: any) => o.value);
         if (sourceFieldID && typeof sourceFieldID === 'string' && sourceFieldID.trim() !== '') {
-            return sourceFieldID.trim();
+            const candidate = sourceFieldID.trim();
+            if (allowed.includes(candidate)) return candidate;
+            // If it's not an allowed entry, fall back to default
         }
-    // Default fallback when nothing specified
-    return "shapeGroup";
+
+        // Default fallback when nothing specified or invalid
+        return "shapeISO";
     }
 
     /**

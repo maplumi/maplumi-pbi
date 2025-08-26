@@ -24,7 +24,7 @@ describe('ChoroplethDataService', () => {
     dataService = {
       processGeoData: (data: any, pcodeKey: string, validPCodes: string[]) => {
         const isTopoJSON = (obj: any) => obj.type === 'Topology';
-        
+
         const convertTopoJSONToGeoJSON = (topoData: any) => {
           // Simplified conversion for testing
           return {
@@ -34,12 +34,18 @@ describe('ChoroplethDataService', () => {
         };
 
         let geojson = isTopoJSON(data) ? convertTopoJSONToGeoJSON(data) : data;
-        
+
+        const features = geojson.features.filter((feature: any) =>
+          validPCodes.includes(feature.properties[pcodeKey])
+        );
+
         return {
-          ...geojson,
-          features: geojson.features.filter((feature: any) =>
-            validPCodes.includes(feature.properties[pcodeKey])
-          )
+          originalGeojson: geojson,
+          filteredByBest: { ...geojson, features },
+          filteredByOriginal: { ...geojson, features },
+          usedPcodeKey: pcodeKey,
+          bestCount: features.length,
+          originalCount: features.length
         };
       },
 
@@ -159,11 +165,12 @@ describe('ChoroplethDataService', () => {
       };
 
       const validPCodes = ['NY001'];
-      const result = dataService.processGeoData(geoJsonData, 'ADM1_PCODE', validPCodes);
+  const result = dataService.processGeoData(geoJsonData, 'ADM1_PCODE', validPCodes);
 
-      expect(result.type).toBe('FeatureCollection');
-      expect(result.features).toHaveLength(1);
-      expect(result.features[0].properties.ADM1_PCODE).toBe('NY001');
+  const filtered = result.filteredByOriginal;
+  expect(filtered.type).toBe('FeatureCollection');
+  expect(filtered.features).toHaveLength(1);
+  expect(filtered.features[0].properties.ADM1_PCODE).toBe('NY001');
     });
 
     test('should filter features by valid P-codes', () => {
@@ -177,10 +184,11 @@ describe('ChoroplethDataService', () => {
       };
 
       const validPCodes = ['A', 'C'];
-      const result = dataService.processGeoData(geoJsonData, 'PCODE', validPCodes);
+  const result = dataService.processGeoData(geoJsonData, 'PCODE', validPCodes);
+  const filtered = result.filteredByOriginal;
 
-      expect(result.features).toHaveLength(2);
-      expect(result.features.map((f: any) => f.properties.PCODE)).toEqual(['A', 'C']);
+  expect(filtered.features).toHaveLength(2);
+  expect(filtered.features.map((f: any) => f.properties.PCODE)).toEqual(['A', 'C']);
     });
 
     test('should handle empty valid P-codes array', () => {
@@ -192,9 +200,10 @@ describe('ChoroplethDataService', () => {
       };
 
       const validPCodes: string[] = [];
-      const result = dataService.processGeoData(geoJsonData, 'PCODE', validPCodes);
+  const result = dataService.processGeoData(geoJsonData, 'PCODE', validPCodes);
+  const filtered = result.filteredByOriginal;
 
-      expect(result.features).toHaveLength(0);
+  expect(filtered.features).toHaveLength(0);
     });
   });
 
