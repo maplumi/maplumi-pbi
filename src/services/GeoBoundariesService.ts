@@ -158,21 +158,16 @@ export class GeoBoundariesService {
      * Gets the appropriate field name for the boundary data
      */
     public static getBoundaryFieldName(options: ChoroplethOptions): string {
-        const { sourceFieldID } = options;
-        
-        // Map the UI field selection to actual geoBoundaries field names
-        switch (sourceFieldID) {
-            case "shapeISO":
-                return "shapeISO";
-            case "shapeName":
-                return "shapeName";
-            case "shapeID":
-                return "shapeID";
-            case "shapeGroup":
-                return "shapeGroup";
-            default:
-                return "shapeISO"; // Default fallback
+        const anyOpts = options as any;
+        const sourceFieldID = anyOpts?.sourceFieldID;
+
+        // If the user supplied an explicit field name (from the UI), prefer it directly.
+        // This allows choices like 'hdx_pcode' or 'hdx_name' to be used when present in the dataset.
+        if (sourceFieldID && typeof sourceFieldID === 'string' && sourceFieldID.trim() !== '') {
+            return sourceFieldID.trim();
         }
+    // Default fallback when nothing specified
+    return "shapeGroup";
     }
 
     /**

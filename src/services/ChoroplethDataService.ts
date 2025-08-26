@@ -32,11 +32,18 @@ export class ChoroplethDataService {
      * @param validPCodes Array of valid PCodes to filter features by
      * @returns Processed GeoJSON FeatureCollection with simplified and filtered features
      */
-    public processGeoData(data: any, pcodeKey: string, validPCodes: string[], topojsonObjectName?: string): FeatureCollection {
+    public processGeoData(
+        data: any,
+        pcodeKey: string,
+        validPCodes: string[],
+        topojsonObjectName?: string,
+        preferFirstLayer: boolean = true,
+        honorPreferredName: boolean = false
+    ): { geojson: FeatureCollection; usedPcodeKey: string } {
 
-        // Handle topojson if needed
+        // Handle topojson if needed (pass flags through to selector)
         let geojson: FeatureCollection = this.isTopoJSON(data)
-            ? this.convertTopoJSONToGeoJSON(data, topojsonObjectName)
+            ? this.convertTopoJSONToGeoJSON(data, topojsonObjectName, preferFirstLayer, honorPreferredName)
             : data as FeatureCollection;
 
         // Stricter GeoJSON schema validation
@@ -44,13 +51,60 @@ export class ChoroplethDataService {
             throw new Error("Invalid GeoJSON: expected a FeatureCollection with a features array.");
         }
 
-        // Filter features based on valid PCodes
+        try {
+            console.log('[choroplethData] processGeoData initialFeatures=', geojson.features.length, 'pcodeKey=', pcodeKey);
+            if (geojson.features.length > 0) {
+                const sampleProps = Object.keys(geojson.features[0].properties || {}).slice(0, 20);
+                console.log('[choroplethData] sample properties=', sampleProps, 'sample feature props=', geojson.features[0].properties);
+            }
+        } catch (e) {}
+
+        // If the provided pcodeKey yields no matches, try a set of likely candidate keys and pick the one
+        // that provides the most matches against validPCodes. This helps prevent a blank map when the
+        // dataset uses a different property name (e.g., hdx_pcode vs shapeISO).
+        const candidateKeys = Array.from(new Set<string>([
+            pcodeKey,
+            'hdx_pcode',
+            'hdx_name',
+            'shapeISO',
+            'shapeID',
+            'shapeGroup',
+            'shapeName'
+        ]));
+
+        const matchCounts = candidateKeys.map(key => {
+            try {
+                return geojson.features.reduce((acc, feature) => {
+                    const val = feature.properties ? feature.properties[key] : undefined;
+                    return acc + (val !== undefined && validPCodes.includes(val) ? 1 : 0);
+                }, 0);
+            } catch (e) { return 0; }
+        });
+
+        const bestIndex = matchCounts.reduce((best, cnt, idx) => cnt > matchCounts[best] ? idx : best, 0);
+        const bestKey = candidateKeys[bestIndex] || pcodeKey;
+        const bestCount = matchCounts[bestIndex] || 0;
+
+        try { console.log('[choroplethData] candidateKeyMatchCounts=', candidateKeys.map((k, i) => ({ k, count: matchCounts[i] })), 'selected=', bestKey, 'count=', bestCount); } catch (e) {}
+
+        // Filter using the chosen key
+        const filtered = geojson.features.filter(feature => {
+            const val = feature.properties ? feature.properties[bestKey] : undefined;
+            // log mismatches for debugging
+            if (val === undefined) {
+                try { console.log('[choroplethData] missing pcodeKey on feature, props=', Object.keys(feature.properties || {}).slice(0,20), 'propsSample=', feature.properties); } catch(e){}
+            }
+            return validPCodes.includes(val);
+        });
+
+        try { console.log('[choroplethData] filteredFeatures=', filtered.length); } catch(e){}
+
         return {
-            ...geojson,
-            //features: geojson.features
-            features: geojson.features.filter(feature =>
-                validPCodes.includes(feature.properties[pcodeKey])
-            )
+            geojson: {
+                ...geojson,
+                features: filtered
+            },
+            usedPcodeKey: bestKey
         };
     }
 
@@ -348,7 +402,7 @@ export class ChoroplethDataService {
      * @param topology TopoJSON data to convert
      * @returns GeoJSON FeatureCollection
      */
-    private convertTopoJSONToGeoJSON(topology: any, preferredObjectName?: string): FeatureCollection {
+    private convertTopoJSONToGeoJSON(topology: any, preferredObjectName?: string, preferFirstLayer: boolean = true, honorPreferredName: boolean = false): FeatureCollection {
 
         if (!topology || typeof topology !== "object") {
             throw new Error("Invalid TopoJSON object provided.");
@@ -372,9 +426,15 @@ export class ChoroplethDataService {
 
         let selectedLayerName: string | null = null;
 
-        if (preferredObjectName && layerNames.includes(preferredObjectName)) {
+        // Selection policy:
+        // - Default: prefer the first object in the TopoJSON (simple and predictable).
+        // - If honorPreferredName is true and the caller supplied a preferredObjectName that exists,
+        //   select that object (used for custom sources where user may specify which layer to use).
+        // - Fallback: if only one object exists, use it; otherwise, if no decision yet, pick the first.
+        if (honorPreferredName && preferredObjectName && layerNames.includes(preferredObjectName)) {
             selectedLayerName = preferredObjectName;
-        } else if (layerNames.length === 1) {
+        } else if (layerNames.length > 0) {
+            // Prefer the first layer deterministically
             selectedLayerName = layerNames[0];
         } else {
             // Prefer the object with the highest count of polygonal geometries
@@ -392,6 +452,8 @@ export class ChoroplethDataService {
                 selectedLayerName = layerNames[0];
             }
         }
+
+    try { console.log('[choroplethData] convertTopoJSON layerNames=', layerNames, 'selectedLayerName=', selectedLayerName, 'preferFirstLayer=', preferFirstLayer); } catch(e){}
 
         if (!selectedLayerName) {
             throw new Error("Unable to select a TopoJSON object for conversion.");

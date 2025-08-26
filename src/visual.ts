@@ -331,6 +331,7 @@ export class MaplumiVisual implements IVisual {
             // Choropleth layer (async) with guarded errors
             if (choroplethOptions.layerControl === true) {
                 try {
+                    console.log('[Maplumi] starting choroplethOrchestrator.render', { country: choroplethOptions.geoBoundariesCountry, adminLevel: choroplethOptions.geoBoundariesAdminLevel, release: choroplethOptions.geoBoundariesReleaseType });
                     const res = this.choroplethOrchestrator.render(
                         dataView.categorical,
                         choroplethOptions,
@@ -340,10 +341,10 @@ export class MaplumiVisual implements IVisual {
                     // If render returned a promise, attach handlers to isolate failures
                     if (res && typeof (res as any).then === 'function') {
                         (res as unknown as Promise<any>)
-                            .then(layer => { this.choroplethLayer = layer as any; this.updateOverlayVisibility(); })
+                            .then(layer => { console.log('[Maplumi] choropleth render resolved', { layer: !!layer }); this.choroplethLayer = layer as any; this.updateOverlayVisibility(); })
                             .catch(err => {
                                 console.error('[Maplumi] Choropleth render error', err);
-                                this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
+                                try { this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.'); } catch {}
                             });
                     } else {
                         // Non-promise return (defensive): assign directly
