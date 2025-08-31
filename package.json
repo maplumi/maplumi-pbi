@@ -1,7 +1,7 @@
 {
   "name": "maplumi-powerbi-visual",
   "description": "Enhanced Map Visual for Power BI with choropleth and scaled circles",
-  "version": "1.0.0.0-beta",
+  "version": "1.0.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/maplumi/maplumi-pbi.git"
@@ -10,6 +10,7 @@
   "scripts": {
     "pbiviz": "npx pbiviz",
     "start": "npx pbiviz start",
+    "prepackage": "npm run version:build",
     "package": "npm run sync-version && npx pbiviz package",
     "sync-version": "tsx scripts/sync-version.ts",
     "version:patch": "tsx scripts/increment-version.ts patch",
@@ -17,6 +18,7 @@
     "version:major": "tsx scripts/increment-version.ts major",
     "version:build": "tsx scripts/increment-version.ts build",
     "version:ci": "tsx scripts/ci-version.ts",
+    "prebuild": "npm run version:build",
     "build": "npm run sync-version && npx pbiviz package",
     "build:ci": "npm run version:ci && npx pbiviz package",
     "release:patch": "npm run version:patch && npm run build",

@@ -5,28 +5,13 @@
  * Supports Git-based versioning and CI environment variables
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import { execSync } from 'child_process';
+import { sanitizeAndValidate, readProjectVersions, writeProjectVersions } from './version-utils';
 
 interface GitInfo {
     tag: string;
     commits: number;
     hash: string;
-}
-
-interface PackageJson {
-    version: string;
-    [key: string]: any;
-}
-
-interface PbivizJson {
-    visual: {
-        version: string;
-        [key: string]: any;
-    };
-    version: string;
-    [key: string]: any;
 }
 
 function getVersionFromGit(): GitInfo {
@@ -57,15 +42,11 @@ function getVersionFromGit(): GitInfo {
 
 function generateCIVersion(): void {
     try {
-        const packagePath = path.join(__dirname, '..', 'package.json');
-        const pbivizPath = path.join(__dirname, '..', 'pbiviz.json');
-        
-        const packageJson: PackageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-        const pbivizJson: PbivizJson = JSON.parse(fs.readFileSync(pbivizPath, 'utf8'));
+    const { packageJson, pbivizJson, packagePath, pbivizPath } = readProjectVersions();
         
         // Get version info
         const gitInfo = getVersionFromGit();
-        const baseVersion = gitInfo.tag;
+    const baseVersion = sanitizeAndValidate(gitInfo.tag);
         
         // CI/CD environment detection
         const isCI = process.env.CI === 'true';
@@ -96,12 +77,13 @@ function generateCIVersion(): void {
         const finalVersion = versionParts.slice(0, 4).join('.');
         
         // Update files - both use same 4-digit version
-        packageJson.version = finalVersion;
-        pbivizJson.visual.version = finalVersion;
-        pbivizJson.version = finalVersion;
-        
-        fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2));
-        fs.writeFileSync(pbivizPath, JSON.stringify(pbivizJson, null, 4));
+        // If running on CI with a tag and SKIP_CI_WRITE=1, just echo the version (no file write)
+        const isTaggedBuild = !!process.env.GITHUB_REF && process.env.GITHUB_REF.startsWith('refs/tags/');
+        if (isCI && isTaggedBuild && process.env.SKIP_CI_WRITE === '1') {
+            console.log(`ℹ️ Tagged CI build (no write due to SKIP_CI_WRITE=1). Version would be: ${finalVersion}`);
+        } else {
+            writeProjectVersions(finalVersion, { packageJson, pbivizJson, packagePath, pbivizPath });
+        }
         
         console.log(`✅ Version generated: ${finalVersion}`);
         console.log(`   📦 package.json: ${finalVersion}`);
