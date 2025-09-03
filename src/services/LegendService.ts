@@ -245,10 +245,17 @@ export class LegendService {
             }
             allLabels = uniqueValues.slice(0, maxLegendItems).map(v => format.formatValue(v, formatTemplate));
         } else {
-            for (let i = 0; i < classBreaks.length - 1; i++) {
-                allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
+            // Single-value collapse: if exactly two breaks and identical, show one swatch/label
+            if (classBreaks.length === 2 && classBreaks[0] === classBreaks[1]) {
+                const label = format.formatValue(classBreaks[0], formatTemplate);
+                allLabels.push(label);
+                colors = [colorScale[0]];
+            } else {
+                for (let i = 0; i < classBreaks.length - 1; i++) {
+                    allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
+                }
+                colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
             }
-            colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
         }
 
         // Calculate max width when needed

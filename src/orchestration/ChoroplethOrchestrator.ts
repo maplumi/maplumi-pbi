@@ -208,6 +208,20 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             this.categoricalStableOrder = [];
         }
 
+        // Single-value numeric collapse: if non-categorical and only one distinct numeric value, force one color & two identical breaks
+        if (choroplethOptions.classificationMethod !== ClassificationMethods.Unique) {
+            try {
+                const numericValues = colorValues.filter(v => typeof v === 'number' && !Number.isNaN(v));
+                const uniqueNums = Array.from(new Set(numericValues));
+                if (uniqueNums.length === 1) {
+                    const v = uniqueNums[0];
+                    const firstColor = Array.isArray(colorScale) ? colorScale[0] : (colorScale as any)[0];
+                    classBreaks = [v, v]; // ensures legend creates exactly one range entry (v - v)
+                    colorScale = [firstColor];
+                }
+            } catch (e) { console.warn('[choropleth] single-value collapse failed (non-fatal)', e); }
+        }
+
         this.lastClassificationMethod = choroplethOptions.classificationMethod;
         this.lastMeasureQueryName = colorMeasure?.source?.queryName;
 
