@@ -74,6 +74,25 @@ interface PbivizJson {
 
 ### Script Architecture
 
+
+## When & What to Bump (Decision Matrix)
+
+| Change Type | Examples | Bump | Script | Result (from 1.4.2.0) |
+|-------------|----------|------|--------|------------------------|
+| Breaking API / behavior requiring users to reconfigure visuals | Renamed data role, removed setting, incompatible schema | MAJOR | `npm run version:major` (or `release:major`) | 2.0.0.0 |
+| Backwards‑compatible feature | New layer option, extra legend control, performance feature | MINOR | `npm run version:minor` (or `release:minor`) | 1.5.0.0 |
+| Bug fix / minor enhancement | Null check, styling tweak, logging improvement | PATCH | `npm run version:patch` (or `release:patch`) | 1.4.3.0 |
+| Repackage only / docs / CI rebuild | Marketplace rejection fix, icon update, README, rebuild with new tooling | BUILD | `npm run version:build` | 1.4.2.1 |
+
+Notes:
+* `release:*` scripts perform version bump + `build` packaging (full release flow).
+* `version:*` scripts only bump & sync; you run `npm run build` (or `pbiviz package`) separately.
+* Always tag after bumping (except for rapid local build increments you do not intend to publish).
+
+## Standard Workflows
+
+### 1. New Feature Release
+```powershell
 ```
 scripts/
 ├── tsconfig.json           # TypeScript config for scripts
@@ -84,6 +103,9 @@ scripts/
 
 ### Modern Execution
 
+### 2. Hotfix After Release
+```powershell
+
 All scripts use **tsx** (TypeScript runner) for direct execution:
 
 ```bash
@@ -91,6 +113,9 @@ All scripts use **tsx** (TypeScript runner) for direct execution:
 tsx scripts/increment-version.ts patch
 ```
 
+
+### 3. Rebuild / Marketplace Metadata Only
+```powershell
 ## Versioning Strategies
 
 ### 1. Manual Development
@@ -99,6 +124,10 @@ For local development and manual releases:
 
 ```bash
 # Feature development
+
+### 4. All‑in‑One Release Shortcut
+If you prefer one command (bump + build) use `release:*`:
+```powershell
 npm run version:minor    # 1.0.1.0 → 1.1.0.0
 npm run build
 
@@ -106,13 +135,25 @@ npm run build
 npm run version:patch    # 1.0.1.0 → 1.0.2.0
 npm run build
 
-# Breaking changes
-npm run version:major    # 1.0.1.0 → 2.0.0.0
-npm run build
 
-# Quick iterations
-npm run version:build    # 1.0.1.0 → 1.0.1.1
+### 5. CI Pipeline (Tag Driven)
+```yaml
+# Breaking changes
 npm run build
+If you push a tag `v1.6.0.0`, you typically already bumped locally; CI just packages.
+
+## Practical Examples
+
+| Scenario | Current | Command | New Version | Rationale |
+|----------|---------|---------|-------------|-----------|
+| Add new map control toggle | 1.2.3.0 | `npm run version:minor` | 1.3.0.0 | Feature, backward compatible |
+| Fix null dereference crash | 1.3.0.0 | `npm run version:patch` | 1.3.1.0 | Bug fix |
+| Rebuild with updated icon | 1.3.1.0 | `npm run version:build` | 1.3.1.1 | Cosmetic only |
+| Remove deprecated data role | 1.3.1.1 | `npm run version:major` | 2.0.0.0 | Breaking change |
+
+## Command Cheat Sheet (npm + git)
+
+```powershell
 ```
 
 ### 2. Git Tag-Based
@@ -137,6 +178,39 @@ The TypeScript `ci-version.ts` script automatically:
 
 **Examples:**
 - Git tag `v1.2.0` + Build #45 → `1.2.0.45`
+
+## Do / Don't Summary
+
+| Do | Why |
+|----|-----|
+| Bump only one semantic segment at a time | Keeps history clear |
+| Tag every public release | Traceability & CI release triggers |
+| Use build number for non-semantic repacks | Avoids changelog noise |
+| Run tests before creating a tag | Prevents publishing broken version |
+| Use `sync-version` after manual edits | Maintain alignment |
+| Document breaking changes in commit & release notes | User clarity |
+
+| Don’t | Why Not |
+|-------|---------|
+| Manually edit `pbiviz.json` version only | Will be overwritten / drift |
+| Reuse tags (force-push) | Breaks consumers / audit trail |
+| Bump multiple segments simultaneously (e.g. major+minor) | Semantically ambiguous |
+| Auto-bump major/minor in CI | Loss of explicit review |
+
+## FAQ Addendum
+
+**Q: I forgot to bump before merging—what now?**  
+Create a new commit on main with the correct bump, tag it, push.
+
+**Q: I tagged wrong version already published?**  
+Publish a new corrective patch or build; avoid deleting the tag unless absolutely necessary.
+
+**Q: Can I skip the build number and stay 3-part?**  
+No—Power BI requires 4 parts; scripts enforce this for consistency.
+
+**Q: How do I reset build number after many iterations?**  
+Perform next semantic bump (patch/minor/major) which resets build to 0.
+
 - No tags + 5 commits → `1.0.0.5`
 - Local development → `1.0.0.{commits}`
 
