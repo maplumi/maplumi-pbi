@@ -26,4 +26,17 @@ describe("ColorRampHelper.selectColorRamp", () => {
     expect(Array.isArray(ramp)).toBe(true);
     expect(ramp.length).toBeGreaterThan(0);
   });
+
+  it("falls back and warns on empty custom ramp", () => {
+    const msgs = new MockMessages();
+    const ramp = ColorRampHelper.selectColorRamp("custom", "   ", msgs);
+    expect(msgs.invalidOrEmptyCustomColorRamp).toHaveBeenCalled();
+    expect(ramp.length).toBeGreaterThan(0);
+  });
+
+  it("returns only valid colors when custom list has mixed validity", () => {
+    const ramp = ColorRampHelper.selectColorRamp("custom", "#fff,notacolor,#123456,#bad,#abc", undefined);
+    // #bad is valid 3 hex (#bad) so included; notacolor excluded
+    expect(ramp).toEqual(["#fff", "#123456", "#bad", "#abc"]);
+  });
 });

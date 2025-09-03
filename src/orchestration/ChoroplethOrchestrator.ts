@@ -199,7 +199,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     this.messages.tooManyUniqueValues();
                 }
             } catch (e) {
-                console.error('[choropleth] categorical mapping error (proceeding without stability)', e);
+                
                 this.categoricalColorMap.clear();
                 this.categoricalStableOrder = [];
             }
@@ -219,7 +219,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     classBreaks = [v, v]; // ensures legend creates exactly one range entry (v - v)
                     colorScale = [firstColor];
                 }
-            } catch (e) { console.warn('[choropleth] single-value collapse failed (non-fatal)', e); }
+            } catch (e) { }
         }
 
         this.lastClassificationMethod = choroplethOptions.classificationMethod;
@@ -257,7 +257,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                     pcodeKey = boundaryFieldName;
                     cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_ALL_ADM0`;
-                    console.log("Loading All Countries ADM0 boundaries (consolidated dataset)");
                 } else {
                     // Prefer manifest-based direct TopoJSON path from the catalog
                     const resolvedUrl = GeoBoundariesCatalogService.resolveTopoJsonUrlSync(
@@ -275,7 +274,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                         const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                         pcodeKey = boundaryFieldName;
                         cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                        console.log(`Loading ${choroplethOptions.geoBoundariesCountry} ${choroplethOptions.geoBoundariesAdminLevel} (${choroplethOptions.geoBoundariesReleaseType}) via manifest`);
                     } else {
                         // Safe fallback to the legacy API metadata approach if manifest resolution fails
                         const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
@@ -287,7 +285,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                         const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                         pcodeKey = boundaryFieldName;
                         cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                        console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata.data)} (API fallback)`);
                     }
                 }
             } catch (error) {
@@ -313,31 +310,26 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         this.abortController = new AbortController();
 
             try {
-                console.log('[choropleth] about to call cacheService.getOrFetch', { serviceUrl, cacheKey });
                 const data = await this.cacheService.getOrFetch(cacheKey, async () => {
                 // Append a client identifier to outbound request URL
                     const fetchUrl = requestHelpers.appendClientIdQuery(serviceUrl);
-                    console.log('[choropleth] fetchFn prepared fetchUrl=', fetchUrl);
-                    if (!requestHelpers.isValidURL(fetchUrl)) { this.messages.invalidGeoTopoUrl(); console.warn('[choropleth] invalid fetch url', fetchUrl); return null; }
-                    if (!requestHelpers.enforceHttps(fetchUrl)) { this.messages.geoTopoFetchNetworkError(); console.warn('[choropleth] non-https fetch blocked', fetchUrl); return null; }
+                    if (!requestHelpers.isValidURL(fetchUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
+                    if (!requestHelpers.enforceHttps(fetchUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
                     let response: Response;
                     try {
                         response = await requestHelpers.fetchWithTimeout(fetchUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
                     } catch (e) {
-                        this.messages.geoTopoFetchNetworkError(); console.error('[choropleth] fetchWithTimeout error', e); return null;
+                        this.messages.geoTopoFetchNetworkError(); return null;
                     }
                     if (!response.ok) {
-                        this.messages.geoTopoFetchStatusError(response.status); console.error('[choropleth] topo fetch status', response.status, response.statusText); return null;
+                        this.messages.geoTopoFetchStatusError(response.status); return null;
                     }
                     const json = await response.json();
-                    if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); console.error('[choropleth] invalid json response from topo url'); return null; }
-                    console.log('[choropleth] fetchFn fetched json, size=', json && (json.objects ? Object.keys(json.objects).length : (json.features ? json.features.length : 'unknown')));
+                    if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); return null; }
                     return { data: json, response };
             }, { respectCacheHeaders: true });
 
-                console.log('[choropleth] cacheService.getOrFetch returned', !!data);
                 if (!data || !choroplethOptions.layerControl) {
-                    console.warn('[choropleth] No data returned or layerControl disabled', { data: !!data, layerControl: choroplethOptions.layerControl });
                     // Surface a warning so users can see something happened
                     try { this.host.displayWarningIcon('GeoBoundaries', 'maplumiWarning: No boundary data was returned for the selected dataset.'); } catch {}
                     return;
@@ -345,7 +337,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
             let processedGeoData;
             try {
-                console.debug('[choropleth] fetchAndRender serviceUrl=', serviceUrl, 'cacheKey=', cacheKey, 'pcodeKey=', pcodeKey, 'validPCodes=', validPCodes.length);
                 const preferFirstLayer = true; // prefer first layer by default for all sources
                 const honorPreferredName = choroplethOptions.boundaryDataSource === 'custom' && !!choroplethOptions.topojsonObjectName;
                 const procResult = dataService.processGeoData(
@@ -377,17 +368,14 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     if (thresholdsMet || originalEmptyBestNonZero) {
                         chosenGeojson = procResult.filteredByBest;
                         chosenKey = bestKey;
-                        console.log('[choropleth] auto-swapping pcodeKey', { original: pcodeKey, chosen: bestKey, bestCount, originalCount, dynamicMinMatches, dynamicMinMargin, originalEmptyBestNonZero });
                         try { this.messages.autoSelectedBoundaryField(pcodeKey, bestKey, bestCount); } catch (e) {}
                     } else {
-                        console.log('[choropleth] NOT swapping pcodeKey - thresholds not met', { original: pcodeKey, bestKey, bestCount, originalCount, dynamicMinMatches, dynamicMinMargin });
                     }
                 }
 
                 processedGeoData = chosenGeojson;
                 pcodeKey = chosenKey;
             } catch (e: any) {
-                console.error('[choropleth] processGeoData threw', e);
                 try { this.host.displayWarningIcon(
                     "Invalid Geo/TopoJSON Data",
                     "maplumiWarning: The boundary data isn't valid GeoJSON (FeatureCollection with features). Please verify the URL, selected object name, and file format."
@@ -395,12 +383,10 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 return;
             }
 
-            try { console.log('[choropleth] processedGeoData features=', processedGeoData?.features?.length); } catch {}
 
             // Defensive: if the processed GeoJSON has no features, bail early and
             // avoid adding an empty vector layer which can lead to confusing UI states.
             if (!processedGeoData || !Array.isArray((processedGeoData as any).features) || (processedGeoData as any).features.length === 0) {
-                console.warn('[choropleth] no features after processing - skipping layer creation');
                 try { this.host.displayWarningIcon('No boundary features', 'maplumiWarning: The selected boundary dataset produced zero matching features. Please check your Boundary ID field and data.'); } catch {}
                 // Remove any previously-added choropleth layer so we don't leave a stale layer
                 if (this.choroplethLayer) {

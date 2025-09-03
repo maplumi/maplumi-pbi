@@ -22,25 +22,16 @@ export class CacheService {
     ): Promise<T> {
         const cached = this.cache.get(key);
 
-        if (cached && this.isValid(cached)) {
-            if ((globalThis as any).__MAPLUMI_DEBUG_CACHE__) {
-                console.debug(`[CacheService] HIT ${key}`);
-            }
+    if (cached && this.isValid(cached)) {
             return cached.data;
         }
 
         // Coalesce concurrent in-flight fetches for the same key
     const existing = this.pending.get(key) as Promise<T> | undefined;
         if (existing) {
-            if ((globalThis as any).__MAPLUMI_DEBUG_CACHE__) {
-                console.debug(`[CacheService] PENDING ${key}`);
-            }
             return existing;
         }
 
-        if ((globalThis as any).__MAPLUMI_DEBUG_CACHE__) {
-            console.debug(`[CacheService] MISS ${key}`);
-        }
         const p = (async () => {
             try {
                 const result = await fetchFn();

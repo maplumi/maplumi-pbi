@@ -361,7 +361,6 @@ export class LegendService {
     ) {
         // Validate inputs
         if (sizeValues.length !== radii.length) {
-            console.error("Arrays must have the same length");
             return [];
         }
 
@@ -371,7 +370,6 @@ export class LegendService {
             .filter((item) => item.size >= 0 && item.radius >= 0);
 
         if (validData.length === 0) {
-            console.error("No valid positive data points");
             return [];
         }
 

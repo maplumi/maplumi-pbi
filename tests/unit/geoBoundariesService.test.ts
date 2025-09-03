@@ -206,8 +206,7 @@ describe("GeoBoundariesService", () => {
       expect((data as any).tjDownloadURL).toBe("https://example.com/file.topo.json");
     });
 
-    it("returns null data when payload lacks download URLs", async () => {
-      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it("returns null data when payload lacks download URLs", async () => {
       const fake: Partial<Response> = {
         ok: true,
         json: async () => ({ boundaryName: "Kenya", boundaryType: "ADM1" }) as any,
@@ -217,12 +216,9 @@ describe("GeoBoundariesService", () => {
       const { data, response } = await GeoBoundariesService.fetchMetadata(baseOptions);
       expect(response).toBeDefined();
       expect(data).toBeNull();
-      expect(errSpy).toHaveBeenCalled();
-      errSpy.mockRestore();
     });
 
-    it("handles non-ok responses gracefully", async () => {
-      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it("handles non-ok responses gracefully", async () => {
       const fake: Partial<Response> = { ok: false, status: 500, statusText: "Server Error" };
       // @ts-ignore
       global.fetch = jest.fn().mockResolvedValue(fake);
@@ -230,19 +226,14 @@ describe("GeoBoundariesService", () => {
       const { data, response } = await GeoBoundariesService.fetchMetadata(baseOptions);
       expect(data).toBeNull();
       expect(response).toBeDefined();
-      expect(errSpy).toHaveBeenCalled();
-      errSpy.mockRestore();
     });
 
-    it("handles thrown errors and returns nulls", async () => {
-      const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  it("handles thrown errors and returns nulls", async () => {
       // @ts-ignore
       global.fetch = jest.fn().mockRejectedValue(new Error("network"));
       const { data, response } = await GeoBoundariesService.fetchMetadata(baseOptions);
       expect(data).toBeNull();
       expect(response).toBeNull();
-      expect(errSpy).toHaveBeenCalled();
-      errSpy.mockRestore();
     });
   });
 });

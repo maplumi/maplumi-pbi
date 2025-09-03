@@ -132,7 +132,6 @@ export class ChoroplethLayer extends Layer {
                 ? 'transparent'
                 : this.options.colorScale(valueRaw);
             
-            //console.log('Layer render:', { pCode, value: valueRaw, fillColor, type: typeof valueRaw });
             
             const dataPoint = dataPointsLookup[pCode];
 

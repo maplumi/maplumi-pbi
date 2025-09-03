@@ -121,20 +121,10 @@ export class MapService {
                     // Replace existing base layer at index 0
                     try { layers.setAt(0, newLayer); } catch { /* no-op */ }
                 }
-                // Debug: surface basemap type and source status when debug enabled
-                try {
-                    if ((globalThis as any).__MAPLUMI_DEBUG__ === true) {
-                        console.log('[Maplumi][debug] Basemap updated', {
-                            selectedBasemap: options.selectedBasemap,
-                            newLayerType: newLayer.constructor?.name,
-                            hasSource: !!newLayer.getSource?.(),
-                        });
-                    }
-                } catch {}
+                // Basemap updated (debug logging intentionally suppressed)
             }
         } catch (e) {
-            // Defensive: don't throw from basemap update
-            console.warn('[Maplumi] Failed to update basemap layer safely', e);
+            // Defensive: don't throw from basemap update (logging removed)
         }
     }
 

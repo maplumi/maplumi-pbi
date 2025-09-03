@@ -625,33 +625,24 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         description: "If your TopoJSON has multiple objects, specify the object name to use. Leave blank to auto-detect the polygon layer."
     });
 
-
     name: string = "choroplethLocationBoundarySettingsGroup";
     displayName: string = "Boundary";
     collapsible: boolean = false;
     slices: formattingSettings.Slice[] = [
         this.boundaryDataSource,
-    this.geoBoundariesCountry,
-    this.geoBoundariesSourceTag,
-    this.geoBoundariesReleaseType,
+        this.geoBoundariesCountry,
+        this.geoBoundariesSourceTag,
+        this.geoBoundariesReleaseType,
         this.geoBoundariesAdminLevel,
-        this.topoJSON_geoJSON_FileUrl, 
-    this.topojsonObjectName,
+        this.topoJSON_geoJSON_FileUrl,
+        this.topojsonObjectName,
         this.boundaryIdField,
         this.customBoundaryIdField
     ];
 
     public applyConditionalDisplayRules(): void {
 
-        const selectedSource = this.boundaryDataSource.value?.value;
-        // Debug: log when conditional rules run to diagnose visibility glitches in host
-        try {
-            console.debug('[settings] applyConditionalDisplayRules selectedSource=', selectedSource,
-                'boundaryIdField.value=', this.boundaryIdField.value?.value,
-                'customBoundaryIdField.value=', this.customBoundaryIdField.value);
-        } catch (e) {
-            // ignore logging errors in hosts that restrict console
-        }
+    const selectedSource = this.boundaryDataSource.value?.value;
 
         // Detect if the user has changed the boundaryIdField value since last run and mark it
         try {
@@ -787,20 +778,8 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
         }
 
         // Replace the group's slices in-place
-        try {
-            this.slices = newSlices;
-        } catch (e) {
-            // Some hosts may lock slice arrays; fall back to toggling visibility only
-            console.debug('[settings] failed to replace slices, falling back to visibility toggles', e);
-        }
+    try { this.slices = newSlices; } catch (e) { }
 
-        // Debug: emit visibility state and current slices
-        try {
-            console.debug('[settings] visibility showGeoDropdown=', showGeoDropdown, 'showCustomInput=', showCustomInput,
-                'slices=', this.slices.map(s => (s as any).name || (s as any).displayName));
-        } catch (e) {
-            // ignore
-        }
 
         // Clear any stale custom value when switching back to GeoBoundaries
         if (!isCustomSource) {
@@ -874,7 +853,6 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
 
         } catch (e) {
             // ignore errors silently in the formatting pane
-            console.warn('Error populating catalog-derived fields', e);
         }
     }
 
@@ -945,7 +923,6 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
                 // Debug-only: report the resolved URL and items we discovered. Do NOT overwrite
                 // the static items/value because that was requested to keep dropdown stable.
                 try {
-                    console.debug('[settings] populateBoundaryIdFieldsFromData (no-op) url=', url, 'itemsCount=', items.length, 'sample=', items.slice(0,5));
                 } catch (e) {
                     // ignore
                 }
@@ -953,7 +930,6 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
 
         } catch (e) {
-            console.warn('Error fetching boundary data to populate ID fields', e);
         }
     }
 }
