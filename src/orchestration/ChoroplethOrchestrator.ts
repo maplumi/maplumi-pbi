@@ -30,6 +30,11 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
     private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer | ChoroplethWebGLLayer | undefined;
     private abortController: AbortController | null = null;
     private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
+    // Persistent categorical mapping (stable category->color across filtering) for Unique classification
+    private categoricalColorMap: globalThis.Map<any, string> = new globalThis.Map();
+    private categoricalStableOrder: any[] = []; // first 7 sorted categories (stable across filtering until measure/method change)
+    private lastClassificationMethod: string | undefined;
+    private lastMeasureQueryName: string | undefined;
 
     constructor(args: {
         svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -130,9 +135,9 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         pCodes: string[],
         dataService: ChoroplethDataService
     ): ChoroplethDataSet {
-        const colorValues: number[] = colorMeasure.values;
-        const classBreaks = dataService.getClassBreaks(colorValues, choroplethOptions);
-        const colorScale = dataService.getColorScale(classBreaks as any, choroplethOptions);
+    const colorValues: number[] = colorMeasure.values;
+    let classBreaks = dataService.getClassBreaks(colorValues, choroplethOptions);
+    let colorScale = dataService.getColorScale(classBreaks as any, choroplethOptions);
         const pcodeKey = choroplethOptions.locationPcodeNameId;
         const tooltips = dataService.extractTooltips(categorical);
         const dataPoints = pCodes.map((pcode, i) => {
@@ -142,9 +147,70 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 .createSelectionId();
             return { pcode, value: colorValues[i], tooltip: tooltips[i], selectionId };
         });
-    if (choroplethOptions.classificationMethod === ClassificationMethods.Unique && (classBreaks as any[]).length > 7) {
-            this.messages.tooManyUniqueValues();
+        // Stable ordered categorical mapping for Unique classification
+        if (choroplethOptions.classificationMethod === ClassificationMethods.Unique) {
+            try {
+                const measureQuery = colorMeasure?.source?.queryName;
+                const enteringUnique = this.lastClassificationMethod !== ClassificationMethods.Unique;
+                const measureChanged = measureQuery && measureQuery !== this.lastMeasureQueryName;
+
+                const currentUnique = Array.from(new Set(colorValues.filter(v => v !== null && v !== undefined && !Number.isNaN(v))));
+                const allNumeric = currentUnique.every(v => typeof v === 'number');
+                const sortedCurrent = allNumeric
+                    ? [...currentUnique].sort((a, b) => (a as number) - (b as number))
+                    : [...currentUnique].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+
+                const basePalette = Array.isArray(colorScale) ? colorScale.slice(0, 7) : (Object.values(colorScale) as string[]).slice(0, 7);
+
+                if (enteringUnique || measureChanged || this.categoricalStableOrder.length === 0) {
+                    // Initialize stable palette from sortedCurrent
+                    this.categoricalColorMap.clear();
+                    this.categoricalStableOrder = [];
+                    for (const cat of sortedCurrent) {
+                        if (this.categoricalStableOrder.length < 7) {
+                            this.categoricalStableOrder.push(cat);
+                            this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
+                        } else {
+                            this.categoricalColorMap.set(cat, '#000000');
+                        }
+                    }
+                } else {
+                    // Append any new categories (preserve existing color assignments)
+                    for (const cat of sortedCurrent) {
+                        if (!this.categoricalColorMap.has(cat)) {
+                            if (this.categoricalStableOrder.length < 7) {
+                                this.categoricalStableOrder.push(cat);
+                                this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
+                            } else {
+                                this.categoricalColorMap.set(cat, '#000000');
+                            }
+                        }
+                    }
+                }
+
+                // Legend / breaks use only those stable categories that are present in current filter result
+                const presentStable = this.categoricalStableOrder.filter(c => currentUnique.includes(c));
+                classBreaks = presentStable;
+                colorScale = presentStable.map(c => this.categoricalColorMap.get(c) || '#000000');
+                (choroplethOptions as any)._stableUniqueCategories = classBreaks;
+                (choroplethOptions as any)._stableUniqueColors = colorScale;
+
+                if (this.categoricalColorMap.size > 7) {
+                    this.messages.tooManyUniqueValues();
+                }
+            } catch (e) {
+                console.error('[choropleth] categorical mapping error (proceeding without stability)', e);
+                this.categoricalColorMap.clear();
+                this.categoricalStableOrder = [];
+            }
+        } else if (this.lastClassificationMethod === ClassificationMethods.Unique) {
+            this.categoricalColorMap.clear();
+            this.categoricalStableOrder = [];
         }
+
+        this.lastClassificationMethod = choroplethOptions.classificationMethod;
+        this.lastMeasureQueryName = colorMeasure?.source?.queryName;
+
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } as any;
     }
 
@@ -281,21 +347,26 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 const bestKey = procResult.usedPcodeKey;
                 const bestCount = procResult.bestCount || 0;
                 const originalCount = procResult.originalCount || 0;
-                const minMatches = VisualConfig.AUTO_DETECT?.PCODE_MIN_MATCHES ?? 3;
-                const minMargin = VisualConfig.AUTO_DETECT?.PCODE_MIN_MARGIN ?? 2;
+                // Base thresholds
+                const baseMinMatches = VisualConfig.AUTO_DETECT?.PCODE_MIN_MATCHES ?? 3;
+                const baseMinMargin = VisualConfig.AUTO_DETECT?.PCODE_MIN_MARGIN ?? 2;
+                // Dynamically adapt thresholds for small filtered datasets so we don't reject valid small selections
+                const dynamicMinMatches = Math.max(1, Math.min(baseMinMatches, validPCodes.length));
+                const dynamicMinMargin = Math.min(baseMinMargin, Math.max(1, validPCodes.length - 1));
 
                 let chosenGeojson = procResult.filteredByOriginal;
                 let chosenKey = pcodeKey;
 
                 if (bestKey && bestKey !== pcodeKey) {
-                    // Only adopt if bestCount meets absolute threshold AND beats the original by margin
-                    if (bestCount >= minMatches && (bestCount >= originalCount + minMargin)) {
+                    const thresholdsMet = bestCount >= dynamicMinMatches && (bestCount >= originalCount + dynamicMinMargin);
+                    const originalEmptyBestNonZero = originalCount === 0 && bestCount > 0; // Fallback: avoid zero-feature result
+                    if (thresholdsMet || originalEmptyBestNonZero) {
                         chosenGeojson = procResult.filteredByBest;
                         chosenKey = bestKey;
-                        console.log('[choropleth] auto-swapping pcodeKey', { original: pcodeKey, chosen: bestKey, bestCount, originalCount });
+                        console.log('[choropleth] auto-swapping pcodeKey', { original: pcodeKey, chosen: bestKey, bestCount, originalCount, dynamicMinMatches, dynamicMinMargin, originalEmptyBestNonZero });
                         try { this.messages.autoSelectedBoundaryField(pcodeKey, bestKey, bestCount); } catch (e) {}
                     } else {
-                        console.log('[choropleth] NOT swapping pcodeKey - thresholds not met', { original: pcodeKey, bestKey, bestCount, originalCount, minMatches, minMargin });
+                        console.log('[choropleth] NOT swapping pcodeKey - thresholds not met', { original: pcodeKey, bestKey, bestCount, originalCount, dynamicMinMatches, dynamicMinMargin });
                     }
                 }
 
