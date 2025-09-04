@@ -422,10 +422,12 @@ npx tsx scripts/increment-version.ts build
    # - Refactoring tools
    ```
 
-### 4. **CI/CD with TypeScript (Test-Gated):**
+### 4. **CI/CD basic sequence:**
   ```bash
   npm ci
-  npm run ci:package   # Runs tests, version:ci, then packages if tests pass
+  npm test              # fail-fast
+  npm run version:auto  # build increment OR semantic when env SEMVER_BUMP is set
+  npm run build         # packages visual (.pbiviz)
   ```
 
 ### 5. **Power BI specific practices:**
