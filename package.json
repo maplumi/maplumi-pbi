@@ -1,7 +1,7 @@
 {
   "name": "maplumi-powerbi-visual",
   "description": "Enhanced Map Visual for Power BI with choropleth and scaled circles",
-  "version": "1.0.0.10",
+  "version": "1.0.0.11",
   "repository": {
     "type": "git",
     "url": "https://github.com/maplumi/maplumi-pbi.git"
