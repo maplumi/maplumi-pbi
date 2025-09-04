@@ -46,6 +46,7 @@
     "visual": "file:"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.3",
     "@babel/preset-env": "^7.25.8",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.1.0",
