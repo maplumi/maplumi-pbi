@@ -82,5 +82,22 @@ API keys (Mapbox/MapTiler)
 - Versioning: [docs/versioning.md](docs/versioning.md)
 - Issues: https://github.com/maplumi/maplumi-pbi/issues
 
+## Automated Versioning
+CI uses `npm run version:auto` to:
+- Bump major/minor/patch when `SEMVER_BUMP` is set.
+- Otherwise increment only the 4th (build) number.
+- Commit build bumps automatically (guarded to avoid loops).
+
+Example workflow step:
+```yaml
+- name: Auto Version
+	env:
+		AUTO_COMMIT: 1
+		SEMVER_BUMP: ${{ inputs.semver_bump }} # optional: major|minor|patch
+	run: npm run version:auto
+```
+
+Only semantic (x.y.z) changes trigger a release; build-only increments just produce artifacts.
+
 ## License
 MIT. See [LICENSE](LICENSE).

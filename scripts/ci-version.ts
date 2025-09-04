@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 
 /**
- * CI/CD version automation for Power BI visuals
- * Supports Git-based versioning and CI environment variables
+ * DEPRECATED: Replaced by ci-auto-version.ts
+ * Legacy CI/CD version automation for Power BI visuals.
+ * Retained temporarily for reference; will be removed in a future cleanup.
  */
 
 import * as fs from 'fs';

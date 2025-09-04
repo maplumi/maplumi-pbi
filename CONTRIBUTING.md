@@ -301,8 +301,8 @@ npm run release:major   # Version + test + build
 
 #### **CI/CD Automation**
 ```bash
-# Automatic versioning for CI/CD
-npm run build:ci       # Git-based versioning + build
+# After tests pass, auto bump build part (or semantic if SEMVER_BUMP set)
+npm run version:auto
 ```
 
 ### Development Workflows
@@ -385,7 +385,7 @@ Power BI visuals **must** use 4-digit versioning format:
 | `version:minor` | Feature increment | `1.0.0.0` → `1.1.0.0` |
 | `version:major` | Breaking change increment | `1.0.0.0` → `2.0.0.0` |
 | `version:build` | Quick iteration | `1.0.0.0` → `1.0.0.1` |
-| `version:ci` | CI/CD auto-versioning | Git tag + build number |
+| `version:auto` | CI/CD auto semantic/build bump | Env (SEMVER_BUMP) + build increment |
 | `package` | Sync + build visual | Creates `.pbiviz` file |
 | `release:*` | Full release process | Version + test + build |
 
@@ -404,12 +404,9 @@ npm run package       # Build with new version
 The project includes GitHub Actions automation:
 
 ```yaml
-# Automatic versioning based on git tags + build numbers
-- name: Generate CI version
-  run: npm run version:ci
-  
-- name: Build visual
-  run: npm run build:ci
+# After tests succeed
+- name: Auto version
+  run: npm run version:auto
 ```
 
 **Environment Variables Supported:**

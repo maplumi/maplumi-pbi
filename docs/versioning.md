@@ -33,10 +33,15 @@ npm run version:build
 
 ### Automated CI/CD
 
+Use `version:auto` in CI to ensure 4-part progression:
 ```bash
-# Generate version based on git tags + CI build number
-npm run build:ci
+# Build increment (no semantic env set)
+AUTO_COMMIT=1 npm run version:auto
+
+# Semantic bump (resets build part to 0)
+AUTO_COMMIT=1 SEMVER_BUMP=minor TAG_SEMVER=1 npm run version:auto
 ```
+Tests should run before invoking the bump; abort on failures.
 
 ## Available Scripts
 
@@ -47,8 +52,7 @@ npm run build:ci
 | `version:minor` | Increment minor version | TypeScript | `1.0.1.0` → `1.1.0.0` |
 | `version:major` | Increment major version | TypeScript | `1.0.1.0` → `2.0.0.0` |
 | `version:build` | Increment build number | TypeScript | `1.0.1.0` → `1.0.1.1` |
-| `version:ci` | CI-based versioning | TypeScript | Git tag + build number |
-| `build:ci` | Build with CI version | Combined | Auto-version + pbiviz package |
+| `version:auto` | Auto semantic/build bump | TypeScript | Env-driven |
 
 ## TypeScript Implementation
 
@@ -98,7 +102,7 @@ scripts/
 ├── tsconfig.json           # TypeScript config for scripts
 ├── sync-version.ts         # Type-safe version synchronization
 ├── increment-version.ts    # Type-safe version increments
-└── ci-version.ts          # Type-safe CI/CD versioning
+└── ci-auto-version.ts     # Automated CI/CD versioning (semantic+build)
 ```
 
 ### Modern Execution
@@ -170,11 +174,11 @@ git push origin v1.2.0
 
 ### 3. CI/CD Integration
 
-The TypeScript `ci-version.ts` script automatically:
-- Detects latest git tag using typed interfaces
-- Counts commits since tag with error handling
-- Uses CI build numbers with environment detection
-- Generates appropriate versions with type safety
+The automated `ci-auto-version.ts` script (triggered via `npm run version:auto`) will:
+- Detect the previous commit's semantic version
+- Increment semantic part when `SEMVER_BUMP` env var is set (major|minor|patch)
+- Otherwise increment only the build segment
+- Optionally tag the semantic version when `TAG_SEMVER=1`
 
 **Examples:**
 - Git tag `v1.2.0` + Build #45 → `1.2.0.45`
@@ -248,7 +252,7 @@ pbivizJson.version = newVersion;            // 1.2.3.4
 
 ## CI/CD Environment Variables
 
-The TypeScript `ci-version.ts` script recognizes these environment variables:
+The `ci-auto-version.ts` script recognizes these environment variables:
 
 | Variable | Source | Purpose |
 |----------|--------|---------|
@@ -259,7 +263,7 @@ The TypeScript `ci-version.ts` script recognizes these environment variables:
 
 ## GitHub Actions Integration
 
-### Modern Workflow (Updated)
+### Modern Workflow (Updated & Test-Gated)
 
 ```yaml
 # .github/workflows/build.yml
@@ -272,13 +276,10 @@ The TypeScript `ci-version.ts` script recognizes these environment variables:
 - name: Install dependencies (includes tsx)
   run: npm ci
 
-- name: Generate CI version (TypeScript)
-  run: npm run version:ci
+- name: Auto version
+  run: npm run version:auto
   env:
-    BUILD_NUMBER: ${{ github.run_number }}
-
-- name: Build visual (TypeScript automation)
-  run: npm run build:ci
+    AUTO_COMMIT: 1
 
 - name: Create Release (Modern Action)
   uses: softprops/action-gh-release@v1
@@ -421,13 +422,11 @@ npx tsx scripts/increment-version.ts build
    # - Refactoring tools
    ```
 
-### 4. **CI/CD with TypeScript:**
-   ```bash
-   # CI/CD workflow now uses TypeScript
-   npm ci                  # Installs tsx
-   npm run version:ci      # TypeScript CI versioning
-   npm run build:ci        # TypeScript automation
-   ```
+### 4. **CI/CD with TypeScript (Test-Gated):**
+  ```bash
+  npm ci
+  npm run ci:package   # Runs tests, version:ci, then packages if tests pass
+  ```
 
 ### 5. **Power BI specific practices:**
    - Always test thoroughly before version increment
@@ -464,7 +463,7 @@ incrementVersion('minor');
 ### Environment-Specific Versioning
 
 ```typescript
-// Environment detection in ci-version.ts
+// Environment detection (example)
 const isProd = process.env.NODE_ENV === 'production';
 const versionSuffix = isProd ? '' : '-dev';
 ```
@@ -478,7 +477,7 @@ scripts/
 ├── tsconfig.json           # TypeScript config for scripts
 ├── sync-version.ts         # Type-safe version synchronization
 ├── increment-version.ts    # Type-safe version increments
-└── ci-version.ts          # Type-safe CI/CD versioning
+└── ci-auto-version.ts     # Automated CI/CD versioning
 
 .github/workflows/
 └── build.yml              # Modern GitHub Actions (no deprecated warnings)
