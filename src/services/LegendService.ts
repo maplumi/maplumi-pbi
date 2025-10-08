@@ -29,18 +29,31 @@ export class LegendService {
             this.clearContainer(this.circleLegendContainer);
         }
 
+    const legendShellPadding = 5;
+
+    // Configure container layout to grow with content
+    this.circleLegendContainer.style.display = "flex";
+        this.circleLegendContainer.style.flexDirection = "column";
+        this.circleLegendContainer.style.alignItems = "flex-start";
+        this.circleLegendContainer.style.overflow = "visible";
+    this.circleLegendContainer.style.width = "auto";
+    this.circleLegendContainer.style.maxWidth = "none";
+    this.circleLegendContainer.style.boxSizing = "border-box";
+
+    this.circleLegendContainer.style.padding = "0";
+
         // Create legend items container
         const circleLegendItemsContainer = document.createElement("div");
-        this.circleLegendContainer.appendChild(circleLegendItemsContainer);
-
-        // Set basic visibility
-        this.circleLegendContainer.style.display = "flex";
-
         circleLegendItemsContainer.style.display = "flex";
         circleLegendItemsContainer.style.flexDirection = "column";
         circleLegendItemsContainer.style.alignItems = "flex-start";
         circleLegendItemsContainer.style.height = "auto";
-        circleLegendItemsContainer.style.padding = "5px";
+    circleLegendItemsContainer.style.padding = `${legendShellPadding}px`;
+        circleLegendItemsContainer.style.overflow = "visible";
+    circleLegendItemsContainer.style.width = "auto";
+    circleLegendItemsContainer.style.maxWidth = "none";
+    circleLegendItemsContainer.style.boxSizing = "border-box";
+        this.circleLegendContainer.appendChild(circleLegendItemsContainer);
 
         // Add title
         const title = document.createElement("div");
@@ -66,11 +79,17 @@ export class LegendService {
         }
 
         // Create SVG elements
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const maxRadius = Math.max(...legendData.map((item) => item.radius));
-        //const centerX = maxRadius + xpadding;
-        const bottomY = 2 * maxRadius + circleOptions.yPadding; // Bottom Y position for circles
-        let maxLabelWidth = 0;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.style.overflow = "visible";
+    const maxRadius = Math.max(...legendData.map((item) => item.radius));
+    const verticalPadding = Math.max(circleOptions.yPadding ?? 0, 0);
+    const bottomY = 2 * maxRadius + verticalPadding; // Bottom Y position for circles
+    let maxLabelWidth = 0;
+    let maxCircleBottom = 0;
+    let maxLabelBaseline = 0;
+    const labelFontSize = 10;
+    const minLabelGap = Math.max(circleOptions.minRadiusThreshold ?? 0, 6);
+    let previousLabelY: number | undefined;
 
         // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
         const sortedLegendData = [...legendData].sort((a, b) => b.radius - a.radius);
@@ -87,9 +106,10 @@ export class LegendService {
             sortedCustomLabels = sortedLegendData.map(item => labelMap.get(item));
         }
 
-        // Set SVG dimensions with minimal left padding
-        const minLeftPadding = 2; // minimal left space
-        const newCenterX = minLeftPadding + maxRadius;
+        // Set SVG dimensions with consistent horizontal padding
+        const horizontalPadding = Math.max(circleOptions.xPadding ?? 0, 2);
+        const newCenterX = horizontalPadding + maxRadius;
+        const labelAnchorX = newCenterX + maxRadius + circleOptions.labelSpacing;
 
 
         // Clear SVG before re-adding elements (safe way)
@@ -100,6 +120,8 @@ export class LegendService {
         sortedLegendData.forEach((item, index) => {
             // Calculate the Y position so all circles are aligned at the bottom
             const currentY = bottomY - item.radius;
+            const circleBottom = currentY + item.radius;
+            maxCircleBottom = Math.max(maxCircleBottom, circleBottom);
 
             // Draw the circle
             const circle = document.createElementNS(
@@ -128,8 +150,18 @@ export class LegendService {
             svg.appendChild(circle);
 
             // Calculate label position
-            const labelX = newCenterX + maxRadius + circleOptions.labelSpacing;
-            const labelY = currentY - item.radius;
+            const labelX = labelAnchorX;
+            const labelStartY = currentY - item.radius;
+            let labelY = labelStartY;
+
+            if (previousLabelY !== undefined) {
+                const gap = labelY - previousLabelY;
+                if (gap < minLabelGap) {
+                    labelY = previousLabelY + minLabelGap;
+                }
+            }
+            previousLabelY = labelY;
+            maxLabelBaseline = Math.max(maxLabelBaseline, labelY + labelFontSize);
 
             // Add the leader line
             const line = document.createElementNS(
@@ -137,7 +169,7 @@ export class LegendService {
                 "line"
             );
             line.setAttribute("x1", newCenterX.toString());
-            line.setAttribute("y1", (currentY - item.radius).toString());
+            line.setAttribute("y1", labelStartY.toString());
             line.setAttribute("x2", (labelX - 3).toString());
             line.setAttribute("y2", labelY.toString());
             line.setAttribute("stroke", circleOptions.leaderLineColor);
@@ -180,13 +212,19 @@ export class LegendService {
         });
 
         // Calculate the farthest right point of the label
-        const farthestLabelX = newCenterX + maxLabelWidth;
-        const svgWidth = farthestLabelX + circleOptions.xPadding; // Add padding to the right
-        const svgHeight = bottomY + circleOptions.yPadding;
+    const farthestLabelX = labelAnchorX + maxLabelWidth;
+    const svgWidth = Math.ceil(farthestLabelX + horizontalPadding);
+    const svgHeight = Math.ceil(Math.max(maxCircleBottom, maxLabelBaseline) + verticalPadding);
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
         svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
+
+    const shellWidth = svgWidth + legendShellPadding * 2;
+    circleLegendItemsContainer.style.width = `${shellWidth}px`;
+    circleLegendItemsContainer.style.minWidth = `${shellWidth}px`;
+    this.circleLegendContainer.style.width = `${shellWidth}px`;
+    this.circleLegendContainer.style.minWidth = `${shellWidth}px`;
 
         circleLegendItemsContainer.appendChild(svg);
     }

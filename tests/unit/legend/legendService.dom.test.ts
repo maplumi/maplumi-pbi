@@ -115,7 +115,7 @@ describe("LegendService (DOM + helpers)", () => {
 	});
 
 	describe("proportional circle legend - label width influences svg width", () => {
-		it("computes svg width using max label width + padding", () => {
+		it("computes svg width using max label width + padding and resizes containers", () => {
 			// Simulate measured label widths in JSDOM
 			const offsetSpy = jest
 				.spyOn(HTMLElement.prototype, "offsetWidth", "get")
@@ -145,12 +145,119 @@ describe("LegendService (DOM + helpers)", () => {
 			const svg = circleContainer.querySelector("svg") as SVGElement;
 			expect(svg).toBeTruthy();
 
-			// Expected width: minLeftPadding(2) + maxRadius(30) + maxLabelWidth(80) + xPadding(10) = 122px
+			// Expected width: leftPadding(10) + 2*maxRadius(60) + labelSpacing(15) + maxLabelWidth(80) + rightPadding(10) = 175px
 			const widthAttr = svg.getAttribute("width");
-			expect(widthAttr).toBe("122px");
+			expect(widthAttr).toBe("175px");
+
+			const containerWidth = (circleContainer as HTMLElement).style.width;
+			expect(containerWidth).toBe("185px");
+			const itemsContainer = circleContainer.children[0] as HTMLElement;
+			expect(itemsContainer.style.width).toBe("185px");
 
 			// Cleanup spy
 			offsetSpy.mockRestore();
+		});
+
+		it("spaces label anchors so they never overlap even when radii are close", () => {
+			const offsetSpy = jest
+				.spyOn(HTMLElement.prototype, "offsetWidth", "get")
+				.mockImplementation(() => 50);
+
+			const sizeValues = [200, 400, 600];
+			const radii = [24, 23, 22];
+			const options: any = {
+				legendTitle: "Sizes",
+				legendTitleColor: "#000",
+				legendItemStrokeColor: "#000",
+				legendItemStrokeWidth: 1,
+				labelTextColor: "#000",
+				xPadding: 10,
+				yPadding: 5,
+				labelSpacing: 12,
+				minRadiusThreshold: 4,
+				color1: "#ff0000",
+				leaderLineColor: "#000",
+				leaderLineStrokeWidth: 1,
+				layer1Opacity: 1,
+			};
+
+			service.createProportionalCircleLegend(sizeValues, radii, 1, options);
+
+			const svg = service.getCircleLegendContainer()!.querySelector("svg") as SVGElement;
+			const labelNodes = Array.from(svg.querySelectorAll("text"));
+			const lineNodes = Array.from(svg.querySelectorAll("line"));
+			const yValues = labelNodes.map(node => Number(node.getAttribute("y")));
+			const expectedGap = Math.max(options.minRadiusThreshold, 6);
+
+			for (let i = 1; i < yValues.length; i++) {
+				expect(yValues[i] - yValues[i - 1]).toBeGreaterThanOrEqual(expectedGap);
+			}
+
+			labelNodes.forEach((node, index) => {
+				const correspondingLine = lineNodes[index];
+				expect(Number(correspondingLine.getAttribute("y2"))).toBe(Number(node.getAttribute("y")));
+			});
+
+			offsetSpy.mockRestore();
+		});
+
+		it("hides the smallest circle when toggle is on and value below threshold", () => {
+			const sizeValues = [5, 50, 200];
+			const radii = [6, 14, 22];
+			const options: any = {
+				legendTitle: "Sizes",
+				legendTitleColor: "#000",
+				legendItemStrokeColor: "#000",
+				legendItemStrokeWidth: 1,
+				labelTextColor: "#000",
+				xPadding: 10,
+				yPadding: 4,
+				labelSpacing: 12,
+				minRadiusThreshold: 4,
+				color1: "#ff0000",
+				leaderLineColor: "#000",
+				leaderLineStrokeWidth: 1,
+				layer1Opacity: 1,
+				hideMinIfBelowThreshold: true,
+				minValueThreshold: 10,
+			};
+
+			service.createProportionalCircleLegend(sizeValues, radii, 1, options);
+
+			const svg = service.getCircleLegendContainer()!.querySelector("svg") as SVGElement;
+			const circles = svg.querySelectorAll("circle");
+			expect(circles.length).toBe(2);
+
+			const labels = Array.from(svg.querySelectorAll("text"));
+			expect(labels.map(node => node.textContent)).not.toContain("5");
+		});
+
+		it("shows all circles when toggle is off", () => {
+			const sizeValues = [5, 50, 200];
+			const radii = [6, 14, 22];
+			const options: any = {
+				legendTitle: "Sizes",
+				legendTitleColor: "#000",
+				legendItemStrokeColor: "#000",
+				legendItemStrokeWidth: 1,
+				labelTextColor: "#000",
+				xPadding: 10,
+				yPadding: 4,
+				labelSpacing: 12,
+				minRadiusThreshold: 4,
+				color1: "#ff0000",
+				leaderLineColor: "#000",
+				leaderLineStrokeWidth: 1,
+				layer1Opacity: 1,
+				hideMinIfBelowThreshold: false,
+				minValueThreshold: 10,
+			};
+
+			service.createProportionalCircleLegend(sizeValues, radii, 1, options);
+
+			const svg = service.getCircleLegendContainer()!.querySelector("svg") as SVGElement;
+			const circles = svg.querySelectorAll("circle");
+			expect(circles.length).toBe(3);
 		});
 	});
 });
