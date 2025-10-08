@@ -115,7 +115,16 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         if (this.choroplethLayer) {
             if (choroplethOptions.showLegend) {
                 this.legendService.getChoroplethLegendContainer()?.setAttribute("style", "display:flex");
-                this.legendService.createChoroplethLegend(colorValues, classBreaks as any, colorScale as any, choroplethOptions);
+                const formatString = colorMeasure?.source?.format;
+                this.legendService.createChoroplethLegend(
+                    colorValues,
+                    classBreaks as any,
+                    colorScale as any,
+                    choroplethOptions,
+                    undefined,
+                    formatString,
+                    this.host.locale
+                );
                 this.legendService.showLegend('choropleth');
             } else {
                 this.legendService.hideLegend('choropleth');

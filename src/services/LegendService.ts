@@ -1,6 +1,7 @@
 import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as format from "../utils/format";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "../constants/strings";
+import { valueFormatter } from "powerbi-visuals-utils-formattingutils";
 
 export class LegendService {
 
@@ -195,7 +196,9 @@ export class LegendService {
         classBreaks: number[],
         colorScale: any,
         options: ChoroplethOptions,
-        formatTemplate: string = "{:.0f}"
+        formatTemplate: string = "{:.0f}",
+        formatString?: string,
+        cultureSelector?: string
 
     ) {
 
@@ -230,7 +233,46 @@ export class LegendService {
         // Collect all labels and colors
         let allLabels: string[] = [];
         let colors: string[] = [];
-    if (options.classificationMethod === ClassificationMethods.Unique) {
+
+        const numericFormatter = this.buildValueFormatter(formatString, cultureSelector, colorValues);
+
+        const formatBreakValue = (value: any): string => {
+            if (value === null || value === undefined) {
+                return "";
+            }
+            if (typeof value !== "number") {
+                return String(value);
+            }
+            if (!Number.isFinite(value)) {
+                return value.toString();
+            }
+            if (numericFormatter) {
+                try {
+                    const formatted = numericFormatter.format(value);
+                    if (formatted !== undefined && formatted !== null) {
+                        return formatted;
+                    }
+                } catch {
+                    // Fallback to default formatting when formatter fails
+                }
+            }
+            if (Number.isInteger(value)) {
+                return format.formatValue(value, formatTemplate);
+            }
+
+            const normalized = value.toString();
+            if (normalized.toLowerCase().includes("e")) {
+                const localeString = value.toLocaleString(undefined, {
+                    useGrouping: false,
+                    maximumFractionDigits: 20
+                });
+                return localeString.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
+            }
+
+            return normalized.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
+        };
+
+        if (options.classificationMethod === ClassificationMethods.Unique) {
             // Unique value legend
             // Use classBreaks (already sorted and capped) for both labels and color mapping
             const uniqueValues = classBreaks;
@@ -243,16 +285,16 @@ export class LegendService {
             while (colors.length < Math.min(uniqueValues.length, maxLegendItems)) {
                 colors.push("#000000");
             }
-            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => format.formatValue(v, formatTemplate));
+            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => formatBreakValue(v));
         } else {
             // Single-value collapse: if exactly two breaks and identical, show one swatch/label
             if (classBreaks.length === 2 && classBreaks[0] === classBreaks[1]) {
-                const label = format.formatValue(classBreaks[0], formatTemplate);
+                const label = formatBreakValue(classBreaks[0]);
                 allLabels.push(label);
                 colors = [colorScale[0]];
             } else {
                 for (let i = 0; i < classBreaks.length - 1; i++) {
-                    allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
+                    allLabels.push(`${formatBreakValue(classBreaks[i])} - ${formatBreakValue(classBreaks[i + 1])}`);
                 }
                 colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
             }
@@ -307,6 +349,28 @@ export class LegendService {
         choroplethItemsContainer.appendChild(itemsContainer);
 
         this.choroplethLegendContainer.appendChild(choroplethItemsContainer);
+    }
+
+    private buildValueFormatter(
+        formatString?: string,
+        cultureSelector?: string,
+        values?: number[]
+    ): ReturnType<typeof valueFormatter.create> | undefined {
+        if (!formatString) {
+            return undefined;
+        }
+
+        const sampleValue = values?.find(v => typeof v === "number" && Number.isFinite(v));
+
+        try {
+            return valueFormatter.create({
+                format: formatString,
+                cultureSelector,
+                value: sampleValue
+            });
+        } catch {
+            return undefined;
+        }
     }
 
     showLegend(type: 'circle' | 'choropleth') {
