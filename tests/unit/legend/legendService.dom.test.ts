@@ -115,11 +115,10 @@ describe("LegendService (DOM + helpers)", () => {
 	});
 
 	describe("proportional circle legend - label width influences svg width", () => {
-		it("computes svg width using max label width + padding and resizes containers", () => {
-			// Simulate measured label widths in JSDOM
-			const offsetSpy = jest
-				.spyOn(HTMLElement.prototype, "offsetWidth", "get")
-				.mockImplementation(() => 80); // fixed width per label measurement
+		it("computes svg width using max label width + padding and keeps container auto-sized", () => {
+			const measureSpy = jest
+				.spyOn(service as any, "measureTextWidthWithCanvas")
+				.mockReturnValue(80);
 
 			const sizeValues = [100, 400, 900];
 			const radii = [10, 20, 30]; // maxRadius = 30
@@ -145,23 +144,22 @@ describe("LegendService (DOM + helpers)", () => {
 			const svg = circleContainer.querySelector("svg") as SVGElement;
 			expect(svg).toBeTruthy();
 
-			// Expected width: leftPadding(10) + 2*maxRadius(60) + labelSpacing(15) + maxLabelWidth(80) + rightPadding(10) = 175px
+			// Expected width: circle span + label (2*maxRadius(60) + labelSpacing(15) + labelWidth(80)) + right padding(10) = 165px
 			const widthAttr = svg.getAttribute("width");
-			expect(widthAttr).toBe("175px");
+			expect(widthAttr).toBe("165px");
 
-			const containerWidth = (circleContainer as HTMLElement).style.width;
-			expect(containerWidth).toBe("185px");
+			expect(circleContainer.style.width).toBe("auto");
+			expect(circleContainer.style.padding).toBe("5px");
 			const itemsContainer = circleContainer.children[0] as HTMLElement;
-			expect(itemsContainer.style.width).toBe("185px");
+			expect(itemsContainer.style.padding).toBe("");
 
-			// Cleanup spy
-			offsetSpy.mockRestore();
+			measureSpy.mockRestore();
 		});
 
 		it("spaces label anchors so they never overlap even when radii are close", () => {
-			const offsetSpy = jest
-				.spyOn(HTMLElement.prototype, "offsetWidth", "get")
-				.mockImplementation(() => 50);
+			const measureSpy = jest
+				.spyOn(service as any, "measureTextWidthWithCanvas")
+				.mockReturnValue(50);
 
 			const sizeValues = [200, 400, 600];
 			const radii = [24, 23, 22];
@@ -198,10 +196,13 @@ describe("LegendService (DOM + helpers)", () => {
 				expect(Number(correspondingLine.getAttribute("y2"))).toBe(Number(node.getAttribute("y")));
 			});
 
-			offsetSpy.mockRestore();
+			measureSpy.mockRestore();
 		});
 
 		it("hides the smallest circle when toggle is on and value below threshold", () => {
+			const measureSpy = jest
+				.spyOn(service as any, "measureTextWidthWithCanvas")
+				.mockReturnValue(40);
 			const sizeValues = [5, 50, 200];
 			const radii = [6, 14, 22];
 			const options: any = {
@@ -230,9 +231,14 @@ describe("LegendService (DOM + helpers)", () => {
 
 			const labels = Array.from(svg.querySelectorAll("text"));
 			expect(labels.map(node => node.textContent)).not.toContain("5");
+
+			measureSpy.mockRestore();
 		});
 
 		it("shows all circles when toggle is off", () => {
+			const measureSpy = jest
+				.spyOn(service as any, "measureTextWidthWithCanvas")
+				.mockReturnValue(40);
 			const sizeValues = [5, 50, 200];
 			const radii = [6, 14, 22];
 			const options: any = {
@@ -258,6 +264,8 @@ describe("LegendService (DOM + helpers)", () => {
 			const svg = service.getCircleLegendContainer()!.querySelector("svg") as SVGElement;
 			const circles = svg.querySelectorAll("circle");
 			expect(circles.length).toBe(3);
+
+			measureSpy.mockRestore();
 		});
 	});
 });

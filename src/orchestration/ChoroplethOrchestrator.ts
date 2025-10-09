@@ -114,7 +114,10 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
         if (this.choroplethLayer) {
             if (choroplethOptions.showLegend) {
-                this.legendService.getChoroplethLegendContainer()?.setAttribute("style", "display:flex");
+                const choroplethLegendContainer = this.legendService.getChoroplethLegendContainer();
+                if (choroplethLegendContainer) {
+                    choroplethLegendContainer.style.display = "flex";
+                }
                 const formatString = colorMeasure?.source?.format;
                 this.legendService.createChoroplethLegend(
                     colorValues,

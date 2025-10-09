@@ -29,30 +29,34 @@ export class LegendService {
             this.clearContainer(this.circleLegendContainer);
         }
 
-    const legendShellPadding = 5;
+    const containerPadding = 5;
+    const rightSvgPadding = Math.max(circleOptions.xPadding ?? 0, 0);
+    const bottomSvgPadding = Math.max(circleOptions.yPadding ?? 0, 0);
 
     // Configure container layout to grow with content
     this.circleLegendContainer.style.display = "flex";
         this.circleLegendContainer.style.flexDirection = "column";
-        this.circleLegendContainer.style.alignItems = "flex-start";
+    this.circleLegendContainer.style.alignItems = "flex-start";
         this.circleLegendContainer.style.overflow = "visible";
     this.circleLegendContainer.style.width = "auto";
     this.circleLegendContainer.style.maxWidth = "none";
+    this.circleLegendContainer.style.minWidth = "0";
     this.circleLegendContainer.style.boxSizing = "border-box";
-
-    this.circleLegendContainer.style.padding = "0";
+    this.circleLegendContainer.style.padding = `${containerPadding}px`;
+    this.circleLegendContainer.style.justifyContent = "flex-start";
 
         // Create legend items container
         const circleLegendItemsContainer = document.createElement("div");
         circleLegendItemsContainer.style.display = "flex";
         circleLegendItemsContainer.style.flexDirection = "column";
-        circleLegendItemsContainer.style.alignItems = "flex-start";
+    circleLegendItemsContainer.style.alignItems = "flex-start";
         circleLegendItemsContainer.style.height = "auto";
-    circleLegendItemsContainer.style.padding = `${legendShellPadding}px`;
         circleLegendItemsContainer.style.overflow = "visible";
     circleLegendItemsContainer.style.width = "auto";
     circleLegendItemsContainer.style.maxWidth = "none";
+    circleLegendItemsContainer.style.minWidth = "0";
     circleLegendItemsContainer.style.boxSizing = "border-box";
+    circleLegendItemsContainer.style.alignSelf = "flex-start";
         this.circleLegendContainer.appendChild(circleLegendItemsContainer);
 
         // Add title
@@ -79,11 +83,13 @@ export class LegendService {
         }
 
         // Create SVG elements
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.style.overflow = "visible";
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.style.overflow = "visible";
+        svg.style.display = "block";
+        svg.style.alignSelf = "flex-start";
+        svg.style.margin = "0";
     const maxRadius = Math.max(...legendData.map((item) => item.radius));
-    const verticalPadding = Math.max(circleOptions.yPadding ?? 0, 0);
-    const bottomY = 2 * maxRadius + verticalPadding; // Bottom Y position for circles
+    const bottomY = 2 * maxRadius; // Bottom Y position for circles
     let maxLabelWidth = 0;
     let maxCircleBottom = 0;
     let maxLabelBaseline = 0;
@@ -107,8 +113,7 @@ export class LegendService {
         }
 
         // Set SVG dimensions with consistent horizontal padding
-        const horizontalPadding = Math.max(circleOptions.xPadding ?? 0, 2);
-        const newCenterX = horizontalPadding + maxRadius;
+    const newCenterX = maxRadius;
         const labelAnchorX = newCenterX + maxRadius + circleOptions.labelSpacing;
 
 
@@ -196,37 +201,62 @@ export class LegendService {
 
             svg.appendChild(text);
 
-            // Measure the label width
-            const tempLabel = document.createElement("div");
-            tempLabel.style.position = "absolute";
-            tempLabel.style.visibility = "hidden";
-            tempLabel.style.whiteSpace = "nowrap";
-            tempLabel.textContent = labelText;
-            document.body.appendChild(tempLabel);
-
-            const labelWidth = tempLabel.offsetWidth;
-            maxLabelWidth = Math.max(maxLabelWidth, labelWidth);
-
-            document.body.removeChild(tempLabel);
+            const textWidth = this.getSvgTextWidth(text, labelText, labelFontSize);
+            maxLabelWidth = Math.max(maxLabelWidth, textWidth);
 
         });
 
         // Calculate the farthest right point of the label
-    const farthestLabelX = labelAnchorX + maxLabelWidth;
-    const svgWidth = Math.ceil(farthestLabelX + horizontalPadding);
-    const svgHeight = Math.ceil(Math.max(maxCircleBottom, maxLabelBaseline) + verticalPadding);
+        const farthestLabelX = labelAnchorX + maxLabelWidth;
+        const svgWidth = Math.ceil(farthestLabelX + rightSvgPadding);
+        const svgHeight = Math.ceil(Math.max(maxCircleBottom, maxLabelBaseline) + bottomSvgPadding);
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
         svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
 
-    const shellWidth = svgWidth + legendShellPadding * 2;
-    circleLegendItemsContainer.style.width = `${shellWidth}px`;
-    circleLegendItemsContainer.style.minWidth = `${shellWidth}px`;
-    this.circleLegendContainer.style.width = `${shellWidth}px`;
-    this.circleLegendContainer.style.minWidth = `${shellWidth}px`;
-
         circleLegendItemsContainer.appendChild(svg);
+    }
+
+    private getSvgTextWidth(textElement: SVGTextElement, label: string, fontSize: number): number {
+        if (!label) {
+            return 0;
+        }
+
+        try {
+            if (typeof (textElement as any).getComputedTextLength === "function") {
+                const length = (textElement as any).getComputedTextLength();
+                if (Number.isFinite(length) && length > 0) {
+                    return length;
+                }
+            }
+            if (typeof (textElement as any).getBBox === "function") {
+                const box = (textElement as any).getBBox();
+                if (box && Number.isFinite(box.width) && box.width > 0) {
+                    return box.width;
+                }
+            }
+        } catch {
+            // fall through to canvas measurement
+        }
+
+        return this.measureTextWidthWithCanvas(label, fontSize);
+    }
+
+    private measureTextWidthWithCanvas(text: string, fontSize: number): number {
+        if (typeof document === "undefined" || typeof document.createElement !== "function") {
+            return text.length * fontSize * 0.6;
+        }
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) {
+            return text.length * fontSize * 0.6;
+        }
+
+        context.font = `${fontSize}px Arial`;
+        const metrics = context.measureText(text);
+        return metrics.width;
     }
 
     createChoroplethLegend(

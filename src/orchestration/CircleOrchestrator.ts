@@ -79,7 +79,10 @@ export class CircleOrchestrator extends BaseOrchestrator {
         group1.selectAll("*").remove();
         group2.selectAll("*").remove();
 
-    this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
+        const circleLegendContainer = this.legendService.getCircleLegendContainer();
+        if (circleLegendContainer) {
+            circleLegendContainer.style.display = "flex";
+        }
 
         const parsed = parseCircleCategorical(categorical);
         if (!parsed.hasLon || !parsed.hasLat) {
