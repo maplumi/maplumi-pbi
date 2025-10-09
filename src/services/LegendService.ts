@@ -3,6 +3,12 @@ import * as format from "../utils/format";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "../constants/strings";
 import { valueFormatter } from "powerbi-visuals-utils-formattingutils";
 
+export interface CircleMeasureLegendEntry {
+    name: string;
+    color: string;
+    opacity?: number;
+}
+
 export class LegendService {
 
     private mainContainer: HTMLElement;
@@ -19,7 +25,8 @@ export class LegendService {
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
         formatTemplate: string = "{:.0f}",
-        customLabels?: string[]
+        customLabels?: string[],
+        measureLegendEntries?: CircleMeasureLegendEntry[]
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -216,6 +223,11 @@ export class LegendService {
         svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
 
         circleLegendItemsContainer.appendChild(svg);
+
+        if (Array.isArray(measureLegendEntries) && measureLegendEntries.length > 0) {
+            const measureLegend = this.buildCircleMeasureLegend(measureLegendEntries, circleOptions);
+            circleLegendItemsContainer.appendChild(measureLegend);
+        }
     }
 
     private getSvgTextWidth(textElement: SVGTextElement, label: string, fontSize: number): number {
@@ -473,6 +485,79 @@ export class LegendService {
         while (container.firstChild) {
             container.removeChild(container.firstChild);
         }
+    }
+
+    private buildCircleMeasureLegend(entries: CircleMeasureLegendEntry[], circleOptions: CircleOptions): HTMLElement {
+        const container = document.createElement("div");
+        container.style.display = "flex";
+        container.style.flexDirection = "row";
+        container.style.flexWrap = "wrap";
+        container.style.gap = "8px";
+        container.style.marginTop = "10px";
+        container.style.alignItems = "center";
+
+        entries.forEach((entry) => {
+            if (!entry?.name || !entry?.color) {
+                return;
+            }
+
+            const item = document.createElement("div");
+            item.style.display = "flex";
+            item.style.alignItems = "center";
+            item.style.gap = "6px";
+
+            const swatch = document.createElement("span");
+            swatch.style.display = "inline-block";
+            swatch.style.width = "6px";
+            swatch.style.height = "6px";
+            swatch.style.borderRadius = "50%";
+            swatch.style.border = `${Math.max(circleOptions.legendItemStrokeWidth ?? 0, 0)}px solid ${circleOptions.legendItemStrokeColor ?? "transparent"}`;
+            swatch.style.backgroundColor = this.resolveCircleLegendColor(entry.color, entry.opacity);
+
+            const label = document.createElement("span");
+            label.textContent = entry.name;
+            label.style.fontSize = "10px";
+            label.style.color = circleOptions.labelTextColor;
+            label.style.whiteSpace = "nowrap";
+
+            item.appendChild(swatch);
+            item.appendChild(label);
+            container.appendChild(item);
+        });
+
+        return container;
+    }
+
+    private resolveCircleLegendColor(color: string, opacity: number | undefined): string {
+        if (!color) {
+            return "transparent";
+        }
+
+        const boundedOpacity = typeof opacity === "number" && !Number.isNaN(opacity)
+            ? Math.max(0, Math.min(1, opacity))
+            : undefined;
+
+        if (color.startsWith("#") && boundedOpacity !== undefined) {
+            return this.hexToRgba(color, boundedOpacity);
+        }
+
+        if ((color.startsWith("rgb(") || color.startsWith("rgba(")) && boundedOpacity !== undefined) {
+            try {
+                const parts = color
+                    .replace(/rgba?\(/u, "")
+                    .replace(/\)/u, "")
+                    .split(",")
+                    .map(part => part.trim());
+                if (parts.length >= 3) {
+                    const [r, g, b] = parts;
+                    return `rgba(${r}, ${g}, ${b}, ${boundedOpacity})`;
+                }
+            } catch {
+                // fall through
+            }
+        }
+
+        return color;
     }
 
     // Helper to round a value to the nearest 'nice' number (100s, 1000s, etc)

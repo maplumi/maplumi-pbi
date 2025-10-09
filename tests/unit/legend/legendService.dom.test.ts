@@ -267,5 +267,63 @@ describe("LegendService (DOM + helpers)", () => {
 
 			measureSpy.mockRestore();
 		});
+
+		it("renders color swatches for dual measure entries", () => {
+			const measureSpy = jest
+				.spyOn(service as any, "measureTextWidthWithCanvas")
+				.mockReturnValue(40);
+			const sizeValues = [5, 50, 200];
+			const radii = [6, 14, 22];
+			const options: any = {
+				legendTitle: "Sizes",
+				legendTitleColor: "#000",
+				legendItemStrokeColor: "#111",
+				legendItemStrokeWidth: 1,
+				labelTextColor: "#222",
+				xPadding: 10,
+				yPadding: 4,
+				labelSpacing: 12,
+				minRadiusThreshold: 4,
+				color1: "#ff0000",
+				color2: "#00ff00",
+				leaderLineColor: "#000",
+				leaderLineStrokeWidth: 1,
+				layer1Opacity: 0.8,
+				layer2Opacity: 0.4,
+			};
+
+			service.createProportionalCircleLegend(
+				sizeValues,
+				radii,
+				2,
+				options,
+				undefined,
+				undefined,
+				[
+					{ name: "Measure A", color: "#ff0000", opacity: 0.8 },
+					{ name: "Measure B", color: "#00ff00", opacity: 0.4 },
+				]
+			);
+
+			const container = service.getCircleLegendContainer()!;
+			const legendSections = Array.from(container.children[0].children) as HTMLElement[];
+			const measureLegend = legendSections[legendSections.length - 1];
+			expect(measureLegend).toBeTruthy();
+
+			const legendItems = Array.from(measureLegend.children) as HTMLElement[];
+			expect(legendItems).toHaveLength(2);
+
+			const firstSwatch = legendItems[0].querySelector("span") as HTMLElement;
+			const firstLabel = legendItems[0].querySelectorAll("span")[1] as HTMLElement;
+			expect(firstSwatch.style.backgroundColor).toBe("rgba(255, 0, 0, 0.8)");
+			expect(firstLabel.textContent).toBe("Measure A");
+
+			const secondSwatch = legendItems[1].querySelector("span") as HTMLElement;
+			const secondLabel = legendItems[1].querySelectorAll("span")[1] as HTMLElement;
+			expect(secondSwatch.style.backgroundColor).toBe("rgba(0, 255, 0, 0.4)");
+			expect(secondLabel.textContent).toBe("Measure B");
+
+			measureSpy.mockRestore();
+		});
 	});
 });
