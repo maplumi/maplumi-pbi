@@ -10,11 +10,23 @@ import { selectionOpacity } from '../../utils/graphics';
 import type { Extent } from 'ol/extent.js';
 import { transformExtent } from 'ol/proj.js';
 
+const NO_DATA_COLOR = "rgba(0,0,0,0)";
+const isNoDataValue = (value: any): boolean => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "number") {
+    return !Number.isFinite(value);
+  }
+  if (typeof value === "string") {
+    return value.trim().length === 0;
+  }
+  return false;
+};
+
 export class ChoroplethCanvasLayer extends Layer {
   public options: ChoroplethLayerOptions;
   private selectedIds: powerbi.extensibility.ISelectionId[] = [];
   private isActive = true;
-  private valueLookup: { [key: string]: number } = {};
+  private valueLookup: { [key: string]: number | null | undefined } = {};
   private index: any;
   private geojson: any;
 
@@ -23,7 +35,7 @@ export class ChoroplethCanvasLayer extends Layer {
     this.options = options;
     this.geojson = options.geojson;
     const pCodes = options.categoryValues as string[];
-    const vals = options.measureValues as number[];
+  const vals = options.measureValues as Array<number | null | undefined>;
     pCodes.forEach((p, i) => { this.valueLookup[p] = vals[i]; });
 
     this.index = new rbush();
@@ -69,7 +81,7 @@ export class ChoroplethCanvasLayer extends Layer {
     for (const feature of this.geojson.features as GeoJSONFeature[]) {
       const pCode = feature.properties[this.options.dataKey];
       const value = this.valueLookup[pCode];
-      const fill = (pCode === undefined || value === undefined) ? 'transparent' : this.options.colorScale(value);
+  const fill = (pCode === undefined || isNoDataValue(value)) ? NO_DATA_COLOR : this.options.colorScale(value);
       const dp = this.options.dataPoints?.find(d => d.pcode === pCode);
       const alpha = selectionOpacity(this.selectedIds, dp?.selectionId as any, this.options.fillOpacity);
       drawPolygon(ctx, feature, project, fill, this.options.strokeColor, this.options.strokeWidth, alpha);

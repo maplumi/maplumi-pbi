@@ -380,6 +380,21 @@ export class ChoroplethDataService {
         classificationMethod: string
     ): string {
 
+        const isNoDataValue = (candidate: any): boolean => {
+            if (candidate === null || candidate === undefined) return true;
+            if (typeof candidate === "number") {
+                return !Number.isFinite(candidate);
+            }
+            if (typeof candidate === "string") {
+                return candidate.trim().length === 0;
+            }
+            return false;
+        };
+
+        if (isNoDataValue(value)) {
+            return "rgba(0,0,0,0)";
+        }
+
     if (classificationMethod === ClassificationMethods.Unique) {
             // Unique value (categorical): only top 7 get mapped, others get black
             const index = classBreaks.indexOf(value);

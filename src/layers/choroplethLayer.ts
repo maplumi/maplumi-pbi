@@ -14,12 +14,24 @@ import ISelectionId = powerbi.visuals.ISelectionId;
 import { createWebMercatorProjection } from "../utils/map";
 import { reorderForCirclesAboveChoropleth, selectionOpacity, setSvgSize } from "../utils/graphics";
 
+const NO_DATA_COLOR = "rgba(0,0,0,0)";
+const isNoDataValue = (value: any): boolean => {
+    if (value === null || value === undefined) return true;
+    if (typeof value === "number") {
+        return !Number.isFinite(value);
+    }
+    if (typeof value === "string") {
+        return value.trim().length === 0;
+    }
+    return false;
+};
+
 export class ChoroplethLayer extends Layer {
 
     private svg: any;
     private geojson: any;
     public options: ChoroplethLayerOptions;
-    public valueLookup: { [key: string]: number };
+    public valueLookup: { [key: string]: number | null | undefined };
     private spatialIndex: any;
     private d3Path: any;
     private selectedIds: powerbi.extensibility.ISelectionId[] = [];
@@ -43,7 +55,7 @@ export class ChoroplethLayer extends Layer {
         // Create a lookup table for measure values
         this.valueLookup = {};
         const pCodes = options.categoryValues as string[];
-        const colorValues = options.measureValues as number[];
+        const colorValues = options.measureValues as Array<number | null | undefined>;
         pCodes.forEach((pCode, index) => {
             this.valueLookup[pCode] = colorValues[index];
         });
@@ -128,8 +140,8 @@ export class ChoroplethLayer extends Layer {
             const valueRaw = this.valueLookup[pCode];
             
             // Use valueRaw as-is for colorScale (do not force to number if unique value mode)
-            const fillColor = (pCode === undefined || valueRaw === undefined)
-                ? 'transparent'
+            const fillColor = (pCode === undefined || isNoDataValue(valueRaw))
+                ? NO_DATA_COLOR
                 : this.options.colorScale(valueRaw);
             
             
