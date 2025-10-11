@@ -1,6 +1,5 @@
-# Maplumi Power BI Visual
-
-![Maplumi Visual Icon](assets/icon.svg)
+<!-- markdownlint-disable-next-line MD033 -->
+# Maplumi Power BI Visual <img src="assets/icon.svg" alt="Maplumi Visual Icon" width="64" align="right" />
 
 [![Build and Release](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/maplumi/maplumi-pbi/actions/workflows/build.yml) [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b/raw/coverage.json)](https://gist.github.com/ayiemba/2e6451b2d946f0f58920cc89b1b5ef8b)
 
@@ -30,11 +29,15 @@ Assign only what you need for the layers you enable (Power BI Visualizations pan
 - Size: measure(s) for circle size. Max 2.
 - Color: measure for choropleth. Max 1.
 - Tooltips: extra measures to show on hover.
+- Mapbox Access Token: single text value for Mapbox basemaps; overrides the format pane token when provided.
+- MapTiler API Key: single text value for MapTiler basemaps; overrides the format pane key when provided.
 
 Notes
 
 - Data reduction: up to ~30,000 category rows (subject to Power BI limits).
 - If only choropleth is used, Lat/Long/Size aren’t required. If only circles are used, Boundary ID isn’t required.
+- Basemap credentials: when a Mapbox or MapTiler data role is bound, the matching format pane input hides automatically.
+- Prefer passing credentials through Power BI Parameters (What-if or field parameters) so tokens stay outside the PBIX file when you publish.
 
 ### Boundary joining (quick example)
 
@@ -95,6 +98,8 @@ Required privileges (capabilities.json)
 
 API keys (Mapbox/MapTiler)
 
+- Bind the **Mapbox Access Token** or **MapTiler API Key** data role when you need report-level or measure-driven credentials. These override any format pane values.
+- Prefer feeding these roles from Power BI Parameters so credentials can be managed centrally and excluded from the PBIX payload.
 - Restrict tokens to https://app.powerbi.com and https://app.fabric.microsoft.com; add https://localhost:<port> for development.
 - Prefer scoped/read-only tokens; for stronger control, use short-lived tokens/SAS or a proxy that injects credentials.
 

@@ -438,6 +438,13 @@ class choroplethLegendSettingsGroup extends formattingSettings.SimpleCard {
 }
 ```
 
+#### 5. Basemap Credential Overrides
+
+- **Mapbox Access Token** and **MapTiler API Key** are single-value data roles surfaced in the Power BI data pane. They accept any text measure/parameter and trim whitespace before use.
+- When either role is populated, the format pane input for the matching provider is hidden. The runtime options take the data role value via `DataRoleService.getFirstStringValueForRole` and fall back to the format pane setting only when no data role value is supplied.
+- Credentials are passed through `OptionsService.getBasemapOptions`, which resolves precedence once per update so layer orchestrators receive a single, authoritative token.
+- Recommendation: drive these roles from Power BI Parameters or calculation groups so credentials aren’t embedded directly in exported PBIX files.
+
 ### Options Transformation
 
 #### Converting Settings to Options

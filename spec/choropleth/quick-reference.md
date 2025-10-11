@@ -17,6 +17,12 @@ Required
 - Value: Choropleth Value (number)
 - Optional: Tooltips
 
+## Basemap credentials
+
+- **Mapbox Access Token** data role: drop in a single text value (measure, parameter, or What-if) when you want a report-controlled token. When present, the token overrides the format pane input and hides it.
+- **MapTiler API Key** data role: same behavior for MapTiler basemaps; the data role value takes precedence and the format input disappears.
+- Best practice: drive these roles from Power BI Parameters so credentials never live in the PBIX file itself.
+
 ## Configure in 4 steps
 1) Boundary Source: GeoBoundaries or Custom
 2) If GeoBoundaries: Country → Admin level → Release type → Field mapping

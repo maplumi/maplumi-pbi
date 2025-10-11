@@ -54,8 +54,9 @@ flowchart LR
 - WebGL mode: circles use WebGL when available; choropleth renders via Canvas.
 
 ## Credentials
-- Mapbox basemap: bind the **Mapbox Access Token** data role (via parameter/measure) or use the format pane token. If the data role is populated, it takes precedence and the format input hides automatically.
-- MapTiler basemap: bind the **MapTiler API Key** data role or use the format pane key. The data role value wins when present, hiding the format input.
+- Mapbox basemap: bind the **Mapbox Access Token** data role (single text value via parameter/measure) or use the format pane token. If the data role is populated, it takes precedence and the format input hides automatically.
+- MapTiler basemap: bind the **MapTiler API Key** data role (single text value) or use the format pane key. The data role value wins when present, hiding the format input.
+- For long-term deployments, prefer supplying credentials via Power BI Parameters or calculation groups so the actual token stays outside the PBIX payload.
 
 ## Troubleshooting
 - No circles: ensure both Lat/Lon are bound.
