@@ -3,12 +3,14 @@
 This project uses a **minimal, explicit** versioning flow aligned with Power BI's required format: `MAJOR.MINOR.PATCH.REVISION` (all numeric). No hidden auto-bumps. A version only changes when you intentionally run a bump.
 
 ## Goals
+
 * Single source of truth: `package.json` (synced to `pbiviz.json`)
 * Safe semantic bumps (requires clean git tree)
 * Deterministic builds (local build never mutates version)
 * Small + clear script surface
 
 ## Scripts
+
 | Script | What it does | Example |
 |--------|--------------|---------|
 | `npm run sync-version` | Copies version from `package.json` to `pbiviz.json` | After manual edit |
@@ -19,6 +21,7 @@ This project uses a **minimal, explicit** versioning flow aligned with Power BI'
 `revision` is an alias for `build` (4th segment). Use it for re-packaging without semantic impact.
 
 ## Bump Semantics
+
 | Part | Resets | Use for |
 |------|--------|---------|
 | major | minor, patch, revision → 0 | Breaking changes |
@@ -27,6 +30,7 @@ This project uses a **minimal, explicit** versioning flow aligned with Power BI'
 | revision (build) | — | Repackage / certification resubmission |
 
 ## Typical Release Flow
+
 ```bash
 # Patch release (1.0.1.0 → 1.0.2.0)
 npm run release:patch
@@ -44,6 +48,7 @@ npm run version:build
 ### Automated CI/CD
 
 Use `version:auto` in CI to ensure 4-part progression:
+
 ```bash
 # Build increment (no semantic env set)
 AUTO_COMMIT=1 npm run version:auto
@@ -51,6 +56,7 @@ AUTO_COMMIT=1 npm run version:auto
 # Semantic bump (resets build part to 0)
 AUTO_COMMIT=1 SEMVER_BUMP=minor TAG_SEMVER=1 npm run version:auto
 ```
+
 Tests should run before invoking the bump; abort on failures.
 
 ## Available Scripts
@@ -88,7 +94,6 @@ interface PbivizJson {
 
 ### Script Architecture
 
-
 ## When & What to Bump (Decision Matrix)
 
 | Change Type | Examples | Bump | Script | Result (from 1.4.2.0) |
@@ -99,6 +104,7 @@ interface PbivizJson {
 | Repackage only / docs / CI rebuild | Marketplace rejection fix, icon update, README, rebuild with new tooling | BUILD | `npm run version:build` | 1.4.2.1 |
 
 Notes:
+
 * `release:*` scripts perform version bump + `build` packaging (full release flow).
 * `version:*` scripts only bump & sync; you run `npm run build` (or `pbiviz package`) separately.
 * Always tag after bumping (except for rapid local build increments you do not intend to publish).
@@ -106,18 +112,21 @@ Notes:
 ## Standard Workflows
 
 ### 1. New Feature Release
+
 ```powershell
-```
+
 scripts/
 ├── tsconfig.json           # TypeScript config for scripts
 ├── sync-version.ts         # Type-safe version synchronization
 ├── increment-version.ts    # Type-safe version increments
 └── ci-auto-version.ts     # Automated CI/CD versioning (semantic+build)
+
 ```
 
 ### Modern Execution
 
 ### 2. Hotfix After Release
+
 ```powershell
 
 All scripts use **tsx** (TypeScript runner) for direct execution:
@@ -127,8 +136,8 @@ All scripts use **tsx** (TypeScript runner) for direct execution:
 tsx scripts/increment-version.ts patch
 ```
 
-
 ### 3. Rebuild / Marketplace Metadata Only
+
 ```powershell
 ## Versioning Strategies
 
@@ -185,13 +194,15 @@ git push origin v1.2.0
 ### 3. CI/CD Integration
 
 The automated `ci-auto-version.ts` script (triggered via `npm run version:auto`) will:
-- Detect the previous commit's semantic version
-- Increment semantic part when `SEMVER_BUMP` env var is set (major|minor|patch)
-- Otherwise increment only the build segment
-- Optionally tag the semantic version when `TAG_SEMVER=1`
+
+* Detect the previous commit's semantic version
+* Increment semantic part when `SEMVER_BUMP` env var is set (major|minor|patch)
+* Otherwise increment only the build segment
+* Optionally tag the semantic version when `TAG_SEMVER=1`
 
 **Examples:**
-- Git tag `v1.2.0` + Build #45 → `1.2.0.45`
+
+* Git tag `v1.2.0` + Build #45 → `1.2.0.45`
 
 ## Do / Don't Summary
 
@@ -225,8 +236,8 @@ No—Power BI requires 4 parts; scripts enforce this for consistency.
 **Q: How do I reset build number after many iterations?**  
 Perform next semantic bump (patch/minor/major) which resets build to 0.
 
-- No tags + 5 commits → `1.0.0.5`
-- Local development → `1.0.0.{commits}`
+* No tags + 5 commits → `1.0.0.5`
+* Local development → `1.0.0.{commits}`
 
 ## Unified Version Format
 
@@ -297,13 +308,14 @@ The `ci-auto-version.ts` script recognizes these environment variables:
     files: dist/*.pbiviz
 ```
 
-### Dependencies
+### Dev Dependencies
 
 The workflow automatically installs:
-- **tsx** - TypeScript runner
-- **@types/node** - Node.js type definitions
-- **powerbi-visuals-tools** - Power BI visual CLI tools
-- All project dependencies
+
+* **tsx** - TypeScript runner
+* **@types/node** - Node.js type definitions
+* **powerbi-visuals-tools** - Power BI visual CLI tools
+* All project dependencies
 
 ## Manual Override
 
@@ -328,10 +340,11 @@ npm run version:major   # 1.0.1.0 → 2.0.0.0
 ### IDE Support
 
 TypeScript scripts provide:
-- **IntelliSense** - Auto-completion for version operations
-- **Type Checking** - Compile-time error detection
-- **Refactoring** - Safe renaming and restructuring
-- **Debugging** - Step-through debugging support
+
+* **IntelliSense** - Auto-completion for version operations
+* **Type Checking** - Compile-time error detection
+* **Refactoring** - Safe renaming and restructuring
+* **Debugging** - Step-through debugging support
 
 ### VS Code Configuration
 
@@ -408,12 +421,14 @@ npx tsx scripts/increment-version.ts build
 ## Best Practices
 
 ### 1. **Use TypeScript-aware semantic versioning:**
-   - `MAJOR`: Breaking changes (2.0.0.0)
-   - `MINOR`: New features (1.1.0.0) 
-   - `PATCH`: Bug fixes (1.0.1.0)
-   - `BUILD`: Quick iterations (1.0.0.1)
+
+* `MAJOR`: Breaking changes (2.0.0.0)
+* `MINOR`: New features (1.1.0.0)
+* `PATCH`: Bug fixes (1.0.1.0)
+* `BUILD`: Quick iterations (1.0.0.1)
 
 ### 2. **Git tag strategy with 4-digit awareness:**
+
    ```bash
    git tag v1.0.0    # Will become 1.0.0.0
    git tag v1.1.0    # Will become 1.1.0.0  
@@ -421,6 +436,7 @@ npx tsx scripts/increment-version.ts build
    ```
 
 ### 3. **TypeScript development workflow:**
+
    ```bash
    # Use type-safe version commands
    npm run version:minor    # TypeScript execution
@@ -433,6 +449,7 @@ npx tsx scripts/increment-version.ts build
    ```
 
 ### 4. **CI/CD basic sequence:**
+
   ```bash
   npm ci
   npm test              # fail-fast
@@ -441,11 +458,12 @@ npx tsx scripts/increment-version.ts build
   ```
 
 ### 5. **Power BI specific practices:**
-   - Always test thoroughly before version increment
-   - Verify cross-filtering functionality  
-   - Test with realistic data sizes
-   - Validate visual interactions
-   - Ensure 4-digit version consistency
+
+* Always test thoroughly before version increment
+* Verify cross-filtering functionality  
+* Test with realistic data sizes
+* Validate visual interactions
+* Ensure 4-digit version consistency
 
 ## Advanced Usage
 
@@ -484,7 +502,7 @@ const versionSuffix = isProd ? '' : '-dev';
 
 ### Modern TypeScript Architecture
 
-```
+``` shell
 scripts/
 ├── tsconfig.json           # TypeScript config for scripts
 ├── sync-version.ts         # Type-safe version synchronization

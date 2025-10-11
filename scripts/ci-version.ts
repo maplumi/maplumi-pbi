@@ -9,6 +9,8 @@
 import { execSync } from 'child_process';
 import { sanitizeAndValidate, readProjectVersions, writeProjectVersions } from './version-utils';
 
+const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+
 interface GitInfo {
     /** The base semantic tag (no build or with build .0) */
     semanticTag: string; // e.g. 1.4.2
