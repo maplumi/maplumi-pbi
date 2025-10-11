@@ -4,17 +4,36 @@ import { MaplumiVisualFormattingSettingsModel } from "../settings";
 import { BasemapOptions, ChoroplethOptions, CircleOptions, MapToolsOptions } from "../types";
 
 export class OptionsService {
-    static getBasemapOptions(model: MaplumiVisualFormattingSettingsModel): BasemapOptions {
+    private static toString(value: unknown, trim: boolean = false): string {
+        if (value === null || value === undefined) {
+            return "";
+        }
+        const asString = typeof value === "string" ? value : String(value);
+        return trim ? asString.trim() : asString;
+    }
+
+    private static preferCredential(overrideValue: unknown, fallbackValue: unknown): string {
+        const override = this.toString(overrideValue, true);
+        if (override.length > 0) {
+            return override;
+        }
+        return this.toString(fallbackValue, true);
+    }
+
+    static getBasemapOptions(
+        model: MaplumiVisualFormattingSettingsModel,
+        overrides?: Partial<Pick<BasemapOptions, "mapboxAccessToken" | "maptilerApiKey">>
+    ): BasemapOptions {
         const basemapSettings = model.BasemapVisualCardSettings;
         return {
-            selectedBasemap: basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value.value.toString(),
-            customMapAttribution: basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value.toString(),
-            mapboxCustomStyleUrl: basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value.toString(),
-            mapboxStyle: basemapSettings.mapBoxSettingsGroup.mapboxStyle.value.value.toString(),
-            mapboxAccessToken: basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value.toString(),
-            declutterLabels: basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
-            maptilerApiKey: basemapSettings.maptilerSettingsGroup.maptilerApiKey.value.toString(),
-            maptilerStyle: basemapSettings.maptilerSettingsGroup.maptilerStyle.value.value.toString()
+            selectedBasemap: this.toString(basemapSettings.basemapSelectSettingsGroup.selectedBasemap.value?.value, true),
+            customMapAttribution: this.toString(basemapSettings.basemapSelectSettingsGroup.customMapAttribution.value, true),
+            mapboxCustomStyleUrl: this.toString(basemapSettings.mapBoxSettingsGroup.mapboxCustomStyleUrl.value, true),
+            mapboxStyle: this.toString(basemapSettings.mapBoxSettingsGroup.mapboxStyle.value?.value, true),
+            mapboxAccessToken: this.preferCredential(overrides?.mapboxAccessToken, basemapSettings.mapBoxSettingsGroup.mapboxAccessToken.value),
+            declutterLabels: !!basemapSettings.mapBoxSettingsGroup.declutterLabels.value,
+            maptilerApiKey: this.preferCredential(overrides?.maptilerApiKey, basemapSettings.maptilerSettingsGroup.maptilerApiKey.value),
+            maptilerStyle: this.toString(basemapSettings.maptilerSettingsGroup.maptilerStyle.value?.value, true)
         };
     }
 

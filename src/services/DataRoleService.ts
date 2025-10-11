@@ -16,6 +16,41 @@ export class DataRoleService {
         return !!(cat && Array.isArray(cat.values) && cat.values.length > 0 && cat.values.some(this.hasNonEmptyValue));
     }
 
+    static getFirstStringValueForRole(categorical: powerbi.DataViewCategorical | undefined, roleName: string): string | undefined {
+        if (!categorical) {
+            return undefined;
+        }
+
+        const categoryColumn = categorical.categories?.find(col => col.source?.roles && (col.source.roles as any)[roleName]);
+        const valueColumn = categorical.values?.find(col => col.source?.roles && (col.source.roles as any)[roleName]);
+
+        const candidates: any[][] = [];
+        if (categoryColumn?.values) {
+            candidates.push(categoryColumn.values as any[]);
+        }
+        if (valueColumn?.values) {
+            candidates.push(valueColumn.values as any[]);
+        }
+
+        for (const arr of candidates) {
+            if (!Array.isArray(arr)) {
+                continue;
+            }
+            for (const raw of arr) {
+                if (!this.hasNonEmptyValue(raw)) {
+                    continue;
+                }
+                const asString = typeof raw === "string" ? raw : String(raw);
+                const trimmed = asString.trim();
+                if (trimmed.length > 0) {
+                    return trimmed;
+                }
+            }
+        }
+
+        return undefined;
+    }
+
     /**
      * Computes auto-toggle states for layers based on standard role names.
      * Returns { circle, choropleth } booleans where:

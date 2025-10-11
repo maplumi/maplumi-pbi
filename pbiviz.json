@@ -4,7 +4,7 @@
         "displayName": "Maplumi Visual",
         "guid": "maplumi7708541FB6F548EAA4FDBD3BB2AB1811",
         "visualClassName": "MaplumiVisual",
-        "version": "1.1.0.1",
+        "version": "1.2.0.0",
         "description": "Minimal Map Visual for Power BI",
         "supportUrl": "https://github.com/maplumi/maplumi-pbi/issues",
         "gitHubUrl": "https://github.com/maplumi/maplumi-pbi"
@@ -15,12 +15,12 @@
         "email": "ayiembaelvis@gmail.com"
     },
     "assets": {
-        "icon": "assets/icon.png"
+        "icon": "assets/icon.svg"
     },
     "externalJS": [],
     "style": "style/visual.less",
     "capabilities": "capabilities.json",
     "dependencies": null,
     "stringResources": [],
-    "version": "1.1.0.1"
+    "version": "1.2.0.0"
 }

@@ -8,6 +8,8 @@ export const RoleNames = {
     Size: "Size",
     Color: "Color",
     Tooltips: "Tooltips",
+    MapboxAccessToken: "MapboxAccessToken",
+    MaptilerApiKey: "MaptilerApiKey",
 } as const;
 
 export type RoleName = typeof RoleNames[keyof typeof RoleNames];

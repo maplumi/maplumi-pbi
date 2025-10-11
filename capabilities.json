@@ -92,6 +92,28 @@
       "kind": "Measure",
       "displayName": "Tooltips",
       "description": "Values to display in tooltips. May be overridden by Tooltips options under General visual settings"
+    },
+    {
+      "name": "MapboxAccessToken",
+      "kind": "Measure",
+      "displayName": "Mapbox Access Token",
+      "description": "Single-value token used when Mapbox basemap is enabled.",
+      "preferredTypes": [
+        {
+          "text": true
+        }
+      ]
+    },
+    {
+      "name": "MaptilerApiKey",
+      "kind": "Measure",
+      "displayName": "MapTiler API Key",
+      "description": "Single-value key used when MapTiler basemap is enabled.",
+      "preferredTypes": [
+        {
+          "text": true
+        }
+      ]
     }
   ],
   "dataViewMappings": [
@@ -111,6 +133,12 @@
             "max": 2
           },
           "Color": {
+            "max": 1
+          },
+          "MapboxAccessToken": {
+            "max": 1
+          },
+          "MaptilerApiKey": {
             "max": 1
           }
         }
@@ -155,6 +183,16 @@
             {
               "for": {
                 "in": "Tooltips"
+              }
+            },
+            {
+              "for": {
+                "in": "MapboxAccessToken"
+              }
+            },
+            {
+              "for": {
+                "in": "MaptilerApiKey"
               }
             }
           ]

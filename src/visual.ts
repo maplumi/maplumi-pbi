@@ -62,6 +62,7 @@ import { OptionsService } from "./services/OptionsService";
 import { ColorRampHelper } from "./services/ColorRampHelper";
 import { DataRoleService } from "./services/DataRoleService";
 import { DomIds, LegendPositions, VisualObjectNames, VisualObjectProps } from "./constants/strings";
+import { RoleNames } from "./constants/roles";
 import { isWebGLAvailable } from "./utils/render";
 import { GeoBoundariesCatalogService } from "./services/GeoBoundariesCatalogService";
 export class MaplumiVisual implements IVisual {
@@ -256,6 +257,14 @@ export class MaplumiVisual implements IVisual {
                 this.mapToolsOptions = { ...this.mapToolsOptions, renderEngine: 'canvas' } as any;
             }
 
+            const categorical = dataView?.categorical;
+            const mapboxCredential = categorical
+                ? DataRoleService.getFirstStringValueForRole(categorical, RoleNames.MapboxAccessToken)
+                : undefined;
+            const maptilerCredential = categorical
+                ? DataRoleService.getFirstStringValueForRole(categorical, RoleNames.MaptilerApiKey)
+                : undefined;
+
             // Apply conditional display logic
             this.visualFormattingSettingsModel.BasemapVisualCardSettings.applyConditionalDisplayRules();
             this.visualFormattingSettingsModel.ChoroplethVisualCardSettings.choroplethDisplaySettingsGroup.applyConditionalDisplayRules();
@@ -263,12 +272,19 @@ export class MaplumiVisual implements IVisual {
             this.visualFormattingSettingsModel.mapControlsVisualCardSettings.mapToolsSettingsGroup.applyConditionalDisplayRules();
             this.visualFormattingSettingsModel.mapControlsVisualCardSettings.legendContainerSettingsGroup.applyConditionalDisplayRules();
 
+            const basemapSettingGroups = this.visualFormattingSettingsModel.BasemapVisualCardSettings;
+            basemapSettingGroups.mapBoxSettingsGroup.mapboxAccessToken.visible = !mapboxCredential;
+            basemapSettingGroups.maptilerSettingsGroup.maptilerApiKey.visible = !maptilerCredential;
+
             // Clean up previous overlay graphics (never touch base map layer stack here)
             this.svg.selectAll('*').remove();
             this.svgOverlay.style.display = 'none';
 
             // Build option objects
-            const basemapOptions = OptionsService.getBasemapOptions(this.visualFormattingSettingsModel);
+            const basemapOptions = OptionsService.getBasemapOptions(this.visualFormattingSettingsModel, {
+                mapboxAccessToken: mapboxCredential,
+                maptilerApiKey: maptilerCredential
+            });
             const circleOptions = OptionsService.getCircleOptions(this.visualFormattingSettingsModel);
             const choroplethOptions = OptionsService.getChoroplethOptions(this.visualFormattingSettingsModel);
             this.mapToolsOptions = OptionsService.getMapToolsOptions(this.visualFormattingSettingsModel);
