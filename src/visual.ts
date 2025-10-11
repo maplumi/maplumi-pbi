@@ -111,7 +111,6 @@ export class MaplumiVisual implements IVisual {
             const byQuery = typeof location !== 'undefined' && /(^|[?&])debugCache=1(&|$)/.test(location.search || '');
             if (!already && (byLocalStorage || byQuery)) {
                 (globalThis as any).__MAPLUMI_DEBUG_CACHE__ = true;
-                console.info('[Maplumi] Cache debug logging enabled');
             }
         } catch { /* ignore */ }
 
@@ -239,17 +238,6 @@ export class MaplumiVisual implements IVisual {
             try { this.svgOverlay.style.display = 'none'; } catch {}
         }
         // Optional debug dump when enabled
-        try {
-            if ((globalThis as any).__MAPLUMI_DEBUG__ === true) {
-                console.log('[Maplumi][debug] updateOverlayVisibility', {
-                    choroplethLayer: !!this.choroplethLayer,
-                    circleLayer: !!this.circleLayer,
-                    choroplethCanvas: !!this.svgContainer.querySelector('#choropleth-canvas'),
-                    circlesCanvas: !!this.svgContainer.querySelector('#circles-canvas'),
-                    svgOverlayDisplay: this.svgOverlay?.style?.display
-                });
-            }
-        } catch {}
     }
 
     public update(options: VisualUpdateOptions) {
@@ -296,7 +284,6 @@ export class MaplumiVisual implements IVisual {
             try {
                 this.mapService.updateBasemap(basemapOptions);
             } catch (e) {
-                console.error('[Maplumi] Basemap update error', e);
                 this.host.displayWarningIcon('Basemap error', 'maplumiWarning: Failed to update basemap. Previous basemap retained.');
             }
 
@@ -315,7 +302,6 @@ export class MaplumiVisual implements IVisual {
                 this.colorRampManager = new ColorRampManager(selectedColorRamp);
                 this.dataService = new ChoroplethDataService(this.colorRampManager, this.host);
             } catch (e) {
-                console.error('[Maplumi] Color ramp init error', e);
                 this.host.displayWarningIcon('Color ramp error', 'maplumiWarning: Failed to initialize color ramp. Layers may not render.');
             }
 
@@ -331,7 +317,6 @@ export class MaplumiVisual implements IVisual {
             // Choropleth layer (async) with guarded errors
             if (choroplethOptions.layerControl === true) {
                 try {
-                    console.log('[Maplumi] starting choroplethOrchestrator.render', { country: choroplethOptions.geoBoundariesCountry, adminLevel: choroplethOptions.geoBoundariesAdminLevel, release: choroplethOptions.geoBoundariesReleaseType });
                     const res = this.choroplethOrchestrator.render(
                         dataView.categorical,
                         choroplethOptions,
@@ -341,9 +326,8 @@ export class MaplumiVisual implements IVisual {
                     // If render returned a promise, attach handlers to isolate failures
                     if (res && typeof (res as any).then === 'function') {
                         (res as unknown as Promise<any>)
-                            .then(layer => { console.log('[Maplumi] choropleth render resolved', { layer: !!layer }); this.choroplethLayer = layer as any; this.updateOverlayVisibility(); })
+                            .then(layer => { this.choroplethLayer = layer as any; this.updateOverlayVisibility(); })
                             .catch(err => {
-                                console.error('[Maplumi] Choropleth render error', err);
                                 try { this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.'); } catch {}
                             });
                     } else {
@@ -352,7 +336,6 @@ export class MaplumiVisual implements IVisual {
                         this.updateOverlayVisibility();
                     }
                 } catch (err) {
-                    console.error('[Maplumi] Choropleth render synchronous error', err);
                     this.host.displayWarningIcon('Choropleth render error', 'maplumiWarning: Failed to render choropleth layer.');
                 }
             } else {
@@ -386,7 +369,6 @@ export class MaplumiVisual implements IVisual {
                         (res as unknown as Promise<any>)
                             .then(layer => { this.circleLayer = layer as any; this.updateOverlayVisibility(); })
                             .catch(err => {
-                                console.error('[Maplumi] Circle render error', err);
                                 this.host.displayWarningIcon('Circle render error', 'maplumiWarning: Failed to render circle layer.');
                             });
                     } else {
@@ -394,7 +376,6 @@ export class MaplumiVisual implements IVisual {
                         this.updateOverlayVisibility();
                     }
                 } catch (err) {
-                    console.error('[Maplumi] Circle render error', err);
                     this.host.displayWarningIcon('Circle render error', 'maplumiWarning: Failed to render circle layer.');
                 }
             } else {
@@ -429,7 +410,6 @@ export class MaplumiVisual implements IVisual {
             );
             this.previousLockMapExtent = this.mapToolsOptions.lockMapExtent;
         } catch (e) {
-            console.error('[Maplumi] Unhandled update error', e);
             this.host.displayWarningIcon('Rendering error', 'maplumiWarning: An unexpected error occurred while rendering. Basemap may still be visible.');
         } finally {
             this.events.renderingFinished(options);

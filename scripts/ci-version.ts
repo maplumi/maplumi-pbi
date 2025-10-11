@@ -1,40 +1,104 @@
 #!/usr/bin/env tsx
 
 /**
- * CI/CD version automation for Power BI visuals
- * Supports Git-based versioning and CI environment variables
+ * DEPRECATED: Replaced by ci-auto-version.ts
+ * Legacy CI/CD version automation for Power BI visuals.
+ * Retained temporarily for reference; will be removed in a future cleanup.
  */
 
 import { execSync } from 'child_process';
 import { sanitizeAndValidate, readProjectVersions, writeProjectVersions } from './version-utils';
 
 interface GitInfo {
-    tag: string;
-    commits: number;
+    /** The base semantic tag (no build or with build .0) */
+    semanticTag: string; // e.g. 1.4.2
+    /** Commits since that semantic tag */
+    commitsSinceSemantic: number;
+    /** Short HEAD hash */
     hash: string;
 }
 
+interface PackageJson {
+    version: string;
+    [key: string]: any;
+}
+
+interface PbivizJson {
+    visual: {
+        version: string;
+        [key: string]: any;
+    };
+    version: string;
+    [key: string]: any;
+}
+
+/**
+ * Find the most recent *semantic* tag (vX.Y.Z or vX.Y.Z.0) to serve as the base.
+ * Falls back to 1.0.0 if none exists.
+ */
 function getVersionFromGit(): GitInfo {
     try {
-        // Get latest git tag
-        const latestTag = execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim();
-        
-        // Get commits since tag
-        const commitsSinceTag = execSync(`git rev-list ${latestTag}..HEAD --count`, { encoding: 'utf8' }).trim();
-        
-        // Get short commit hash
+        const allTagsRaw = execSync('git tag --list "v*" --sort=-v:refname', { encoding: 'utf8' }).trim();
+        const tags = allTagsRaw.split(/\r?\n/).filter(Boolean);
+
+        let semanticBase: string | undefined;
+        for (const tag of tags) {
+            const cleaned = tag.replace(/^v/, '');
+            const parts = cleaned.split('.');
+            // Accept 3-part tags OR 4-part where 4th === '0'
+            if (parts.length === 3 || (parts.length === 4 && parts[3] === '0')) {
+                // Ensure numeric
+                if (parts.every(p => /^\d+$/.test(p))) {
+                    semanticBase = parts.slice(0, 3).join('.');
+                    break; // first (latest sorted) match
+                }
+            }
+        }
+
+        if (!semanticBase) {
+            console.log('No semantic tags found (vX.Y.Z or vX.Y.Z.0). Using default 1.0.0');
+            semanticBase = '1.0.0';
+        }
+
+        // Count commits since the *semantic* base tag (accept either vX.Y.Z or vX.Y.Z.0 existing)
+        let commitCount = 0;
+        try {
+            // Prefer exact matches; check both forms
+            const tagCandidates = [`v${semanticBase}`, `v${semanticBase}.0`];
+            let matchedTag: string | undefined;
+            for (const candidate of tagCandidates) {
+                try {
+                    execSync(`git rev-parse --verify ${candidate}^{commit}`, { stdio: 'ignore' });
+                    matchedTag = candidate;
+                    break;
+                } catch {
+                    /* continue */
+                }
+            }
+            if (matchedTag) {
+                const raw = execSync(`git rev-list ${matchedTag}..HEAD --count`, { encoding: 'utf8' }).trim();
+                commitCount = parseInt(raw, 10) || 0;
+            } else {
+                // No matching tag actually exists yet (fresh repo) -> all commits count from base 1.0.0
+                const raw = execSync('git rev-list HEAD --count', { encoding: 'utf8' }).trim();
+                commitCount = parseInt(raw, 10) || 0;
+            }
+        } catch (e) {
+            console.log('Unable to count commits since semantic tag; defaulting to 0');
+        }
+
         const shortHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-        
+
         return {
-            tag: latestTag.replace('v', ''),
-            commits: parseInt(commitsSinceTag),
+            semanticTag: semanticBase,
+            commitsSinceSemantic: commitCount,
             hash: shortHash
         };
     } catch (error) {
-        console.log('No git tags found, using base version');
+        console.log('Git inspection failed; using fallback version 1.0.0.0');
         return {
-            tag: '1.0.0',
-            commits: 0,
+            semanticTag: '1.0.0',
+            commitsSinceSemantic: 0,
             hash: 'dev'
         };
     }
@@ -46,27 +110,16 @@ function generateCIVersion(): void {
         
         // Get version info
         const gitInfo = getVersionFromGit();
-    const baseVersion = sanitizeAndValidate(gitInfo.tag);
-        
-        // CI/CD environment detection
-        const isCI = process.env.CI === 'true';
-        const buildNumber = process.env.BUILD_NUMBER || 
-                           process.env.GITHUB_RUN_NUMBER || 
-                           process.env.BUILD_ID || 
-                           gitInfo.commits.toString();
-        
-        // Generate version based on environment
-        let newVersion: string;
-        if (isCI) {
-            // CI: Use build number as 4th digit
-            newVersion = `${baseVersion}.${buildNumber}`;
-            console.log(`🤖 CI Build detected - using build number: ${buildNumber}`);
-        } else {
-            // Local: Use commits since tag
-            newVersion = gitInfo.commits > 0 ? 
-                `${baseVersion}.${gitInfo.commits}` : 
-                `${baseVersion}.0`;
-            console.log(`💻 Local build - commits since tag: ${gitInfo.commits}`);
+        const baseVersion = gitInfo.semanticTag; // X.Y.Z
+
+        // Build number strategy: commits since last semantic tag unless explicitly overridden
+        const override = process.env.BUILD_NUMBER || process.env.BUILD_ID;
+        const buildNumber = override ? parseInt(override, 10) : gitInfo.commitsSinceSemantic;
+
+        let newVersion = `${baseVersion}.${buildNumber}`;
+        console.log(`🔧 Derived build number: ${buildNumber} (commits since semantic tag ${baseVersion})`);
+        if (override) {
+            console.log(`⚙️ Override environment variable detected (BUILD_NUMBER / BUILD_ID) → using ${buildNumber}`);
         }
         
         // Ensure 4-digit format
@@ -88,9 +141,9 @@ function generateCIVersion(): void {
         console.log(`✅ Version generated: ${finalVersion}`);
         console.log(`   📦 package.json: ${finalVersion}`);
         console.log(`   🎨 pbiviz.json: ${finalVersion}`);
-        console.log(`   🔖 Git tag: ${gitInfo.tag}`);
-        console.log(`   📝 Commits: ${gitInfo.commits}`);
-        console.log(`   🔨 Build: ${buildNumber}`);
+    console.log(`   🔖 Semantic base: ${gitInfo.semanticTag}`);
+    console.log(`   📝 Commits since base: ${gitInfo.commitsSinceSemantic}`);
+    console.log(`   🔨 Build number used: ${buildNumber}`);
         
     } catch (error) {
         console.error('❌ Error generating CI version:', (error as Error).message);

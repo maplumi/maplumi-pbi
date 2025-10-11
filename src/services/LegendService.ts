@@ -1,6 +1,13 @@
 import { ChoroplethOptions, CircleOptions } from "../types/index";
 import * as format from "../utils/format";
 import { ClassificationMethods, LegendOrientations, LegendLabelPositions } from "../constants/strings";
+import { valueFormatter } from "powerbi-visuals-utils-formattingutils";
+
+export interface CircleMeasureLegendEntry {
+    name: string;
+    color: string;
+    opacity?: number;
+}
 
 export class LegendService {
 
@@ -18,7 +25,8 @@ export class LegendService {
         numberofCircleCategories: number,
         circleOptions: CircleOptions,
         formatTemplate: string = "{:.0f}",
-        customLabels?: string[]
+        customLabels?: string[],
+        measureLegendEntries?: CircleMeasureLegendEntry[]
     ) {
         // Clear or create container
         if (!this.circleLegendContainer) {
@@ -28,18 +36,35 @@ export class LegendService {
             this.clearContainer(this.circleLegendContainer);
         }
 
+    const containerPadding = 5;
+    const rightSvgPadding = Math.max(circleOptions.xPadding ?? 0, 0);
+    const bottomSvgPadding = Math.max(circleOptions.yPadding ?? 0, 0);
+
+    // Configure container layout to grow with content
+    this.circleLegendContainer.style.display = "flex";
+        this.circleLegendContainer.style.flexDirection = "column";
+    this.circleLegendContainer.style.alignItems = "flex-start";
+        this.circleLegendContainer.style.overflow = "visible";
+    this.circleLegendContainer.style.width = "auto";
+    this.circleLegendContainer.style.maxWidth = "none";
+    this.circleLegendContainer.style.minWidth = "0";
+    this.circleLegendContainer.style.boxSizing = "border-box";
+    this.circleLegendContainer.style.padding = `${containerPadding}px`;
+    this.circleLegendContainer.style.justifyContent = "flex-start";
+
         // Create legend items container
         const circleLegendItemsContainer = document.createElement("div");
-        this.circleLegendContainer.appendChild(circleLegendItemsContainer);
-
-        // Set basic visibility
-        this.circleLegendContainer.style.display = "flex";
-
         circleLegendItemsContainer.style.display = "flex";
         circleLegendItemsContainer.style.flexDirection = "column";
-        circleLegendItemsContainer.style.alignItems = "flex-start";
+    circleLegendItemsContainer.style.alignItems = "flex-start";
         circleLegendItemsContainer.style.height = "auto";
-        circleLegendItemsContainer.style.padding = "5px";
+        circleLegendItemsContainer.style.overflow = "visible";
+    circleLegendItemsContainer.style.width = "auto";
+    circleLegendItemsContainer.style.maxWidth = "none";
+    circleLegendItemsContainer.style.minWidth = "0";
+    circleLegendItemsContainer.style.boxSizing = "border-box";
+    circleLegendItemsContainer.style.alignSelf = "flex-start";
+        this.circleLegendContainer.appendChild(circleLegendItemsContainer);
 
         // Add title
         const title = document.createElement("div");
@@ -66,10 +91,18 @@ export class LegendService {
 
         // Create SVG elements
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        const maxRadius = Math.max(...legendData.map((item) => item.radius));
-        //const centerX = maxRadius + xpadding;
-        const bottomY = 2 * maxRadius + circleOptions.yPadding; // Bottom Y position for circles
-        let maxLabelWidth = 0;
+        svg.style.overflow = "visible";
+        svg.style.display = "block";
+        svg.style.alignSelf = "flex-start";
+        svg.style.margin = "0";
+    const maxRadius = Math.max(...legendData.map((item) => item.radius));
+    const bottomY = 2 * maxRadius; // Bottom Y position for circles
+    let maxLabelWidth = 0;
+    let maxCircleBottom = 0;
+    let maxLabelBaseline = 0;
+    const labelFontSize = 10;
+    const minLabelGap = Math.max(circleOptions.minRadiusThreshold ?? 0, 6);
+    let previousLabelY: number | undefined;
 
         // Create a shallow copy of legendData and sort it in descending order based on radius. thus, the largest circle will be drawn first
         const sortedLegendData = [...legendData].sort((a, b) => b.radius - a.radius);
@@ -86,9 +119,9 @@ export class LegendService {
             sortedCustomLabels = sortedLegendData.map(item => labelMap.get(item));
         }
 
-        // Set SVG dimensions with minimal left padding
-        const minLeftPadding = 2; // minimal left space
-        const newCenterX = minLeftPadding + maxRadius;
+        // Set SVG dimensions with consistent horizontal padding
+    const newCenterX = maxRadius;
+        const labelAnchorX = newCenterX + maxRadius + circleOptions.labelSpacing;
 
 
         // Clear SVG before re-adding elements (safe way)
@@ -99,6 +132,8 @@ export class LegendService {
         sortedLegendData.forEach((item, index) => {
             // Calculate the Y position so all circles are aligned at the bottom
             const currentY = bottomY - item.radius;
+            const circleBottom = currentY + item.radius;
+            maxCircleBottom = Math.max(maxCircleBottom, circleBottom);
 
             // Draw the circle
             const circle = document.createElementNS(
@@ -127,8 +162,18 @@ export class LegendService {
             svg.appendChild(circle);
 
             // Calculate label position
-            const labelX = newCenterX + maxRadius + circleOptions.labelSpacing;
-            const labelY = currentY - item.radius;
+            const labelX = labelAnchorX;
+            const labelStartY = currentY - item.radius;
+            let labelY = labelStartY;
+
+            if (previousLabelY !== undefined) {
+                const gap = labelY - previousLabelY;
+                if (gap < minLabelGap) {
+                    labelY = previousLabelY + minLabelGap;
+                }
+            }
+            previousLabelY = labelY;
+            maxLabelBaseline = Math.max(maxLabelBaseline, labelY + labelFontSize);
 
             // Add the leader line
             const line = document.createElementNS(
@@ -136,7 +181,7 @@ export class LegendService {
                 "line"
             );
             line.setAttribute("x1", newCenterX.toString());
-            line.setAttribute("y1", (currentY - item.radius).toString());
+            line.setAttribute("y1", labelStartY.toString());
             line.setAttribute("x2", (labelX - 3).toString());
             line.setAttribute("y2", labelY.toString());
             line.setAttribute("stroke", circleOptions.leaderLineColor);
@@ -163,31 +208,67 @@ export class LegendService {
 
             svg.appendChild(text);
 
-            // Measure the label width
-            const tempLabel = document.createElement("div");
-            tempLabel.style.position = "absolute";
-            tempLabel.style.visibility = "hidden";
-            tempLabel.style.whiteSpace = "nowrap";
-            tempLabel.textContent = labelText;
-            document.body.appendChild(tempLabel);
-
-            const labelWidth = tempLabel.offsetWidth;
-            maxLabelWidth = Math.max(maxLabelWidth, labelWidth);
-
-            document.body.removeChild(tempLabel);
+            const textWidth = this.getSvgTextWidth(text, labelText, labelFontSize);
+            maxLabelWidth = Math.max(maxLabelWidth, textWidth);
 
         });
 
         // Calculate the farthest right point of the label
-        const farthestLabelX = newCenterX + maxLabelWidth;
-        const svgWidth = farthestLabelX + circleOptions.xPadding; // Add padding to the right
-        const svgHeight = bottomY + circleOptions.yPadding;
+        const farthestLabelX = labelAnchorX + maxLabelWidth;
+        const svgWidth = Math.ceil(farthestLabelX + rightSvgPadding);
+        const svgHeight = Math.ceil(Math.max(maxCircleBottom, maxLabelBaseline) + bottomSvgPadding);
         svg.setAttribute("width", `${svgWidth}px`);
         svg.setAttribute("height", `${svgHeight}px`);
         svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
         svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
 
         circleLegendItemsContainer.appendChild(svg);
+
+        if (Array.isArray(measureLegendEntries) && measureLegendEntries.length > 0) {
+            const measureLegend = this.buildCircleMeasureLegend(measureLegendEntries, circleOptions);
+            circleLegendItemsContainer.appendChild(measureLegend);
+        }
+    }
+
+    private getSvgTextWidth(textElement: SVGTextElement, label: string, fontSize: number): number {
+        if (!label) {
+            return 0;
+        }
+
+        try {
+            if (typeof (textElement as any).getComputedTextLength === "function") {
+                const length = (textElement as any).getComputedTextLength();
+                if (Number.isFinite(length) && length > 0) {
+                    return length;
+                }
+            }
+            if (typeof (textElement as any).getBBox === "function") {
+                const box = (textElement as any).getBBox();
+                if (box && Number.isFinite(box.width) && box.width > 0) {
+                    return box.width;
+                }
+            }
+        } catch {
+            // fall through to canvas measurement
+        }
+
+        return this.measureTextWidthWithCanvas(label, fontSize);
+    }
+
+    private measureTextWidthWithCanvas(text: string, fontSize: number): number {
+        if (typeof document === "undefined" || typeof document.createElement !== "function") {
+            return text.length * fontSize * 0.6;
+        }
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) {
+            return text.length * fontSize * 0.6;
+        }
+
+        context.font = `${fontSize}px Arial`;
+        const metrics = context.measureText(text);
+        return metrics.width;
     }
 
     createChoroplethLegend(
@@ -195,7 +276,9 @@ export class LegendService {
         classBreaks: number[],
         colorScale: any,
         options: ChoroplethOptions,
-        formatTemplate: string = "{:.0f}"
+        formatTemplate: string = "{:.0f}",
+        formatString?: string,
+        cultureSelector?: string
 
     ) {
 
@@ -230,7 +313,46 @@ export class LegendService {
         // Collect all labels and colors
         let allLabels: string[] = [];
         let colors: string[] = [];
-    if (options.classificationMethod === ClassificationMethods.Unique) {
+
+        const numericFormatter = this.buildValueFormatter(formatString, cultureSelector, colorValues);
+
+        const formatBreakValue = (value: any): string => {
+            if (value === null || value === undefined) {
+                return "";
+            }
+            if (typeof value !== "number") {
+                return String(value);
+            }
+            if (!Number.isFinite(value)) {
+                return value.toString();
+            }
+            if (numericFormatter) {
+                try {
+                    const formatted = numericFormatter.format(value);
+                    if (formatted !== undefined && formatted !== null) {
+                        return formatted;
+                    }
+                } catch {
+                    // Fallback to default formatting when formatter fails
+                }
+            }
+            if (Number.isInteger(value)) {
+                return format.formatValue(value, formatTemplate);
+            }
+
+            const normalized = value.toString();
+            if (normalized.toLowerCase().includes("e")) {
+                const localeString = value.toLocaleString(undefined, {
+                    useGrouping: false,
+                    maximumFractionDigits: 20
+                });
+                return localeString.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
+            }
+
+            return normalized.replace(/(\.\d*?[1-9])0+$/u, "$1").replace(/\.0+$/u, "");
+        };
+
+        if (options.classificationMethod === ClassificationMethods.Unique) {
             // Unique value legend
             // Use classBreaks (already sorted and capped) for both labels and color mapping
             const uniqueValues = classBreaks;
@@ -243,12 +365,19 @@ export class LegendService {
             while (colors.length < Math.min(uniqueValues.length, maxLegendItems)) {
                 colors.push("#000000");
             }
-            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => format.formatValue(v, formatTemplate));
+            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => formatBreakValue(v));
         } else {
-            for (let i = 0; i < classBreaks.length - 1; i++) {
-                allLabels.push(`${format.formatValue(classBreaks[i], formatTemplate)} - ${format.formatValue(classBreaks[i + 1], formatTemplate)}`);
+            // Single-value collapse: if exactly two breaks and identical, show one swatch/label
+            if (classBreaks.length === 2 && classBreaks[0] === classBreaks[1]) {
+                const label = formatBreakValue(classBreaks[0]);
+                allLabels.push(label);
+                colors = [colorScale[0]];
+            } else {
+                for (let i = 0; i < classBreaks.length - 1; i++) {
+                    allLabels.push(`${formatBreakValue(classBreaks[i])} - ${formatBreakValue(classBreaks[i + 1])}`);
+                }
+                colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
             }
-            colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
         }
 
         // Calculate max width when needed
@@ -302,6 +431,28 @@ export class LegendService {
         this.choroplethLegendContainer.appendChild(choroplethItemsContainer);
     }
 
+    private buildValueFormatter(
+        formatString?: string,
+        cultureSelector?: string,
+        values?: number[]
+    ): ReturnType<typeof valueFormatter.create> | undefined {
+        if (!formatString) {
+            return undefined;
+        }
+
+        const sampleValue = values?.find(v => typeof v === "number" && Number.isFinite(v));
+
+        try {
+            return valueFormatter.create({
+                format: formatString,
+                cultureSelector,
+                value: sampleValue
+            });
+        } catch {
+            return undefined;
+        }
+    }
+
     showLegend(type: 'circle' | 'choropleth') {
         const container = type === 'circle'
             ? this.circleLegendContainer
@@ -336,6 +487,79 @@ export class LegendService {
         }
     }
 
+    private buildCircleMeasureLegend(entries: CircleMeasureLegendEntry[], circleOptions: CircleOptions): HTMLElement {
+        const container = document.createElement("div");
+        container.style.display = "flex";
+        container.style.flexDirection = "row";
+        container.style.flexWrap = "wrap";
+        container.style.gap = "8px";
+        container.style.marginTop = "10px";
+        container.style.alignItems = "center";
+
+        entries.forEach((entry) => {
+            if (!entry?.name || !entry?.color) {
+                return;
+            }
+
+            const item = document.createElement("div");
+            item.style.display = "flex";
+            item.style.alignItems = "center";
+            item.style.gap = "6px";
+
+            const swatch = document.createElement("span");
+            swatch.style.display = "inline-block";
+            swatch.style.width = "6px";
+            swatch.style.height = "6px";
+            swatch.style.borderRadius = "50%";
+            swatch.style.border = `${Math.max(circleOptions.legendItemStrokeWidth ?? 0, 0)}px solid ${circleOptions.legendItemStrokeColor ?? "transparent"}`;
+            swatch.style.backgroundColor = this.resolveCircleLegendColor(entry.color, entry.opacity);
+
+            const label = document.createElement("span");
+            label.textContent = entry.name;
+            label.style.fontSize = "10px";
+            label.style.color = circleOptions.labelTextColor;
+            label.style.whiteSpace = "nowrap";
+
+            item.appendChild(swatch);
+            item.appendChild(label);
+            container.appendChild(item);
+        });
+
+        return container;
+    }
+
+    private resolveCircleLegendColor(color: string, opacity: number | undefined): string {
+        if (!color) {
+            return "transparent";
+        }
+
+        const boundedOpacity = typeof opacity === "number" && !Number.isNaN(opacity)
+            ? Math.max(0, Math.min(1, opacity))
+            : undefined;
+
+        if (color.startsWith("#") && boundedOpacity !== undefined) {
+            return this.hexToRgba(color, boundedOpacity);
+        }
+
+        if ((color.startsWith("rgb(") || color.startsWith("rgba(")) && boundedOpacity !== undefined) {
+            try {
+                const parts = color
+                    .replace(/rgba?\(/u, "")
+                    .replace(/\)/u, "")
+                    .split(",")
+                    .map(part => part.trim());
+                if (parts.length >= 3) {
+                    const [r, g, b] = parts;
+                    return `rgba(${r}, ${g}, ${b}, ${boundedOpacity})`;
+                }
+            } catch {
+                // fall through
+            }
+        }
+
+        return color;
+    }
+
     // Helper to round a value to the nearest 'nice' number (100s, 1000s, etc)
     private roundToNiceNumber(value: number): number {
         if (value === 0) return 0;
@@ -354,7 +578,6 @@ export class LegendService {
     ) {
         // Validate inputs
         if (sizeValues.length !== radii.length) {
-            console.error("Arrays must have the same length");
             return [];
         }
 
@@ -364,7 +587,6 @@ export class LegendService {
             .filter((item) => item.size >= 0 && item.radius >= 0);
 
         if (validData.length === 0) {
-            console.error("No valid positive data points");
             return [];
         }
 

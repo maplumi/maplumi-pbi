@@ -6,6 +6,18 @@ import { transformExtent } from 'ol/proj.js';
 import type { ChoroplethLayerOptions, GeoJSONFeature } from '../../types';
 import { fromLonLat } from 'ol/proj.js';
 
+const NO_DATA_COLOR = "rgba(0,0,0,0)";
+const isNoDataValue = (value: any): boolean => {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "number") {
+    return !Number.isFinite(value);
+  }
+  if (typeof value === "string") {
+    return value.trim().length === 0;
+  }
+  return false;
+};
+
 export class ChoroplethWebGLLayer extends WebGLVectorLayer<any> {
   public options: ChoroplethLayerOptions;
   private source: VectorSource<any>;
@@ -21,9 +33,9 @@ export class ChoroplethWebGLLayer extends WebGLVectorLayer<any> {
       featureProjection: 'EPSG:3857',
     });
     // Build value lookup
-    const valueLookup: Record<string, number> = {};
+    const valueLookup: Record<string, number | null | undefined> = {};
     const pCodes = options.categoryValues as string[];
-    const vals = options.measureValues as number[];
+    const vals = options.measureValues as Array<number | null | undefined>;
     pCodes.forEach((p, i) => { valueLookup[p] = vals[i]; });
 
     const toRGB = (c: string): [number, number, number] => {
@@ -44,11 +56,12 @@ export class ChoroplethWebGLLayer extends WebGLVectorLayer<any> {
     feats.forEach((f: any) => {
       const pcodeKey = options.dataKey;
       const pCode = f.get(pcodeKey);
-      const v = valueLookup[pCode];
-  const fillStr = (pCode === undefined || v === undefined) ? '#000000' : options.colorScale(v);
+  const v = valueLookup[pCode];
+  const missing = (pCode === undefined) || isNoDataValue(v);
+  const fillStr = missing ? NO_DATA_COLOR : options.colorScale(v as any);
   const [r,g,b] = toRGB(fillStr);
-  const aBase = Math.max(0, Math.min(1, options.fillOpacity));
-  const aDim = aBase * 0.2;
+  const aBase = missing ? 0 : Math.max(0, Math.min(1, options.fillOpacity));
+  const aDim = missing ? 0 : aBase * 0.2;
   f.set('fillSelected', [r, g, b, aBase]);
   f.set('fillDim', [r, g, b, aDim]);
   const dp = (options.dataPoints || []).find((x: any) => x.pcode === pCode);

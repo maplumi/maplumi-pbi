@@ -30,6 +30,11 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
     private choroplethLayer: ChoroplethLayer | ChoroplethCanvasLayer | ChoroplethWebGLLayer | undefined;
     private abortController: AbortController | null = null;
     private choroplethOptsBuilder: ChoroplethLayerOptionsBuilder;
+    // Persistent categorical mapping (stable category->color across filtering) for Unique classification
+    private categoricalColorMap: globalThis.Map<any, string> = new globalThis.Map();
+    private categoricalStableOrder: any[] = []; // first 7 sorted categories (stable across filtering until measure/method change)
+    private lastClassificationMethod: string | undefined;
+    private lastMeasureQueryName: string | undefined;
 
     constructor(args: {
         svg: d3.Selection<SVGElement, unknown, HTMLElement, any>;
@@ -109,8 +114,20 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
         if (this.choroplethLayer) {
             if (choroplethOptions.showLegend) {
-                this.legendService.getChoroplethLegendContainer()?.setAttribute("style", "display:flex");
-                this.legendService.createChoroplethLegend(colorValues, classBreaks as any, colorScale as any, choroplethOptions);
+                const choroplethLegendContainer = this.legendService.getChoroplethLegendContainer();
+                if (choroplethLegendContainer) {
+                    choroplethLegendContainer.style.display = "flex";
+                }
+                const formatString = colorMeasure?.source?.format;
+                this.legendService.createChoroplethLegend(
+                    colorValues,
+                    classBreaks as any,
+                    colorScale as any,
+                    choroplethOptions,
+                    undefined,
+                    formatString,
+                    this.host.locale
+                );
                 this.legendService.showLegend('choropleth');
             } else {
                 this.legendService.hideLegend('choropleth');
@@ -130,9 +147,9 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         pCodes: string[],
         dataService: ChoroplethDataService
     ): ChoroplethDataSet {
-        const colorValues: number[] = colorMeasure.values;
-        const classBreaks = dataService.getClassBreaks(colorValues, choroplethOptions);
-        const colorScale = dataService.getColorScale(classBreaks as any, choroplethOptions);
+    const colorValues: number[] = colorMeasure.values;
+    let classBreaks = dataService.getClassBreaks(colorValues, choroplethOptions);
+    let colorScale = dataService.getColorScale(classBreaks as any, choroplethOptions);
         const pcodeKey = choroplethOptions.locationPcodeNameId;
         const tooltips = dataService.extractTooltips(categorical);
         const dataPoints = pCodes.map((pcode, i) => {
@@ -142,9 +159,84 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 .createSelectionId();
             return { pcode, value: colorValues[i], tooltip: tooltips[i], selectionId };
         });
-    if (choroplethOptions.classificationMethod === ClassificationMethods.Unique && (classBreaks as any[]).length > 7) {
-            this.messages.tooManyUniqueValues();
+        // Stable ordered categorical mapping for Unique classification
+        if (choroplethOptions.classificationMethod === ClassificationMethods.Unique) {
+            try {
+                const measureQuery = colorMeasure?.source?.queryName;
+                const enteringUnique = this.lastClassificationMethod !== ClassificationMethods.Unique;
+                const measureChanged = measureQuery && measureQuery !== this.lastMeasureQueryName;
+
+                const currentUnique = Array.from(new Set(colorValues.filter(v => v !== null && v !== undefined && !Number.isNaN(v))));
+                const allNumeric = currentUnique.every(v => typeof v === 'number');
+                const sortedCurrent = allNumeric
+                    ? [...currentUnique].sort((a, b) => (a as number) - (b as number))
+                    : [...currentUnique].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+
+                const basePalette = Array.isArray(colorScale) ? colorScale.slice(0, 7) : (Object.values(colorScale) as string[]).slice(0, 7);
+
+                if (enteringUnique || measureChanged || this.categoricalStableOrder.length === 0) {
+                    // Initialize stable palette from sortedCurrent
+                    this.categoricalColorMap.clear();
+                    this.categoricalStableOrder = [];
+                    for (const cat of sortedCurrent) {
+                        if (this.categoricalStableOrder.length < 7) {
+                            this.categoricalStableOrder.push(cat);
+                            this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
+                        } else {
+                            this.categoricalColorMap.set(cat, '#000000');
+                        }
+                    }
+                } else {
+                    // Append any new categories (preserve existing color assignments)
+                    for (const cat of sortedCurrent) {
+                        if (!this.categoricalColorMap.has(cat)) {
+                            if (this.categoricalStableOrder.length < 7) {
+                                this.categoricalStableOrder.push(cat);
+                                this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
+                            } else {
+                                this.categoricalColorMap.set(cat, '#000000');
+                            }
+                        }
+                    }
+                }
+
+                // Legend / breaks use only those stable categories that are present in current filter result
+                const presentStable = this.categoricalStableOrder.filter(c => currentUnique.includes(c));
+                classBreaks = presentStable;
+                colorScale = presentStable.map(c => this.categoricalColorMap.get(c) || '#000000');
+                (choroplethOptions as any)._stableUniqueCategories = classBreaks;
+                (choroplethOptions as any)._stableUniqueColors = colorScale;
+
+                if (this.categoricalColorMap.size > 7) {
+                    this.messages.tooManyUniqueValues();
+                }
+            } catch (e) {
+                
+                this.categoricalColorMap.clear();
+                this.categoricalStableOrder = [];
+            }
+        } else if (this.lastClassificationMethod === ClassificationMethods.Unique) {
+            this.categoricalColorMap.clear();
+            this.categoricalStableOrder = [];
         }
+
+        // Single-value numeric collapse: if non-categorical and only one distinct numeric value, force one color & two identical breaks
+        if (choroplethOptions.classificationMethod !== ClassificationMethods.Unique) {
+            try {
+                const numericValues = colorValues.filter(v => typeof v === 'number' && !Number.isNaN(v));
+                const uniqueNums = Array.from(new Set(numericValues));
+                if (uniqueNums.length === 1) {
+                    const v = uniqueNums[0];
+                    const firstColor = Array.isArray(colorScale) ? colorScale[0] : (colorScale as any)[0];
+                    classBreaks = [v, v]; // ensures legend creates exactly one range entry (v - v)
+                    colorScale = [firstColor];
+                }
+            } catch (e) { }
+        }
+
+        this.lastClassificationMethod = choroplethOptions.classificationMethod;
+        this.lastMeasureQueryName = colorMeasure?.source?.queryName;
+
         return { colorValues, classBreaks, colorScale, pcodeKey, dataPoints } as any;
     }
 
@@ -177,7 +269,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                     const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                     pcodeKey = boundaryFieldName;
                     cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_ALL_ADM0`;
-                    console.log("Loading All Countries ADM0 boundaries (consolidated dataset)");
                 } else {
                     // Prefer manifest-based direct TopoJSON path from the catalog
                     const resolvedUrl = GeoBoundariesCatalogService.resolveTopoJsonUrlSync(
@@ -195,7 +286,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                         const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                         pcodeKey = boundaryFieldName;
                         cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                        console.log(`Loading ${choroplethOptions.geoBoundariesCountry} ${choroplethOptions.geoBoundariesAdminLevel} (${choroplethOptions.geoBoundariesReleaseType}) via manifest`);
                     } else {
                         // Safe fallback to the legacy API metadata approach if manifest resolution fails
                         const metadata = await GeoBoundariesService.fetchMetadata(choroplethOptions);
@@ -207,7 +297,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                         const boundaryFieldName = GeoBoundariesService.getBoundaryFieldName(choroplethOptions);
                         pcodeKey = boundaryFieldName;
                         cacheKey = `geoboundaries_${choroplethOptions.geoBoundariesReleaseType}_${choroplethOptions.geoBoundariesCountry}_${choroplethOptions.geoBoundariesAdminLevel}`;
-                        console.log(`Loading ${GeoBoundariesService.getDataDescription(metadata.data)} (API fallback)`);
                     }
                 }
             } catch (error) {
@@ -233,31 +322,26 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         this.abortController = new AbortController();
 
             try {
-                console.log('[choropleth] about to call cacheService.getOrFetch', { serviceUrl, cacheKey });
                 const data = await this.cacheService.getOrFetch(cacheKey, async () => {
                 // Append a client identifier to outbound request URL
                     const fetchUrl = requestHelpers.appendClientIdQuery(serviceUrl);
-                    console.log('[choropleth] fetchFn prepared fetchUrl=', fetchUrl);
-                    if (!requestHelpers.isValidURL(fetchUrl)) { this.messages.invalidGeoTopoUrl(); console.warn('[choropleth] invalid fetch url', fetchUrl); return null; }
-                    if (!requestHelpers.enforceHttps(fetchUrl)) { this.messages.geoTopoFetchNetworkError(); console.warn('[choropleth] non-https fetch blocked', fetchUrl); return null; }
+                    if (!requestHelpers.isValidURL(fetchUrl)) { this.messages.invalidGeoTopoUrl(); return null; }
+                    if (!requestHelpers.enforceHttps(fetchUrl)) { this.messages.geoTopoFetchNetworkError(); return null; }
                     let response: Response;
                     try {
                         response = await requestHelpers.fetchWithTimeout(fetchUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
                     } catch (e) {
-                        this.messages.geoTopoFetchNetworkError(); console.error('[choropleth] fetchWithTimeout error', e); return null;
+                        this.messages.geoTopoFetchNetworkError(); return null;
                     }
                     if (!response.ok) {
-                        this.messages.geoTopoFetchStatusError(response.status); console.error('[choropleth] topo fetch status', response.status, response.statusText); return null;
+                        this.messages.geoTopoFetchStatusError(response.status); return null;
                     }
                     const json = await response.json();
-                    if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); console.error('[choropleth] invalid json response from topo url'); return null; }
-                    console.log('[choropleth] fetchFn fetched json, size=', json && (json.objects ? Object.keys(json.objects).length : (json.features ? json.features.length : 'unknown')));
+                    if (!(await requestHelpers.isValidJsonResponse(json))) { this.messages.invalidGeoTopoData(); return null; }
                     return { data: json, response };
             }, { respectCacheHeaders: true });
 
-                console.log('[choropleth] cacheService.getOrFetch returned', !!data);
                 if (!data || !choroplethOptions.layerControl) {
-                    console.warn('[choropleth] No data returned or layerControl disabled', { data: !!data, layerControl: choroplethOptions.layerControl });
                     // Surface a warning so users can see something happened
                     try { this.host.displayWarningIcon('GeoBoundaries', 'maplumiWarning: No boundary data was returned for the selected dataset.'); } catch {}
                     return;
@@ -265,7 +349,6 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
 
             let processedGeoData;
             try {
-                console.debug('[choropleth] fetchAndRender serviceUrl=', serviceUrl, 'cacheKey=', cacheKey, 'pcodeKey=', pcodeKey, 'validPCodes=', validPCodes.length);
                 const preferFirstLayer = true; // prefer first layer by default for all sources
                 const honorPreferredName = choroplethOptions.boundaryDataSource === 'custom' && !!choroplethOptions.topojsonObjectName;
                 const procResult = dataService.processGeoData(
@@ -281,28 +364,30 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 const bestKey = procResult.usedPcodeKey;
                 const bestCount = procResult.bestCount || 0;
                 const originalCount = procResult.originalCount || 0;
-                const minMatches = VisualConfig.AUTO_DETECT?.PCODE_MIN_MATCHES ?? 3;
-                const minMargin = VisualConfig.AUTO_DETECT?.PCODE_MIN_MARGIN ?? 2;
+                // Base thresholds
+                const baseMinMatches = VisualConfig.AUTO_DETECT?.PCODE_MIN_MATCHES ?? 3;
+                const baseMinMargin = VisualConfig.AUTO_DETECT?.PCODE_MIN_MARGIN ?? 2;
+                // Dynamically adapt thresholds for small filtered datasets so we don't reject valid small selections
+                const dynamicMinMatches = Math.max(1, Math.min(baseMinMatches, validPCodes.length));
+                const dynamicMinMargin = Math.min(baseMinMargin, Math.max(1, validPCodes.length - 1));
 
                 let chosenGeojson = procResult.filteredByOriginal;
                 let chosenKey = pcodeKey;
 
                 if (bestKey && bestKey !== pcodeKey) {
-                    // Only adopt if bestCount meets absolute threshold AND beats the original by margin
-                    if (bestCount >= minMatches && (bestCount >= originalCount + minMargin)) {
+                    const thresholdsMet = bestCount >= dynamicMinMatches && (bestCount >= originalCount + dynamicMinMargin);
+                    const originalEmptyBestNonZero = originalCount === 0 && bestCount > 0; // Fallback: avoid zero-feature result
+                    if (thresholdsMet || originalEmptyBestNonZero) {
                         chosenGeojson = procResult.filteredByBest;
                         chosenKey = bestKey;
-                        console.log('[choropleth] auto-swapping pcodeKey', { original: pcodeKey, chosen: bestKey, bestCount, originalCount });
                         try { this.messages.autoSelectedBoundaryField(pcodeKey, bestKey, bestCount); } catch (e) {}
                     } else {
-                        console.log('[choropleth] NOT swapping pcodeKey - thresholds not met', { original: pcodeKey, bestKey, bestCount, originalCount, minMatches, minMargin });
                     }
                 }
 
                 processedGeoData = chosenGeojson;
                 pcodeKey = chosenKey;
             } catch (e: any) {
-                console.error('[choropleth] processGeoData threw', e);
                 try { this.host.displayWarningIcon(
                     "Invalid Geo/TopoJSON Data",
                     "maplumiWarning: The boundary data isn't valid GeoJSON (FeatureCollection with features). Please verify the URL, selected object name, and file format."
@@ -310,12 +395,10 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 return;
             }
 
-            try { console.log('[choropleth] processedGeoData features=', processedGeoData?.features?.length); } catch {}
 
             // Defensive: if the processed GeoJSON has no features, bail early and
             // avoid adding an empty vector layer which can lead to confusing UI states.
             if (!processedGeoData || !Array.isArray((processedGeoData as any).features) || (processedGeoData as any).features.length === 0) {
-                console.warn('[choropleth] no features after processing - skipping layer creation');
                 try { this.host.displayWarningIcon('No boundary features', 'maplumiWarning: The selected boundary dataset produced zero matching features. Please check your Boundary ID field and data.'); } catch {}
                 // Remove any previously-added choropleth layer so we don't leave a stale layer
                 if (this.choroplethLayer) {

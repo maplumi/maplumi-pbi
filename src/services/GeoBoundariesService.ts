@@ -98,12 +98,10 @@ export class GeoBoundariesService {
             try {
                 response = await requestHelpers.fetchWithTimeout(apiUrl, VisualConfig.NETWORK.FETCH_TIMEOUT_MS);
             } catch (err) {
-                console.error("GeoBoundaries API fetch timeout or network error:", err);
                 return { data: null, response: null };
             }
 
             if (!response.ok) {
-                console.error(`GeoBoundaries API error: ${response.status} ${response.statusText}`);
                 return { data: null, response };
             }
 
@@ -119,12 +117,10 @@ export class GeoBoundariesService {
             };
             const metadata = selectEntry(payload);
             if (!metadata) {
-                console.error("GeoBoundaries metadata missing download URLs");
                 return { data: null, response };
             }
             return { data: metadata, response };
         } catch (error) {
-            console.error("Error fetching geoBoundaries metadata:", error);
             return { data: null, response: null };
         }
     }

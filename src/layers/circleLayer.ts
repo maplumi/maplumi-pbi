@@ -346,12 +346,11 @@ export class CircleLayer extends Layer {
 
     // Calculate extent for circle features
     private calculateCirclesExtent(longitudes: number[], latitudes: number[]): Extent {
-        if (longitudes.length === 0 || latitudes.length === 0) {
-            console.warn('Longitude and latitude arrays must not be empty.');
-        }
-
-        if (longitudes.length !== latitudes.length) {
-            console.warn('Longitude and latitude arrays must have the same length.');
+        // Return a zero-sized transformed extent if inputs are empty or mismatched
+        if (!Array.isArray(longitudes) || !Array.isArray(latitudes) ||
+            longitudes.length === 0 || latitudes.length === 0 ||
+            longitudes.length !== latitudes.length) {
+            return transformExtent([0, 0, 0, 0], 'EPSG:4326', 'EPSG:3857');
         }
 
         const minX = Math.min(...longitudes);

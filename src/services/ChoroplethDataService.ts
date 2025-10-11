@@ -58,13 +58,6 @@ export class ChoroplethDataService {
             throw new Error("Invalid GeoJSON: expected a FeatureCollection with a features array.");
         }
 
-        try {
-            console.log('[choroplethData] processGeoData initialFeatures=', geojson.features.length, 'pcodeKey=', pcodeKey);
-            if (geojson.features.length > 0) {
-                const sampleProps = Object.keys(geojson.features[0].properties || {}).slice(0, 20);
-                console.log('[choroplethData] sample properties=', sampleProps, 'sample feature props=', geojson.features[0].properties);
-            }
-        } catch (e) {}
 
         // Normalize validPCodes to strings trimmed for robust matching
         const normalizedValid = new Set(validPCodes.map(v => String(v).trim()));
@@ -105,7 +98,6 @@ export class ChoroplethDataService {
         const originalIndex = candidateKeys.indexOf(pcodeKey);
         const originalCount = originalIndex >= 0 ? matchCounts[originalIndex] || 0 : 0;
 
-        try { console.log('[choroplethData] candidateKeyMatchCounts=', candidateKeys.map((k, i) => ({ k, count: matchCounts[i] })), 'best=', bestKey, 'bestCount=', bestCount, 'originalCount=', originalCount); } catch (e) {}
 
         // Build filtered FeatureCollections for both the best key and the original key
         const filteredByKey = (key: string) => {
@@ -123,7 +115,6 @@ export class ChoroplethDataService {
         const filteredByBest = filteredByKey(bestKey);
         const filteredByOriginal = filteredByKey(pcodeKey);
 
-        try { console.log('[choroplethData] filteredByBestCount=', filteredByBest.features.length, 'filteredByOriginalCount=', filteredByOriginal.features.length); } catch(e){}
 
         return {
             originalGeojson: geojson,
@@ -389,6 +380,21 @@ export class ChoroplethDataService {
         classificationMethod: string
     ): string {
 
+        const isNoDataValue = (candidate: any): boolean => {
+            if (candidate === null || candidate === undefined) return true;
+            if (typeof candidate === "number") {
+                return !Number.isFinite(candidate);
+            }
+            if (typeof candidate === "string") {
+                return candidate.trim().length === 0;
+            }
+            return false;
+        };
+
+        if (isNoDataValue(value)) {
+            return "rgba(0,0,0,0)";
+        }
+
     if (classificationMethod === ClassificationMethods.Unique) {
             // Unique value (categorical): only top 7 get mapped, others get black
             const index = classBreaks.indexOf(value);
@@ -480,7 +486,6 @@ export class ChoroplethDataService {
             }
         }
 
-    try { console.log('[choroplethData] convertTopoJSON layerNames=', layerNames, 'selectedLayerName=', selectedLayerName, 'preferFirstLayer=', preferFirstLayer); } catch(e){}
 
         if (!selectedLayerName) {
             throw new Error("Unable to select a TopoJSON object for conversion.");

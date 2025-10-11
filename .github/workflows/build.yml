@@ -15,72 +15,101 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Needed for git history-based versioning
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run tests
-      run: npm test
-    
-    - name: Generate CI version
-      run: npm run version:ci
-      env:
-        BUILD_NUMBER: ${{ github.run_number }}
-    
-    - name: Build Power BI visual
-      run: npm run build:ci
-    
-    - name: Upload visual package
-      uses: actions/upload-artifact@v4
-      with:
-        name: powerbi-visual-${{ github.run_number }}
-        path: dist/*.pbiviz
-        retention-days: 30
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
+    outputs:
+      semantic_changed: ${{ steps.semantic_diff.outputs.semantic_changed }}
+      version: ${{ steps.read_version.outputs.version }}
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-    
+
     - name: Install dependencies
       run: npm ci
-    
-    - name: Generate release version
-      run: npm run version:ci
-      env:
-        BUILD_NUMBER: ${{ github.run_number }}
-    
-    - name: Build for release
-      run: npm run build:ci
-    
-    - name: Get version from package.json
-      id: get_version
+
+    - name: Read current version
+      id: read_version
       run: |
         VERSION=$(node -p "require('./package.json').version")
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    
+        echo "Current version: $VERSION"
+
+    - name: Detect semantic version change
+      id: semantic_diff
+      run: |
+        CURR=${{ steps.read_version.outputs.version }}
+        CURR_SEM=${CURR%.*}
+        if git show HEAD^:package.json >/dev/null 2>&1; then
+          PREV=$(git show HEAD^:package.json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(JSON.parse(d).version));")
+          PREV_SEM=${PREV%.*}
+        else
+          PREV_SEM=""
+        fi
+        if [ "$PREV_SEM" != "$CURR_SEM" ]; then
+          echo "semantic_changed=true" >> $GITHUB_OUTPUT
+          echo "Semantic change: $PREV_SEM -> $CURR_SEM"
+        else
+          echo "semantic_changed=false" >> $GITHUB_OUTPUT
+          echo "No semantic change (semantic remains $CURR_SEM)"
+        fi
+
+    - name: Run tests
+      run: npm test
+
+    - name: Auto build version bump (4th part)
+      if: steps.semantic_diff.outputs.semantic_changed == 'false'
+      env:
+        AUTO_COMMIT: 1
+      run: npm run version:auto
+
+    - name: Package visual
+      run: npx pbiviz package
+
+    - name: Upload visual package (always)
+      uses: actions/upload-artifact@v4
+      with:
+        name: powerbi-visual-${{ github.run_number }}
+        path: dist/*.pbiviz
+        retention-days: 14
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: needs.build.outputs.semantic_changed == 'true' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Ensure sync (idempotent)
+      run: npm run sync-version
+
+    - name: Package for release
+      run: npx pbiviz package
+
+    - name: Get version
+      id: get_version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        SEMVER=${VERSION%.*}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "semver=$SEMVER" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION (semantic $SEMVER)"
+
     - name: Get .pbiviz filename
       id: get_filename
       run: |
@@ -88,33 +117,44 @@ jobs:
         FILENAME=$(basename "$PBIVIZ_FILE")
         echo "filename=$FILENAME" >> $GITHUB_OUTPUT
         echo "filepath=$PBIVIZ_FILE" >> $GITHUB_OUTPUT
-    
+
+    - name: Tag semantic version
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        if git rev-parse v${{ steps.get_version.outputs.semver }} >/dev/null 2>&1; then
+          echo "Tag v${{ steps.get_version.outputs.semver }} already exists"
+        else
+          git tag v${{ steps.get_version.outputs.semver }}
+          git push --tags
+        fi
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: v${{ steps.get_version.outputs.version }}
+        tag_name: v${{ steps.get_version.outputs.semver }}
         name: maplumi-pbi v${{ steps.get_version.outputs.version }}
         body: |
           🎨 **Maplumi Power BI Visual Release**
-          
-          **Version:** ${{ steps.get_version.outputs.version }}
+
+          **Version:** ${{ steps.get_version.outputs.version }} (semantic v${{ steps.get_version.outputs.semver }})
           **Build:** ${{ github.run_number }}
           **Commit:** ${{ github.sha }}
-          
+
           ### 📦 Package Details
           - **Visual Name:** Maplumi Power BI Visual
           - **File:** ${{ steps.get_filename.outputs.filename }}
           - **Type:** Power BI Custom Visual (.pbiviz)
-          
+
           ### 🚀 Installation
           1. Download the `.pbiviz` file below
           2. Import into Power BI Desktop
           3. Add to your reports and dashboards
-          
+
           ### 📋 What's New
-          See commit history for detailed changes.
+          See commit history for detailed changes (semantic version change detected).
         files: |
           ${{ steps.get_filename.outputs.filepath }}
         draft: false

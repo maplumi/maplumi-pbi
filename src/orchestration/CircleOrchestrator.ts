@@ -6,7 +6,7 @@ import { DomIds } from "../constants/strings";
 import Map from "ol/Map";
 import { VisualConfig } from "../config/VisualConfig";
 import { ChoroplethDataService } from "../services/ChoroplethDataService";
-import { LegendService } from "../services/LegendService";
+import { LegendService, CircleMeasureLegendEntry } from "../services/LegendService";
 import { CircleLayer } from "../layers/circleLayer";
 import { CircleCanvasLayer } from "../layers/canvas/circleCanvasLayer";
 import { CircleData, CircleLayerOptions, CircleOptions, MapToolsOptions } from "../types";
@@ -79,7 +79,10 @@ export class CircleOrchestrator extends BaseOrchestrator {
         group1.selectAll("*").remove();
         group2.selectAll("*").remove();
 
-    this.legendService.getCircleLegendContainer()?.setAttribute("style", "display:flex");
+        const circleLegendContainer = this.legendService.getCircleLegendContainer();
+        if (circleLegendContainer) {
+            circleLegendContainer.style.display = "flex";
+        }
 
         const parsed = parseCircleCategorical(categorical);
         if (!parsed.hasLon || !parsed.hasLat) {
@@ -117,6 +120,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
 
         this.renderCircleLayerOnMap(layerOptions, mapToolsOptions, choroplethDisplayed);
 
+        const circleMeasureLegendEntries = this.buildCircleMeasureLegendEntries(circleSizeValuesObjects, circleOptions);
+
         if (circleOptions.showLegend) {
             this.renderCircleLegend(
                 combinedCircleSizeValues,
@@ -125,7 +130,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
                 maxCircleSizeValue,
                 circleScale,
                 selectedScalingMethod,
-                circleOptions
+                circleOptions,
+                circleMeasureLegendEntries
             );
         } else {
             this.legendService.hideLegend("circle");
@@ -218,7 +224,8 @@ export class CircleOrchestrator extends BaseOrchestrator {
         maxCircleSizeValue: number,
         circleScale: number,
         selectedScalingMethod: string,
-        circleOptions: CircleOptions
+        circleOptions: CircleOptions,
+        circleMeasureLegendEntries?: CircleMeasureLegendEntry[]
     ): void {
         const validDataValues = combinedCircleSizeValues.filter(v => !isNaN(v) && isFinite(v));
         if (validDataValues.length === 0) return;
@@ -262,10 +269,44 @@ export class CircleOrchestrator extends BaseOrchestrator {
             finalValues,
             finalRadii,
             numberofCircleCategories,
-            circleOptions
+            circleOptions,
+            undefined,
+            undefined,
+            circleMeasureLegendEntries
         );
 
         this.legendService.showLegend("circle");
+    }
+
+    private buildCircleMeasureLegendEntries(
+        circleSizeValuesObjects: any[],
+        circleOptions: CircleOptions
+    ): CircleMeasureLegendEntry[] {
+        if (!Array.isArray(circleSizeValuesObjects) || circleSizeValuesObjects.length !== 2) {
+            return [];
+        }
+
+        const createEntry = (obj: any, color: string, opacity: number | undefined): CircleMeasureLegendEntry | undefined => {
+            if (!obj) {
+                return undefined;
+            }
+
+            const name = obj?.source?.displayName || obj?.source?.queryName;
+            if (!name) {
+                return undefined;
+            }
+
+            return {
+                name,
+                color: color,
+                opacity,
+            };
+        };
+
+        const first = createEntry(circleSizeValuesObjects[0], circleOptions.color1, circleOptions.layer1Opacity);
+        const second = createEntry(circleSizeValuesObjects[1], circleOptions.color2, circleOptions.layer2Opacity);
+
+        return [first, second].filter((entry): entry is CircleMeasureLegendEntry => !!entry);
     }
 
     // findClosestValue moved to src/math/circles.ts
