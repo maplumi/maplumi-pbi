@@ -7,7 +7,7 @@
 
 import { parseVersion, formatVersion, readProjectVersions, writeProjectVersions, ensureGitClean } from './version-utils';
 
-type VersionType = 'major' | 'minor' | 'patch' | 'build';
+type VersionType = 'major' | 'minor' | 'patch' | 'build' | 'revision';
 
 interface PackageJson {
     version: string;
@@ -28,7 +28,7 @@ function incrementVersion(type: VersionType = 'build'): void {
         const { packageJson, pbivizJson, packagePath, pbivizPath } = readProjectVersions();
         const current = parseVersion(packageJson.version);
 
-        const semantic = ['major','minor','patch'];
+    const semantic = ['major','minor','patch'];
         if (semantic.includes(type.toLowerCase())) {
             ensureGitClean();
         }
@@ -45,6 +45,7 @@ function incrementVersion(type: VersionType = 'build'): void {
                 next = { ...next, patch: next.patch + 1, build: 0 };
                 break;
             case 'build':
+            case 'revision': // alias for build increment
             default:
                 next = { ...next, build: next.build + 1 };
                 break;
@@ -63,7 +64,8 @@ function incrementVersion(type: VersionType = 'build'): void {
 }
 
 // Get increment type from command line argument
-const incrementType = (process.argv[2] as VersionType) || 'build';
+const argType = (process.argv[2] as VersionType) || 'build';
+const incrementType = (argType === 'revision') ? 'build' : argType;
 
 // Run if called directly
 if (require.main === module) {
