@@ -304,7 +304,7 @@ export class MaplumiVisual implements IVisual {
             }
 
             // Zoom control + legend styling
-            this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
+            this.mapService.setZoomControlVisible(Boolean(this.mapToolsOptions.showZoomControl));
             this.updateLegendContainer();
 
             // Color ramp + data service (safe)

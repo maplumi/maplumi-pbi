@@ -19,7 +19,7 @@ export class MapToolsOrchestrator {
     this.mapToolsOptions = options;
 
     // Toggle zoom control
-    this.mapService.setZoomControlVisible(this.mapToolsOptions.showZoomControl);
+  this.mapService.setZoomControlVisible(Boolean(this.mapToolsOptions.showZoomControl));
 
     if (this.mapToolsOptions.lockMapExtent) {
       if (!this.postRenderHandler) {
@@ -65,7 +65,6 @@ export class MapToolsOrchestrator {
         }
         this.mapService.lockExtent(lockedExtent, center, zoom);
         this.map.getView().fit(lockedExtent, VisualConfig.MAP.FIT_OPTIONS);
-        this.mapService.setZoomControlVisible(false);
       }
     } else {
       this.detach();
