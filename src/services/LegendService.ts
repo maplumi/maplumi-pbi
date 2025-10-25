@@ -658,15 +658,23 @@ export class LegendService {
             return [];
         }
 
+        // If only a single entry is provided, return a single legend entry
+        if (validData.length === 1) {
+            const sizeValue = roundOffLegendValues ? this.roundToNiceNumber(validData[0].size) : validData[0].size;
+            return this.sanitizeCircleLegendEntries([
+                { size: sizeValue, radius: validData[0].radius }
+            ]);
+        }
+
         // If we have exactly 3 values (min, mid, max), use them directly
         // This is the case when called from the updated renderCircleLegend method
         if (validData.length === 3) {
             const sortedData = [...validData].sort((a, b) => a.size - b.size);
-            let result = sortedData.map(item => ({
+            const result = sortedData.map(item => ({
                 size: roundOffLegendValues ? this.roundToNiceNumber(item.size) : item.size,
                 radius: item.radius
             }));
-            return result;
+            return this.sanitizeCircleLegendEntries(result);
         }
 
         // Legacy logic for when full data arrays are passed
@@ -679,13 +687,11 @@ export class LegendService {
         if (min.size === max.size) {
             if (roundOffLegendValues) {
                 const rounded = this.roundToNiceNumber(min.size);
-                return [
-                    { size: rounded, radius: min.radius },
-                    { size: rounded, radius: min.radius },
+                return this.sanitizeCircleLegendEntries([
                     { size: rounded, radius: min.radius }
-                ];
+                ]);
             } else {
-                return [min, min, min];
+                return this.sanitizeCircleLegendEntries([{ size: min.size, radius: min.radius }]);
             }
         }
 
@@ -727,11 +733,32 @@ export class LegendService {
             mediumSizeOut = this.roundToNiceNumber(mediumSize);
             maxSizeOut = this.roundToNiceNumber(max.size);
         }
-        return [
+        const entries = [
             { size: minSizeOut, radius: min.radius },
             { size: mediumSizeOut, radius: mediumRadius },
             { size: maxSizeOut, radius: max.radius }
         ];
+        return this.sanitizeCircleLegendEntries(entries);
+    }
+
+    private sanitizeCircleLegendEntries(entries: { size: number; radius: number }[]): { size: number; radius: number }[] {
+        if (!entries || entries.length === 0) {
+            return [];
+        }
+
+        const sorted = [...entries].sort((a, b) => a.size - b.size);
+        const seen = new Set<string>();
+        const unique: { size: number; radius: number }[] = [];
+
+        for (const item of sorted) {
+            const key = `${item.size}|${item.radius}`;
+            if (!seen.has(key)) {
+                unique.push(item);
+                seen.add(key);
+            }
+        }
+
+        return unique;
     }
 
     private createChoroplethLegendItem(

@@ -156,6 +156,39 @@ describe("LegendService (DOM + helpers)", () => {
 			measureSpy.mockRestore();
 		});
 
+			it("renders a single legend entry when all size values are identical", () => {
+				const measureSpy = jest
+					.spyOn(service as any, "measureTextWidthWithCanvas")
+					.mockReturnValue(30);
+
+				const sizeValues = [120, 120, 120];
+				const radii = [18, 18, 18];
+				const options: any = {
+					legendTitle: "Sizes",
+					legendTitleColor: "#000",
+					legendItemStrokeColor: "#000",
+					legendItemStrokeWidth: 1,
+					labelTextColor: "#000",
+					xPadding: 10,
+					yPadding: 5,
+					labelSpacing: 12,
+					minRadiusThreshold: 4,
+					color1: "#ff0000",
+					leaderLineColor: "#000",
+					leaderLineStrokeWidth: 1,
+					layer1Opacity: 1,
+				};
+
+				service.createProportionalCircleLegend(sizeValues, radii, 1, options);
+
+				const svg = service.getCircleLegendContainer()!.querySelector("svg") as SVGElement;
+				expect(svg).toBeTruthy();
+				expect(svg.querySelectorAll("circle")).toHaveLength(1);
+				expect(svg.querySelectorAll("text")).toHaveLength(1);
+
+				measureSpy.mockRestore();
+			});
+
 		it("spaces label anchors so they never overlap even when radii are close", () => {
 			const measureSpy = jest
 				.spyOn(service as any, "measureTextWidthWithCanvas")
