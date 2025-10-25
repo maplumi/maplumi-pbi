@@ -122,23 +122,20 @@ jobs:
       id: generate_changelog
       run: |
         # Find the previous semantic version tag (v*.*.*)
-        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | grep -v "v${{ steps.get_version.outputs.semver }}" | head -1)
+        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | head -1)
         
         if [ -z "$PREV_TAG" ]; then
-          echo "No previous semantic version tag found, using all commits"
-          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          echo "No previous semantic version tag found, using recent commits"
+          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges --max-count=50)
         else
           echo "Generating changelog from $PREV_TAG to HEAD"
           COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
         fi
         
-        # Save commits to a file to preserve multi-line content
-        echo "$COMMITS" > /tmp/changelog.txt
-        
-        # Also save to output using delimiter for multi-line
+        # Save to output using heredoc delimiter for multi-line content
         {
           echo 'changelog<<EOF'
-          cat /tmp/changelog.txt
+          echo "$COMMITS"
           echo EOF
         } >> $GITHUB_OUTPUT
 
