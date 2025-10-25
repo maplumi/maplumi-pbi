@@ -1287,6 +1287,13 @@ class mapToolsSettingsGroup extends formattingSettings.SimpleCard {
 
         this.lockedMapExtent.visible = false; // Always hidden
         this.lockedMapZoom.visible = false; // Always hidden
+
+        if (this.lockMapExtent.value) {
+            this.showZoomControl.visible = false;
+            this.showZoomControl.value = false;
+        } else {
+            this.showZoomControl.visible = true;
+        }
     }
 
 }

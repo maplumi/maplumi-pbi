@@ -19,7 +19,9 @@ export class MapToolsOrchestrator {
     this.mapToolsOptions = options;
 
     // Toggle zoom control
-  this.mapService.setZoomControlVisible(Boolean(this.mapToolsOptions.showZoomControl));
+    const zoomVisible = this.mapToolsOptions.lockMapExtent ? false : Boolean(this.mapToolsOptions.showZoomControl);
+    this.mapService.setZoomControlVisible(zoomVisible);
+    this.mapToolsOptions.showZoomControl = zoomVisible;
 
     if (this.mapToolsOptions.lockMapExtent) {
       if (!this.postRenderHandler) {

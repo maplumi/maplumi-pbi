@@ -310,9 +310,19 @@ export class LegendService {
         choroplethItemsContainer.appendChild(title); // Title is inside the items container
 
 
-        // Collect all labels and colors
-        let allLabels: string[] = [];
-        let colors: string[] = [];
+        // Collect legend entries and normalize colors
+        type LegendEntry = {
+            label: string;
+            color: string;
+            sortKeyNumber?: number;
+            sortKeyText?: string;
+            secondaryNumber?: number;
+        };
+
+        const legendEntries: LegendEntry[] = [];
+        const normalizedColorScale: string[] = Array.isArray(colorScale)
+            ? [...colorScale]
+            : Object.values(colorScale);
 
         const numericFormatter = this.buildValueFormatter(formatString, cultureSelector, colorValues);
 
@@ -353,32 +363,90 @@ export class LegendService {
         };
 
         if (options.classificationMethod === ClassificationMethods.Unique) {
-            // Unique value legend
-            // Use classBreaks (already sorted and capped) for both labels and color mapping
             const uniqueValues = classBreaks;
             const maxLegendItems = Math.min(options.classes || 7, 7);
-            const ramp = Array.isArray(colorScale) ? colorScale : Object.values(colorScale);
-            colors = [];
+            const colorPool = normalizedColorScale.slice(0, maxLegendItems);
+            while (colorPool.length < Math.min(uniqueValues.length, maxLegendItems)) {
+                colorPool.push("#000000");
+            }
+
             for (let i = 0; i < Math.min(uniqueValues.length, maxLegendItems); i++) {
-                colors.push(ramp[i] || "#000000");
+                const value = uniqueValues[i];
+                const entry: LegendEntry = {
+                    label: formatBreakValue(value),
+                    color: colorPool[i] || "#000000"
+                };
+                if (typeof value === "number" && Number.isFinite(value)) {
+                    entry.sortKeyNumber = value;
+                    entry.secondaryNumber = value;
+                } else if (value !== null && value !== undefined) {
+                    entry.sortKeyText = String(value).toLowerCase();
+                }
+                legendEntries.push(entry);
             }
-            while (colors.length < Math.min(uniqueValues.length, maxLegendItems)) {
-                colors.push("#000000");
-            }
-            allLabels = uniqueValues.slice(0, maxLegendItems).map(v => formatBreakValue(v));
         } else {
-            // Single-value collapse: if exactly two breaks and identical, show one swatch/label
             if (classBreaks.length === 2 && classBreaks[0] === classBreaks[1]) {
-                const label = formatBreakValue(classBreaks[0]);
-                allLabels.push(label);
-                colors = [colorScale[0]];
+                const value = classBreaks[0];
+                const entry: LegendEntry = {
+                    label: formatBreakValue(value),
+                    color: normalizedColorScale[0] || "#000000"
+                };
+                if (typeof value === "number" && Number.isFinite(value)) {
+                    entry.sortKeyNumber = value;
+                    entry.secondaryNumber = value;
+                } else if (value !== null && value !== undefined) {
+                    entry.sortKeyText = String(value).toLowerCase();
+                }
+                legendEntries.push(entry);
             } else {
                 for (let i = 0; i < classBreaks.length - 1; i++) {
-                    allLabels.push(`${formatBreakValue(classBreaks[i])} - ${formatBreakValue(classBreaks[i + 1])}`);
+                    const lower = classBreaks[i];
+                    const upper = classBreaks[i + 1];
+                    const entry: LegendEntry = {
+                        label: `${formatBreakValue(lower)} - ${formatBreakValue(classBreaks[i + 1])}`,
+                        color: normalizedColorScale[i] || "#000000"
+                    };
+                    if (typeof lower === "number" && Number.isFinite(lower)) {
+                        entry.sortKeyNumber = lower;
+                    } else if (lower !== null && lower !== undefined) {
+                        entry.sortKeyText = String(lower).toLowerCase();
+                    }
+                    if (typeof upper === "number" && Number.isFinite(upper)) {
+                        entry.secondaryNumber = upper;
+                    }
+                    legendEntries.push(entry);
                 }
-                colors = classBreaks.slice(0, -1).map((_, i) => colorScale[i]);
             }
         }
+
+        if (legendEntries.length === 0) {
+            return;
+        }
+
+        const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+        legendEntries.sort((a, b) => {
+            const aHasNumber = typeof a.sortKeyNumber === "number";
+            const bHasNumber = typeof b.sortKeyNumber === "number";
+
+            if (aHasNumber && bHasNumber) {
+                const diff = (a.sortKeyNumber as number) - (b.sortKeyNumber as number);
+                if (diff !== 0) {
+                    return diff;
+                }
+                if (typeof a.secondaryNumber === "number" && typeof b.secondaryNumber === "number") {
+                    return (a.secondaryNumber as number) - (b.secondaryNumber as number);
+                }
+                return 0;
+            }
+
+            if (aHasNumber !== bHasNumber) {
+                return aHasNumber ? -1 : 1;
+            }
+
+            const aText = (a.sortKeyText ?? a.label ?? "").toString();
+            const bText = (b.sortKeyText ?? b.label ?? "").toString();
+            return collator.compare(aText, bText);
+        });
 
         // Calculate max width when needed
         let maxWidth = 0;
@@ -397,8 +465,8 @@ export class LegendService {
             }
             document.body.appendChild(tempDiv);
 
-            allLabels.forEach(label => {
-                tempDiv.textContent = label;
+            legendEntries.forEach(entry => {
+                tempDiv.textContent = entry.label;
                 maxWidth = Math.max(maxWidth, tempDiv.offsetWidth);
             });
 
@@ -408,16 +476,16 @@ export class LegendService {
         // Create items container
         const itemsContainer = document.createElement("div");
         itemsContainer.style.display = "flex";
-    itemsContainer.style.flexDirection = options.legendOrientation === LegendOrientations.Vertical ? "column" : "row";
+        itemsContainer.style.flexDirection = options.legendOrientation === LegendOrientations.Vertical ? "column" : "row";
         itemsContainer.style.gap = `${options.legendItemMargin}px`;
         itemsContainer.style.alignItems = "flex-start";
 
         // Create legend items
-        colors.forEach((color, i) => {
+        legendEntries.forEach(entry => {
             const legendItem = this.createChoroplethLegendItem(
-                allLabels[i],
-                color,
-                options.layerOpacity.toString(),
+                entry.label,
+                entry.color,
+                (options.layerOpacity ?? 1).toString(),
                 options.legendLabelsColor,
                 options.legendLabelPosition,
                 options.legendOrientation,
@@ -664,7 +732,9 @@ export class LegendService {
             { size: mediumSizeOut, radius: mediumRadius },
             { size: maxSizeOut, radius: max.radius }
         ];
-    }    private createChoroplethLegendItem(
+    }
+
+    private createChoroplethLegendItem(
         labelText: string,
         color: string,
         opacity: string,
@@ -745,6 +815,8 @@ export class LegendService {
                 container.appendChild(label);
             }
         }
+
+        container.setAttribute("data-legend-label", labelText);
 
         return container;
     }

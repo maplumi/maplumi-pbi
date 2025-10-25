@@ -73,10 +73,13 @@ export class CacheService {
             this.evictOldest();
         }
 
+        const effectiveTtl = ttlMs ?? this.expiryMs;
+        const timestamp = Date.now();
+
         this.cache.set(key, {
             data,
-            timestamp: Date.now(),
-            expiresAt: Date.now() + (ttlMs ?? this.expiryMs)
+            timestamp,
+            expiresAt: timestamp + effectiveTtl
         });
     }
 
