@@ -125,7 +125,7 @@ jobs:
         # Note: This step runs before "Tag semantic version", so the current version tag may not exist yet
         # However, if the workflow is retried, the tag might exist, so we exclude it
         CURRENT_TAG="v${{ steps.get_version.outputs.semver }}"
-        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -1)
+        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | grep -F -v "${CURRENT_TAG}" | head -1 || true)
         
         if [ -z "$PREV_TAG" ]; then
           echo "No previous semantic version tag found, using recent commits"
