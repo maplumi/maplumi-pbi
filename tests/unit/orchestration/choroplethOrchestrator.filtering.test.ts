@@ -3,6 +3,7 @@ import { ChoroplethOrchestrator } from "../../../src/orchestration/ChoroplethOrc
 import { LegendService } from "../../../src/services/LegendService";
 import { ChoroplethDataService } from "../../../src/services/ChoroplethDataService";
 import { CacheService } from "../../../src/services/CacheService";
+import { ClassificationMethods } from "../../../src/constants/strings";
 
 function createStubSelection() {
   return { select: (_: string) => ({ selectAll: () => ({ remove: () => ({}) }) }) } as any;
@@ -60,5 +61,117 @@ describe('ChoroplethOrchestrator filtering', () => {
     expect(mockHost.displayWarningIcon).toHaveBeenCalled();
     expect((global as any).fetch).not.toHaveBeenCalled();
     (global as any).fetch = origFetch;
+  });
+});
+
+describe('ChoroplethOrchestrator unique classification palette handling', () => {
+  const palette = ["#c1", "#c2", "#c3", "#c4", "#c5", "#c6", "#c7"];
+
+  function buildCategorical(values: number[]) {
+    return {
+      categories: [
+        {
+          values: ["A", "B", "C", "D", "E"].slice(0, values.length),
+          source: { roles: { AdminPCodeNameID: true } },
+        },
+      ],
+      values: [
+        {
+          values,
+          source: { roles: { Color: true }, queryName: "measure" },
+        },
+      ],
+    };
+  }
+
+  function buildOptions(classes = 5): any {
+    return {
+      classificationMethod: ClassificationMethods.Unique,
+      classes,
+      showLegend: true,
+      layerOpacity: 1,
+      locationPcodeNameId: "GID",
+    };
+  }
+
+  function buildDataService() {
+    return {
+      getClassBreaks: jest.fn((vals: number[]) => vals),
+      getColorScale: jest.fn(() => palette.slice()),
+      extractTooltips: jest.fn((categorical: any) => (categorical.categories[0].values as any[]).map(() => [])),
+    } as any;
+  }
+
+  function prepareUniquePalette(
+    orchestrator: ChoroplethOrchestrator,
+    values: number[],
+    dataService: any,
+    classes = 5
+  ) {
+    const categorical: any = buildCategorical(values);
+    const options = buildOptions(classes);
+    const category = categorical.categories[0];
+    const colorMeasure = categorical.values[0];
+    const pCodes = category.values as string[];
+    return (orchestrator as any).prepareChoroplethData(
+      categorical,
+      options,
+      category,
+      colorMeasure,
+      pCodes,
+      dataService
+    );
+  }
+
+  it('reserves placeholder colors across initial numeric range', () => {
+    const orchestrator = makeOrchestrator();
+    const dataService = buildDataService();
+    const result = prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
+
+    expect(result.classBreaks).toEqual([3, 4, 5]);
+    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2]]);
+
+    const stableOrder = (orchestrator as any).categoricalStableOrder;
+    expect(stableOrder).toEqual([3, 4, 5, 6, 7]);
+
+    const colorMap: Map<number, string> = (orchestrator as any).categoricalColorMap;
+    expect(colorMap.get(3)).toBe(palette[0]);
+    expect(colorMap.get(4)).toBe(palette[1]);
+    expect(colorMap.get(5)).toBe(palette[2]);
+
+    const numericRange = (orchestrator as any).numericPlaceholderRange;
+    expect(numericRange).toEqual({ start: 3, slots: 5 });
+  });
+
+  it('reuses reserved color when a missing value appears inside the range', () => {
+    const orchestrator = makeOrchestrator();
+    const dataService = buildDataService();
+    prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
+    const result = prepareUniquePalette(orchestrator, [3, 4, 5, 6], dataService, 5);
+
+    expect(result.classBreaks).toEqual([3, 4, 5, 6]);
+    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2], palette[3]]);
+
+    const colorMap: Map<number, string> = (orchestrator as any).categoricalColorMap;
+    expect(colorMap.get(6)).toBe(palette[3]);
+
+    const numericRange = (orchestrator as any).numericPlaceholderRange;
+    expect(numericRange).toEqual({ start: 3, slots: 5 });
+  });
+
+  it('recomputes palette window when new values extend outside reserved range', () => {
+    const orchestrator = makeOrchestrator();
+    const dataService = buildDataService();
+    prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
+    const result = prepareUniquePalette(orchestrator, [2, 3, 4, 5, 6], dataService, 5);
+
+    expect(result.classBreaks).toEqual([2, 3, 4, 5, 6]);
+    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2], palette[3], palette[4]]);
+
+    const stableOrder = (orchestrator as any).categoricalStableOrder;
+    expect(stableOrder).toEqual([2, 3, 4, 5, 6]);
+
+    const numericRange = (orchestrator as any).numericPlaceholderRange;
+    expect(numericRange).toEqual({ start: 2, slots: 5 });
   });
 });

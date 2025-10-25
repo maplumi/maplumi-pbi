@@ -33,6 +33,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
     // Persistent categorical mapping (stable category->color across filtering) for Unique classification
     private categoricalColorMap: globalThis.Map<any, string> = new globalThis.Map();
     private categoricalStableOrder: any[] = []; // first 7 sorted categories (stable across filtering until measure/method change)
+    private numericPlaceholderRange: { start: number; slots: number } | undefined;
     private lastClassificationMethod: string | undefined;
     private lastMeasureQueryName: string | undefined;
 
@@ -167,49 +168,30 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
                 const measureChanged = measureQuery && measureQuery !== this.lastMeasureQueryName;
 
                 const currentUnique = Array.from(new Set(colorValues.filter(v => v !== null && v !== undefined && !Number.isNaN(v))));
-                const allNumeric = currentUnique.every(v => typeof v === 'number');
+                const allNumeric = currentUnique.every(v => typeof v === "number");
                 const sortedCurrent = allNumeric
                     ? [...currentUnique].sort((a, b) => (a as number) - (b as number))
-                    : [...currentUnique].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+                    : [...currentUnique].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base" }));
 
-                const basePalette = Array.isArray(colorScale) ? colorScale.slice(0, 7) : (Object.values(colorScale) as string[]).slice(0, 7);
+                const requestedClasses = choroplethOptions.classes && choroplethOptions.classes > 0
+                    ? choroplethOptions.classes
+                    : sortedCurrent.length;
+                const maxLegendItems = Math.min(requestedClasses || sortedCurrent.length || 0, 7);
+                const basePalette = this.ensurePaletteArray(colorScale, maxLegendItems);
 
-                if (enteringUnique || measureChanged || this.categoricalStableOrder.length === 0) {
-                    // Initialize stable palette from sortedCurrent
-                    this.categoricalColorMap.clear();
-                    this.categoricalStableOrder = [];
-                    for (const cat of sortedCurrent) {
-                        if (this.categoricalStableOrder.length < 7) {
-                            this.categoricalStableOrder.push(cat);
-                            this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
-                        } else {
-                            this.categoricalColorMap.set(cat, '#000000');
-                        }
-                    }
+                if (maxLegendItems === 0) {
+                    this.clearUniqueState();
+                } else if (allNumeric) {
+                    this.applyNumericUniquePalette(sortedCurrent as number[], basePalette, maxLegendItems, enteringUnique || measureChanged);
                 } else {
-                    // Append any new categories (preserve existing color assignments)
-                    for (const cat of sortedCurrent) {
-                        if (!this.categoricalColorMap.has(cat)) {
-                            if (this.categoricalStableOrder.length < 7) {
-                                this.categoricalStableOrder.push(cat);
-                                this.categoricalColorMap.set(cat, basePalette[this.categoricalStableOrder.length - 1] || '#000000');
-                            } else {
-                                this.categoricalColorMap.set(cat, '#000000');
-                            }
-                        }
-                    }
+                    this.applyTextUniquePalette(sortedCurrent, basePalette, maxLegendItems, enteringUnique || measureChanged);
                 }
 
-                // Legend / breaks use only those stable categories that are present in current filter result
                 const presentStable = this.categoricalStableOrder.filter(c => currentUnique.includes(c));
                 classBreaks = presentStable;
-                colorScale = presentStable.map(c => this.categoricalColorMap.get(c) || '#000000');
+                colorScale = presentStable.map(c => this.categoricalColorMap.get(c) || "#000000");
                 (choroplethOptions as any)._stableUniqueCategories = classBreaks;
                 (choroplethOptions as any)._stableUniqueColors = colorScale;
-
-                if (this.categoricalColorMap.size > 7) {
-                    this.messages.tooManyUniqueValues();
-                }
             } catch (e) {
                 
                 this.categoricalColorMap.clear();
@@ -218,6 +200,7 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         } else if (this.lastClassificationMethod === ClassificationMethods.Unique) {
             this.categoricalColorMap.clear();
             this.categoricalStableOrder = [];
+            this.numericPlaceholderRange = undefined;
         }
 
         // Single-value numeric collapse: if non-categorical and only one distinct numeric value, force one color & two identical breaks
@@ -449,5 +432,157 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             const extent = anyLayer?.getFeaturesExtent?.();
             if (extent) this.map.getView().fit(extent, VisualConfig.MAP.FIT_OPTIONS);
         }
+    }
+
+    private ensurePaletteArray(colorScale: any, length: number): string[] {
+        const source = Array.isArray(colorScale)
+            ? (colorScale as string[])
+            : Object.values(colorScale ?? {}) as string[];
+        const result = source.slice(0, Math.max(length, 0));
+        while (result.length < length) {
+            result.push("#000000");
+        }
+        return result;
+    }
+
+    private clearUniqueState(): void {
+        this.categoricalColorMap.clear();
+        this.categoricalStableOrder = [];
+        this.numericPlaceholderRange = undefined;
+    }
+
+    private applyNumericUniquePalette(
+        values: number[],
+        palette: string[],
+        maxSlots: number,
+        forceRebuild: boolean
+    ): void {
+        if (values.length === 0) {
+            this.clearUniqueState();
+            return;
+        }
+
+        const start = this.computeNumericRangeStart(values, maxSlots, forceRebuild);
+        const needsRebuild = forceRebuild
+            || !this.numericPlaceholderRange
+            || this.numericPlaceholderRange.start !== start
+            || this.numericPlaceholderRange.slots !== maxSlots;
+
+        if (needsRebuild) {
+            this.initializeNumericPlaceholderRange(start, maxSlots, palette);
+        } else {
+            this.applyPaletteToNumericRange(palette);
+        }
+
+        const range = this.numericPlaceholderRange!;
+        values.forEach(value => {
+            if (value >= range.start && value < range.start + range.slots) {
+                const offset = value - range.start;
+                this.categoricalColorMap.set(value, palette[offset] || "#000000");
+            } else {
+                this.categoricalColorMap.set(value, "#000000");
+            }
+        });
+    }
+
+    private computeNumericRangeStart(values: number[], maxSlots: number, forceRebuild: boolean): number {
+        const newMin = values[0];
+        const newMax = values[values.length - 1];
+
+        if (maxSlots <= 0) {
+            return newMin;
+        }
+
+        const previous = this.numericPlaceholderRange;
+        if (!previous || forceRebuild) {
+            return this.clampNumericRangeStart(newMin, newMax, maxSlots, newMin);
+        }
+
+        let desiredStart = previous.start;
+        const previousEnd = previous.start + previous.slots - 1;
+
+        if (previous.slots !== maxSlots) {
+            desiredStart = previous.start;
+        }
+
+        if (newMin < previous.start) {
+            desiredStart = newMin;
+        } else if (newMax > previousEnd) {
+            desiredStart = newMax - maxSlots + 1;
+        }
+
+        return this.clampNumericRangeStart(newMin, newMax, maxSlots, desiredStart);
+    }
+
+    private clampNumericRangeStart(newMin: number, newMax: number, maxSlots: number, desiredStart: number): number {
+        if (maxSlots <= 0) {
+            return newMin;
+        }
+        const minPossible = newMin;
+        let maxPossible = newMax - maxSlots + 1;
+        if (maxPossible < minPossible) {
+            maxPossible = minPossible;
+        }
+
+        if (desiredStart < minPossible) {
+            return minPossible;
+        }
+        if (desiredStart > maxPossible) {
+            return maxPossible;
+        }
+        return desiredStart;
+    }
+
+    private initializeNumericPlaceholderRange(start: number, slots: number, palette: string[]): void {
+        this.numericPlaceholderRange = { start, slots };
+        this.categoricalColorMap.clear();
+        this.categoricalStableOrder = [];
+        for (let i = 0; i < slots; i++) {
+            const value = start + i;
+            this.categoricalStableOrder.push(value);
+            this.categoricalColorMap.set(value, palette[i] || "#000000");
+        }
+    }
+
+    private applyPaletteToNumericRange(palette: string[]): void {
+        if (!this.numericPlaceholderRange) {
+            return;
+        }
+        const { start, slots } = this.numericPlaceholderRange;
+        this.categoricalColorMap.clear();
+        this.categoricalStableOrder = [];
+        for (let i = 0; i < slots; i++) {
+            const value = start + i;
+            this.categoricalStableOrder.push(value);
+            this.categoricalColorMap.set(value, palette[i] || "#000000");
+        }
+    }
+
+    private applyTextUniquePalette(
+        sortedValues: any[],
+        palette: string[],
+        maxSlots: number,
+        forceReset: boolean
+    ): void {
+        if (forceReset) {
+            this.categoricalColorMap.clear();
+            this.categoricalStableOrder = [];
+        }
+
+        this.numericPlaceholderRange = undefined;
+
+        for (const value of sortedValues) {
+            if (!this.categoricalStableOrder.includes(value) && this.categoricalStableOrder.length < maxSlots) {
+                this.categoricalStableOrder.push(value);
+            }
+        }
+
+        if (this.categoricalStableOrder.length > maxSlots) {
+            this.categoricalStableOrder = this.categoricalStableOrder.slice(0, maxSlots);
+        }
+
+        this.categoricalStableOrder.forEach((value, index) => {
+            this.categoricalColorMap.set(value, palette[index] || "#000000");
+        });
     }
 }
