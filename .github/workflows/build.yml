@@ -122,10 +122,14 @@ jobs:
       id: generate_changelog
       run: |
         # Find the previous semantic version tag (v*.*.*)
-        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | head -1)
+        # Note: This step runs before "Tag semantic version", so the current version tag may not exist yet
+        # However, if the workflow is retried, the tag might exist, so we exclude it
+        CURRENT_TAG="v${{ steps.get_version.outputs.semver }}"
+        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -1)
         
         if [ -z "$PREV_TAG" ]; then
           echo "No previous semantic version tag found, using recent commits"
+          # Limit to 50 commits to avoid performance issues with large repositories
           COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges --max-count=50)
         else
           echo "Generating changelog from $PREV_TAG to HEAD"
