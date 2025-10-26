@@ -118,6 +118,31 @@ jobs:
         echo "filename=$FILENAME" >> $GITHUB_OUTPUT
         echo "filepath=$PBIVIZ_FILE" >> $GITHUB_OUTPUT
 
+    - name: Generate changelog from commits
+      id: generate_changelog
+      run: |
+        # Find the previous semantic version tag (v*.*.*)
+        # Note: This step runs before "Tag semantic version", so the current version tag may not exist yet
+        # However, if the workflow is retried, the tag might exist, so we exclude it
+        CURRENT_TAG="v${{ steps.get_version.outputs.semver }}"
+        PREV_TAG=$(git tag -l "v*.*.*" --sort=-v:refname | grep -F -v "${CURRENT_TAG}" | head -1 || true)
+        
+        if [ -z "$PREV_TAG" ]; then
+          echo "No previous semantic version tag found, using recent commits"
+          # Limit to 50 commits to avoid performance issues with large repositories
+          COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges --max-count=50)
+        else
+          echo "Generating changelog from $PREV_TAG to HEAD"
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        fi
+        
+        # Save to output using heredoc delimiter for multi-line content
+        {
+          echo 'changelog<<EOF'
+          echo "$COMMITS"
+          echo EOF
+        } >> $GITHUB_OUTPUT
+
     - name: Tag semantic version
       run: |
         git config user.name "github-actions[bot]"
@@ -154,7 +179,7 @@ jobs:
           3. Add to your reports and dashboards
 
           ### 📋 What's New
-          See commit history for detailed changes (semantic version change detected).
+          ${{ steps.generate_changelog.outputs.changelog }}
         files: |
           ${{ steps.get_filename.outputs.filepath }}
         draft: false
