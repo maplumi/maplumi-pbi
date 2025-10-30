@@ -494,8 +494,17 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
         }
 
         const previous = this.numericPlaceholderRange;
+        const ordinalLock = this.shouldPreferOrdinalBase(values, maxSlots) || (previous?.start === 1 && previous.slots === maxSlots);
+
         if (!previous || forceRebuild) {
+            if (ordinalLock) {
+                return 1;
+            }
             return this.clampNumericRangeStart(newMin, newMax, maxSlots, newMin);
+        }
+
+        if (ordinalLock) {
+            return 1;
         }
 
         let desiredStart = previous.start;
@@ -531,6 +540,19 @@ export class ChoroplethOrchestrator extends BaseOrchestrator {
             return maxPossible;
         }
         return desiredStart;
+    }
+
+    private shouldPreferOrdinalBase(values: number[], maxSlots: number): boolean {
+        if (maxSlots <= 0 || values.length === 0) {
+            return false;
+        }
+        const allIntegers = values.every(value => Number.isFinite(value) && Number.isInteger(value));
+        if (!allIntegers) {
+            return false;
+        }
+        const minValue = values[0];
+        const maxValue = values[values.length - 1];
+        return minValue >= 1 && maxValue <= maxSlots;
     }
 
     private initializeNumericPlaceholderRange(start: number, slots: number, palette: string[]): void {

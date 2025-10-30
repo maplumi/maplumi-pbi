@@ -329,26 +329,41 @@ export class ChoroplethDataService {
      * @returns Array of color strings representing the generated color scale
      */
     public getColorScale(classBreaks: any[], options: ChoroplethOptions): string[] {
-        
-        // For unique values, use the number of unique values as classes (max 7)
-    if (options.classificationMethod === ClassificationMethods.Unique) {
-            // Sort unique values and cap to 7 for color mapping
-            const unique = Array.from(new Set(classBreaks)).sort((a, b) => a - b);
-            const n = Math.min(options.classes || 7, 7);
-            // Only the top 7 unique values are mapped to colors
-            const mappedUniques = unique.slice(0, n);
-            let ramp = this.colorRampService.getColorRamp();
-            if (options.invertColorRamp === true) {
-                ramp = ramp.slice().reverse();
+
+        // For unique values, ensure color ramp aligns with requested class count (max 7)
+        if (options.classificationMethod === ClassificationMethods.Unique) {
+            const classesRequested = typeof options.classes === "number" && options.classes > 0 ? options.classes : classBreaks.length;
+            const maxClasses = Math.min(Math.max(classesRequested, 0), 7);
+
+            if (maxClasses === 0) {
+                return [];
             }
-            // Always use exactly 7 colors from the ramp, pad with black if needed
-            let colors = ramp.slice(0, 7);
-            while (colors.length < 7) {
+
+            const baseRamp = this.colorRampService.getColorRamp();
+            const ramp = options.invertColorRamp === true ? baseRamp.slice().reverse() : baseRamp.slice();
+            const usingCustomRamp = (options.colorRamp || "").toLowerCase() === "custom";
+
+            let colors = ramp.slice(0, maxClasses);
+
+            if (ramp.length !== maxClasses && usingCustomRamp) {
+                try {
+                    const provided = ramp.length;
+                    const title = "Custom color ramp mismatch";
+                    const pluralProvided = provided === 1 ? "color" : "colors";
+                    const pluralClasses = maxClasses === 1 ? "class" : "classes";
+                    const message = provided > maxClasses
+                        ? `maplumiWarning: Custom color ramp provides ${provided} ${pluralProvided} but ${maxClasses} ${pluralClasses} are configured. Extra colors will be ignored.`
+                        : `maplumiWarning: Custom color ramp provides ${provided} ${pluralProvided} but ${maxClasses} ${pluralClasses} are configured. Missing colors will use #000000.`;
+                    this.host.displayWarningIcon(title, message);
+                } catch {
+                    // ignore host warning errors
+                }
+            }
+
+            while (colors.length < maxClasses) {
                 colors.push("#000000");
             }
-            // Add black as the 8th color for overflow classes
-            colors.push("#000000");
-            
+
             return colors;
         }
         

@@ -50,8 +50,10 @@ describe('GeoBoundariesService', () => {
 		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'shapeName' })).toBe('shapeName');
 		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'shapeID' })).toBe('shapeID');
 		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'shapeGroup' })).toBe('shapeGroup');
+		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'hdx_pcode' })).toBe('hdx_pcode');
+		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'unknown_field' })).toBe('unknown_field');
 		// default fallback
-		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: 'unknown' })).toBe('shapeISO');
+		expect(GeoBoundariesService.getBoundaryFieldName({ ...baseOptions, sourceFieldID: '' })).toBe('shapeISO');
 	});
 
 	it('validates options and returns helpful messages', () => {

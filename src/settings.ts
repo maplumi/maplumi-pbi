@@ -891,7 +891,7 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             // Exclude shapeISO and shapeType from the selectable list as requested.
             // HDX fields are only shown for gbHumanitarian release type.
             const releaseNorm = String(release || '').toLowerCase();
-            const includeHdx = releaseNorm === 'gbhumanitarian' || releaseNorm === 'gbhumanitarian';
+            const includeHdx = releaseNorm === 'gbhumanitarian';
 
             const staticOrdered: string[] = [
                 'shapeName',
@@ -920,13 +920,27 @@ class choroplethLocationBoundarySettingsGroup extends formattingSettings.SimpleC
             }
 
             if (items.length > 0) {
-                // Debug-only: report the resolved URL and items we discovered. Do NOT overwrite
-                // the static items/value because that was requested to keep dropdown stable.
-                try {
-                } catch (e) {
-                    // ignore
+                const nextItems = items.map(item => ({ value: item.value, displayName: item.displayName ?? item.value }));
+                const currentValue = String(this.boundaryIdField.value?.value ?? "");
+                const hasCurrent = currentValue.length > 0 && nextItems.some(it => String(it.value) === currentValue);
+                const userSelected = this.boundaryIdUserSelected && hasCurrent;
+
+                this.boundaryIdField.items = nextItems as any;
+
+                let selection: { value: string; displayName: string } | null;
+                if (userSelected) {
+                    selection = nextItems.find(it => String(it.value) === currentValue) || null;
+                } else if (hasCurrent) {
+                    selection = nextItems.find(it => String(it.value) === currentValue) || null;
+                } else {
+                    selection = nextItems[0] || null;
+                    this.boundaryIdUserSelected = false;
                 }
-                // Intentionally do not change this.boundaryIdField.items or value here.
+
+                if (selection) {
+                    this.boundaryIdField.value = { ...selection };
+                    this.lastBoundaryIdValue = String(selection.value);
+                }
             }
 
         } catch (e) {

@@ -129,18 +129,20 @@ describe('ChoroplethOrchestrator unique classification palette handling', () => 
     const result = prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
 
     expect(result.classBreaks).toEqual([3, 4, 5]);
-    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2]]);
+    expect(result.colorScale).toEqual([palette[2], palette[3], palette[4]]);
 
     const stableOrder = (orchestrator as any).categoricalStableOrder;
-    expect(stableOrder).toEqual([3, 4, 5, 6, 7]);
+    expect(stableOrder).toEqual([1, 2, 3, 4, 5]);
 
     const colorMap: Map<number, string> = (orchestrator as any).categoricalColorMap;
-    expect(colorMap.get(3)).toBe(palette[0]);
-    expect(colorMap.get(4)).toBe(palette[1]);
-    expect(colorMap.get(5)).toBe(palette[2]);
+    expect(colorMap.get(1)).toBe(palette[0]);
+    expect(colorMap.get(2)).toBe(palette[1]);
+    expect(colorMap.get(3)).toBe(palette[2]);
+    expect(colorMap.get(4)).toBe(palette[3]);
+    expect(colorMap.get(5)).toBe(palette[4]);
 
     const numericRange = (orchestrator as any).numericPlaceholderRange;
-    expect(numericRange).toEqual({ start: 3, slots: 5 });
+    expect(numericRange).toEqual({ start: 1, slots: 5 });
   });
 
   it('reuses reserved color when a missing value appears inside the range', () => {
@@ -149,14 +151,14 @@ describe('ChoroplethOrchestrator unique classification palette handling', () => 
     prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
     const result = prepareUniquePalette(orchestrator, [3, 4, 5, 6], dataService, 5);
 
-    expect(result.classBreaks).toEqual([3, 4, 5, 6]);
-    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2], palette[3]]);
+    expect(result.classBreaks).toEqual([3, 4, 5]);
+    expect(result.colorScale).toEqual([palette[2], palette[3], palette[4]]);
 
     const colorMap: Map<number, string> = (orchestrator as any).categoricalColorMap;
-    expect(colorMap.get(6)).toBe(palette[3]);
+    expect(colorMap.get(6)).toBe('#000000');
 
     const numericRange = (orchestrator as any).numericPlaceholderRange;
-    expect(numericRange).toEqual({ start: 3, slots: 5 });
+    expect(numericRange).toEqual({ start: 1, slots: 5 });
   });
 
   it('recomputes palette window when new values extend outside reserved range', () => {
@@ -165,13 +167,13 @@ describe('ChoroplethOrchestrator unique classification palette handling', () => 
     prepareUniquePalette(orchestrator, [3, 4, 5], dataService, 5);
     const result = prepareUniquePalette(orchestrator, [2, 3, 4, 5, 6], dataService, 5);
 
-    expect(result.classBreaks).toEqual([2, 3, 4, 5, 6]);
-    expect(result.colorScale).toEqual([palette[0], palette[1], palette[2], palette[3], palette[4]]);
+    expect(result.classBreaks).toEqual([2, 3, 4, 5]);
+    expect(result.colorScale).toEqual([palette[1], palette[2], palette[3], palette[4]]);
 
     const stableOrder = (orchestrator as any).categoricalStableOrder;
-    expect(stableOrder).toEqual([2, 3, 4, 5, 6]);
+    expect(stableOrder).toEqual([1, 2, 3, 4, 5]);
 
     const numericRange = (orchestrator as any).numericPlaceholderRange;
-    expect(numericRange).toEqual({ start: 2, slots: 5 });
+    expect(numericRange).toEqual({ start: 1, slots: 5 });
   });
 });

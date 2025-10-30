@@ -4,7 +4,7 @@ import { ChoroplethDataService } from '../../../src/services/ChoroplethDataServi
 
 // Minimal stubs for constructor deps
 const dummyColorRampManager: any = {};
-const dummyHost: any = {};
+const dummyHost: any = { displayWarningIcon: jest.fn() };
 
 function fc(features: any[]) {
   return { type: 'FeatureCollection', features } as any;
