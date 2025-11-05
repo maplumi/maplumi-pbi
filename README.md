@@ -49,6 +49,11 @@ Notes
 
 3) Optionally set “TopoJSON Object Name” when your TopoJSON has multiple named objects (e.g., ADM1, boundaries). Leave blank to auto-detect.
 
+Geometry handling
+
+- FeatureCollection, Polygon, and MultiPolygon geometries render directly.
+- GeometryCollection is supported; polygonal members are merged into a single polygon/multipolygon per feature while point/line members are ignored for choropleth styling.
+
 Minimal mapping
 
 - Boundary field: shapeISO
