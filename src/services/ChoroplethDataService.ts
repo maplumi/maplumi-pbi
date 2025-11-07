@@ -1,4 +1,4 @@
-import { Feature, FeatureCollection, Geometry, GeometryCollection, MultiPolygon, Polygon } from "geojson";
+import { FeatureCollection } from "geojson";
 import * as ss from "simple-statistics";
 import * as chroma from "chroma-js";
 import * as topojson from 'topojson-client';
@@ -57,18 +57,6 @@ export class ChoroplethDataService {
         if (!geojson || geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
             throw new Error("Invalid GeoJSON: expected a FeatureCollection with a features array.");
         }
-
-        // Normalize geometry so we only retain polygonal features, flattening GeometryCollections and
-        // excluding point/line members that some authoring tools embed alongside polygons.
-        const normalizedFeatures: Feature[] = [];
-        for (const feature of geojson.features as Feature[]) {
-            const normalized = this.normalizePolygonFeature(feature);
-            if (normalized) {
-                normalizedFeatures.push(normalized);
-            }
-        }
-        geojson = { ...geojson, features: normalizedFeatures } as FeatureCollection;
-
 
         // Normalize validPCodes to strings trimmed for robust matching
         const normalizedValid = new Set(validPCodes.map(v => String(v).trim()));
@@ -527,68 +515,6 @@ export class ChoroplethDataService {
         }
         // Fallback: wrap empty collection if unexpected
         return { type: "FeatureCollection", features: [] } as FeatureCollection;
-    }
-
-    // Normalize a feature to ensure only polygonal geometry is retained. GeometryCollections are flattened and
-    // reduced to Polygon/MultiPolygon. Non-polygonal features (including GeometryCollections without polygonal
-    // members) are discarded.
-    private normalizePolygonFeature(feature: Feature): Feature | null {
-        if (!feature || typeof feature !== "object") {
-            return null;
-        }
-
-        const polygonGeometries: Array<Polygon | MultiPolygon> = [];
-        const collect = (geometry: Geometry | null | undefined): void => {
-            if (!geometry) {
-                return;
-            }
-            switch (geometry.type) {
-                case "Polygon":
-                    polygonGeometries.push(geometry);
-                    break;
-                case "MultiPolygon":
-                    polygonGeometries.push(geometry);
-                    break;
-                case "GeometryCollection": {
-                    const gc = geometry as GeometryCollection;
-                    if (Array.isArray(gc.geometries)) {
-                        for (const child of gc.geometries) {
-                            collect(child as Geometry);
-                        }
-                    }
-                    break;
-                }
-                default:
-                    // Ignore Point, MultiPoint, LineString, MultiLineString, etc.
-                    break;
-            }
-        };
-
-        collect(feature.geometry as Geometry);
-
-        if (polygonGeometries.length === 0) {
-            return null;
-        }
-
-        let normalizedGeometry: Polygon | MultiPolygon;
-        if (polygonGeometries.length === 1) {
-            normalizedGeometry = polygonGeometries[0];
-        } else {
-            const coordinates: MultiPolygon["coordinates"] = [];
-            for (const geom of polygonGeometries) {
-                if (geom.type === "Polygon") {
-                    coordinates.push(geom.coordinates);
-                } else {
-                    coordinates.push(...geom.coordinates);
-                }
-            }
-            normalizedGeometry = { type: "MultiPolygon", coordinates };
-        }
-
-        return {
-            ...feature,
-            geometry: normalizedGeometry
-        } as Feature;
     }
 
 }
