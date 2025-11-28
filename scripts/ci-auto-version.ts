@@ -71,6 +71,14 @@ function main() {
     try {
       const tagSemantic = process.env.TAG_SEMVER === '1' && !!bump;
       const semantic = newVersion.split('.').slice(0,3).join('.');
+      const targetBranch = process.env.TARGET_BRANCH || '';
+      
+      // Validate branch name to prevent command injection
+      // Only allow alphanumeric, hyphens, underscores, and forward slashes
+      if (targetBranch && !/^[a-zA-Z0-9_\-\/]+$/.test(targetBranch)) {
+        throw new Error(`Invalid branch name format: ${targetBranch}`);
+      }
+      
       execSync('git config user.name "github-actions[bot]"');
       execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"');
       execSync('git add package.json pbiviz.json');
@@ -78,7 +86,14 @@ function main() {
       if (tagSemantic) {
         try { execSync(`git tag v${semantic}`); } catch {}
       }
-      execSync('git push', { stdio: 'inherit' });
+      
+      // Push to target branch to handle detached HEAD state
+      if (targetBranch) {
+        execSync(`git push origin HEAD:${targetBranch}`, { stdio: 'inherit' });
+      } else {
+        execSync('git push', { stdio: 'inherit' });
+      }
+      
       if (tagSemantic) {
         try { execSync('git push --tags', { stdio: 'inherit' }); } catch {}
       }
